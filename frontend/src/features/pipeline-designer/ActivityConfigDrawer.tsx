@@ -15,7 +15,8 @@ import {
   Globe,
   Sliders,
   GitPullRequest,
-  Ban
+  Ban,
+  Trash2
 } from 'lucide-react';
 
 interface ConfigDrawerProps {
@@ -24,6 +25,7 @@ interface ConfigDrawerProps {
   allEdges: Edge[];
   onUpdateNode: (nodeId: string, updatedData: any) => void;
   onUpdateDependencyCondition: (edgeId: string, newCondition: string) => void;
+  onDeleteNode: (nodeId: string) => void;
   onClose: () => void;
 }
 
@@ -33,6 +35,7 @@ export const ActivityConfigDrawer: React.FC<ConfigDrawerProps> = ({
   allEdges,
   onUpdateNode,
   onUpdateDependencyCondition,
+  onDeleteNode,
   onClose
 }) => {
   const { connections } = useAppStore();
@@ -102,9 +105,18 @@ export const ActivityConfigDrawer: React.FC<ConfigDrawerProps> = ({
             <Settings2 className="h-4 w-4 text-brand-400" />
             <h3 className="text-sm font-semibold text-white">Activity Properties</h3>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-white">
-            <X className="h-4 w-4" />
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => onDeleteNode(id)}
+              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition"
+              title="Delete Activity"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+            <button onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
         </div>
 
         {/* Navigation Tabs (ADF Style) */}
@@ -559,10 +571,17 @@ export const ActivityConfigDrawer: React.FC<ConfigDrawerProps> = ({
         )}
       </div>
 
-      <div className="pt-3 border-t border-slate-800">
+      <div className="pt-3 border-t border-slate-800 flex items-center gap-2">
+        <button
+          onClick={() => onDeleteNode(id)}
+          className="flex-1 py-2 bg-rose-600/10 hover:bg-rose-600/20 text-rose-400 border border-rose-500/30 rounded text-xs font-semibold transition flex items-center justify-center gap-1.5"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+          <span>Delete Activity</span>
+        </button>
         <button
           onClick={onClose}
-          className="w-full py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded text-xs font-semibold transition"
+          className="flex-1 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded text-xs font-semibold transition"
         >
           Done
         </button>

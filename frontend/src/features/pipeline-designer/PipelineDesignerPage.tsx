@@ -24,7 +24,8 @@ import {
   CheckCircle, 
   ArrowLeft, 
   AlertTriangle,
-  RotateCcw
+  RotateCcw,
+  Trash2
 } from 'lucide-react';
 
 export const getConditionEdgeProperties = (condOrHandle: string) => {
@@ -73,6 +74,15 @@ export const PipelineDesignerPage: React.FC = () => {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
 
+  const handleDeleteNode = useCallback(
+    (nodeId: string) => {
+      setNodes((nds) => nds.filter((n) => n.id !== nodeId));
+      setEdges((eds) => eds.filter((e) => e.source !== nodeId && e.target !== nodeId));
+      setSelectedNode((curr: any) => (curr?.id === nodeId ? null : curr));
+    },
+    [setNodes, setEdges]
+  );
+
   // Load pipeline data
   useEffect(() => {
     if (!selectedPipelineId) return;
@@ -83,7 +93,14 @@ export const PipelineDesignerPage: React.FC = () => {
         const def = res.data.definition_json || {};
 
         if (def.nodes && def.nodes.length > 0) {
-          setNodes(def.nodes);
+          const loadedNodes = def.nodes.map((n: Node) => ({
+            ...n,
+            data: {
+              ...n.data,
+              onDelete: handleDeleteNode
+            }
+          }));
+          setNodes(loadedNodes);
           // Apply styled edges with condition colors
           const styledEdges = (def.edges || []).map((e: Edge) => {
             const condition = ((e.data as any)?.condition as string) || e.sourceHandle || 'Succeeded';
@@ -110,7 +127,8 @@ export const PipelineDesignerPage: React.FC = () => {
               activityType: act.type,
               state: act.state || 'Active',
               config: act.config || {},
-              retry_policy: act.retry_policy
+              retry_policy: act.retry_policy,
+              onDelete: handleDeleteNode
             }
           }));
 
@@ -148,7 +166,7 @@ export const PipelineDesignerPage: React.FC = () => {
       }
     };
     loadPipe();
-  }, [selectedPipelineId]);
+  }, [selectedPipelineId, handleDeleteNode]);
 
   const onConnect = useCallback(
     (params: Connection) => {
@@ -238,14 +256,15 @@ export const PipelineDesignerPage: React.FC = () => {
           retry_policy: {
             max_retries: 0,
             retry_interval_seconds: 2
-          }
+          },
+          onDelete: handleDeleteNode
         },
       };
 
       setNodes((nds) => nds.concat(newNode));
       setSelectedNode(newNode);
     },
-    [setNodes]
+    [setNodes, handleDeleteNode]
   );
 
   const handleNodeClick = (_: any, node: Node) => {
@@ -256,7 +275,13 @@ export const PipelineDesignerPage: React.FC = () => {
     setNodes((nds) =>
       nds.map((n) => {
         if (n.id === nodeId) {
-          const updated = { ...n, data: updatedData };
+          const updated = {
+            ...n,
+            data: {
+              ...updatedData,
+              onDelete: handleDeleteNode
+            }
+          };
           setSelectedNode(updated);
           return updated;
         }
@@ -311,11 +336,19 @@ export const PipelineDesignerPage: React.FC = () => {
       };
     });
 
+    const cleanNodes = nodes.map((n) => {
+      const { onDelete, ...cleanData } = (n.data || {}) as any;
+      return {
+        ...n,
+        data: cleanData
+      };
+    });
+
     return {
       parameters: pipeline?.definition_json?.parameters || {},
       variables: pipeline?.definition_json?.variables || { high_watermark: '1970-01-01 00:00:00' },
       activities,
-      nodes,
+      nodes: cleanNodes,
       edges
     };
   };
@@ -404,6 +437,17 @@ export const PipelineDesignerPage: React.FC = () => {
 
         {/* Action Controls */}
         <div className="flex items-center gap-2 text-xs">
+          {selectedNode && (
+            <button
+              onClick={() => handleDeleteNode(selectedNode.id)}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/30 transition font-medium"
+              title="Delete Selected Activity"
+            >
+              <Trash2 className="h-3.5 w-3.5 text-rose-400" />
+              <span>Delete Activity</span>
+            </button>
+          )}
+
           <button
             onClick={handleValidateDAG}
             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 transition font-medium border border-slate-700/60"
@@ -447,6 +491,8 @@ export const PipelineDesignerPage: React.FC = () => {
             onConnect={onConnect}
             onNodeClick={handleNodeClick}
             onEdgeClick={onEdgeClick}
+            onNodesDelete={(deleted) => deleted.forEach((n) => handleDeleteNode(n.id))}
+            deleteKeyCode={['Backspace', 'Delete']}
             nodeTypes={nodeTypes}
             fitView
           >
@@ -468,6 +514,7 @@ export const PipelineDesignerPage: React.FC = () => {
             allEdges={edges}
             onUpdateNode={handleUpdateNode}
             onUpdateDependencyCondition={handleUpdateDependencyCondition}
+            onDeleteNode={handleDeleteNode}
             onClose={() => setSelectedNode(null)}
           />
         )}

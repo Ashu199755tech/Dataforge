@@ -10,12 +10,12 @@ import {
   Clock, 
   GitFork, 
   Globe,
-  CheckCircle2,
-  AlertOctagon,
-  Ban
+  Ban,
+  Trash2,
+  X
 } from 'lucide-react';
 
-export const ActivityNode: React.FC<NodeProps> = ({ data, selected }) => {
+export const ActivityNode: React.FC<NodeProps> = ({ id, data, selected }) => {
   const activityData = data as {
     label: string;
     activityType: string;
@@ -26,6 +26,7 @@ export const ActivityNode: React.FC<NodeProps> = ({ data, selected }) => {
       max_retries: number;
       retry_interval_seconds: number;
     };
+    onDelete?: (id: string) => void;
   };
 
   const isDeactivated = activityData.state === 'Disabled';
@@ -59,8 +60,29 @@ export const ActivityNode: React.FC<NodeProps> = ({ data, selected }) => {
     return 'border-slate-700/80 hover:border-slate-500';
   };
 
+  const handleDelete = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (activityData.onDelete) {
+      activityData.onDelete(id);
+    }
+  };
+
   return (
-    <div className={`p-3.5 rounded-xl bg-slate-900/95 border ${getBorderColor()} min-w-[240px] max-w-[280px] shadow-lg transition duration-150 relative text-xs select-none backdrop-blur-sm`}>
+    <div className={`p-3.5 rounded-xl bg-slate-900/95 border ${getBorderColor()} min-w-[240px] max-w-[280px] shadow-lg transition duration-150 relative text-xs select-none backdrop-blur-sm group`}>
+      {/* Floating Action Pill on Selection */}
+      {selected && (
+        <div className="absolute -top-7 right-2 flex items-center gap-1 z-30">
+          <button
+            onClick={handleDelete}
+            className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-rose-600 hover:bg-rose-500 text-white font-semibold text-[10px] shadow-md transition"
+            title="Delete activity"
+          >
+            <Trash2 className="h-3 w-3" />
+            <span>Delete</span>
+          </button>
+        </div>
+      )}
+
       {/* Target input handle on Left */}
       <Handle
         type="target"
@@ -80,20 +102,31 @@ export const ActivityNode: React.FC<NodeProps> = ({ data, selected }) => {
             <div className="text-[10px] font-mono text-slate-500 uppercase tracking-wider font-semibold">
               {activityData.activityType}
             </div>
-            <div className="font-semibold text-slate-200 truncate max-w-[140px]">
+            <div className="font-semibold text-slate-200 truncate max-w-[130px]">
               {activityData.label}
             </div>
           </div>
         </div>
 
-        {isDeactivated ? (
-          <span className="px-1.5 py-0.5 rounded text-[9px] bg-slate-800 text-slate-400 border border-slate-700 flex items-center gap-1">
-            <Ban className="h-2.5 w-2.5 text-amber-400" />
-            <span>Disabled</span>
-          </span>
-        ) : (
-          <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" title="Active" />
-        )}
+        <div className="flex items-center gap-1.5">
+          {isDeactivated ? (
+            <span className="px-1.5 py-0.5 rounded text-[9px] bg-slate-800 text-slate-400 border border-slate-700 flex items-center gap-1">
+              <Ban className="h-2.5 w-2.5 text-amber-400" />
+              <span>Disabled</span>
+            </span>
+          ) : (
+            <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" title="Active" />
+          )}
+
+          {/* Direct Cross / Delete Button */}
+          <button
+            onClick={handleDelete}
+            className="p-1 rounded hover:bg-rose-500/20 text-slate-500 hover:text-rose-400 transition"
+            title="Delete Activity"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
       </div>
 
       {/* Node Body Details Preview */}
