@@ -51,16 +51,22 @@ backend/tests/test_scripting_and_compute.py::test_registry_contains_phase4_activ
 backend/tests/test_scripting_and_compute.py::test_python_script_execution_with_outputs PASSED [ 86%]
 backend/tests/test_scripting_and_compute.py::test_python_script_timeout_handling PASSED [ 88%]
 backend/tests/test_scripting_and_compute.py::test_python_script_syntax_or_runtime_error PASSED [ 91%]
-backend/tests/test_custom_activity_success PASSED [ 93%]
-backend/tests/test_custom_activity_failure_exit_code PASSED [ 95%]
-backend/tests/test_stored_procedure_postgresql PASSED [ 97%]
-backend/tests/test_databricks_execution_provider_flow PASSED [100%]
+backend/tests/test_scripting_and_compute.py::test_custom_activity_success PASSED [ 80%]
+backend/tests/test_scripting_and_compute.py::test_custom_activity_failure_exit_code PASSED [ 82%]
+backend/tests/test_scripting_and_compute.py::test_stored_procedure_postgresql PASSED [ 84%]
+backend/tests/test_scripting_and_compute.py::test_databricks_execution_provider_flow PASSED [ 86%]
+backend/tests/test_visual_dataflow_engine.py::test_registry_contains_dataflow_activity PASSED [ 88%]
+backend/tests/test_visual_dataflow_engine.py::test_dataflow_engine_linear_transformations PASSED [ 90%]
+backend/tests/test_visual_dataflow_engine.py::test_dataflow_engine_aggregate_and_union PASSED [ 92%]
+backend/tests/test_visual_dataflow_engine.py::test_dataflow_engine_inner_join PASSED [ 94%]
+backend/tests/test_visual_dataflow_engine.py::test_dataflow_engine_window_and_surrogate_key PASSED [ 96%]
+backend/tests/test_visual_dataflow_engine.py::test_execute_dataflow_activity_in_pipeline PASSED [100%]
 
-======================= 45 passed, 2 warnings in 17.66s ========================
+======================= 51 passed, 2 warnings in 17.48s ========================
 ```
 
-- **Total Tests Executed:** 45
-- **Passed:** 45 (100%)
+- **Total Tests Executed:** 51
+- **Passed:** 51 (100%)
 - **Failed:** 0 (0%)
 - **Regressions:** 0
 
@@ -68,7 +74,15 @@ backend/tests/test_databricks_execution_provider_flow PASSED [100%]
 
 ## 2. Live Database Verification History
 
-1. **Phase 5 File & API Integration Scenarios (`test_file_and_api_integration.py`):**
+1. **Phase 6 Visual Data Flow & Transformation Scenarios (`test_visual_dataflow_engine.py`):**
+   - `test_registry_contains_dataflow_activity`: Verified dynamic discovery of `ExecuteDataFlow` in `ActivityRegistry` with full configuration metadata.
+   - `test_dataflow_engine_linear_transformations`: Executed 5-node linear stream (`Source` -> `Filter` -> `DerivedColumn` -> `Select` -> `Sort` -> `Sink`) with Polars vectorization. Verified calculation `net_price = unit_price * 0.9` and row filtering under 12ms.
+   - `test_dataflow_engine_aggregate_and_union`: Verified multi-input stream unioning (`Union`) and group-by calculations (`Aggregate`) with sum, count, and average expressions.
+   - `test_dataflow_engine_inner_join`: Verified two-stream equi-join (`Join`) merging customers and orders on `customer_id`, returning joined columns with exact match count.
+   - `test_dataflow_engine_window_and_surrogate_key`: Verified window functions (row number ordered by column) and auto-incrementing integer surrogate keys (`SurrogateKey`) for data warehousing dimensions.
+   - `test_execute_dataflow_activity_in_pipeline`: Verified end-to-end execution of `ExecuteDataFlowActivity` invoking a complete Data Flow graph within a pipeline execution context, verifying output metrics (`rows_read`, `rows_written`, `duration_ms`).
+
+2. **Phase 5 File & API Integration Scenarios (`test_file_and_api_integration.py`):**
    - `test_web_activity_get_request`: Executed live HTTP GET request against FastAPI `/health` endpoint validating status 200, response body JSON parsing, and latency metrics.
    - `test_webhook_activity_callback_success`: Dispatched webhook trigger with injected `callBackUri` and successfully captured asynchronous multi-threaded callback payload with status 200.
    - `test_webhook_activity_timeout`: Verified strict timeout enforcement cleanly failing when no callback arrives within configured threshold.

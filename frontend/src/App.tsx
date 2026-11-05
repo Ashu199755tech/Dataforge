@@ -9,6 +9,7 @@ import { ConnectionsPage } from './pages/ConnectionsPage';
 import { TriggersPage } from './pages/TriggersPage';
 import { RunsMonitorPage } from './pages/RunsMonitorPage';
 import { DataQualityPage } from './pages/DataQualityPage';
+import { DataFlowsListPage } from './features/dataflow-designer/DataFlowsListPage';
 
 export const App: React.FC = () => {
   const { currentTab, fetchInitialData } = useAppStore();
@@ -25,6 +26,8 @@ export const App: React.FC = () => {
         return <PipelinesListPage />;
       case 'designer':
         return <PipelineDesignerPage />;
+      case 'dataflows':
+        return <DataFlowsListPage />;
       case 'connections':
         return <ConnectionsPage />;
       case 'triggers':

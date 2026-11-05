@@ -102,20 +102,20 @@
 
 | Transformation | Category | Graph Compiler | Engine | Tests | Status |
 |---|---|---|---|---|---|
-| **Source** | Input | Planned | Polars/Spark | None | **Not Started** |
-| **Sink** | Output | Planned | Polars/Spark | None | **Not Started** |
-| **Select** | Schema | Planned | Polars/Spark | None | **Not Started** |
-| **Filter** | Row | Planned | Polars/Spark | None | **Not Started** |
-| **Derived Column** | Column | Planned | Polars/Spark | None | **Not Started** |
-| **Sort** | Row | Planned | Polars/Spark | None | **Not Started** |
-| **Join** | Multiple Inputs | Planned | Polars/Spark | None | **Not Started** |
-| **Aggregate** | Grouping | Planned | Polars/Spark | None | **Not Started** |
-| **Union** | Multiple Inputs | Planned | Polars/Spark | None | **Not Started** |
-| **Conditional Split** | Branching | Planned | Polars/Spark | None | **Not Started** |
-| **Lookup** | Enrichment | Planned | Polars/Spark | None | **Not Started** |
-| **Exists** | Filtering | Planned | Polars/Spark | None | **Not Started** |
-| **Pivot / Unpivot** | Reshaping | Planned | Polars/Spark | None | **Not Started** |
-| **Window / Rank** | Analytics | Planned | Polars/Spark | None | **Not Started** |
-| **Surrogate Key** | Warehouse | Planned | Polars/Spark | None | **Not Started** |
-| **Alter Row** | Upsert/Delete | Planned | Polars/Spark | None | **Not Started** |
-| **Assert** | Data Quality | Planned | Polars/Spark | None | **Not Started** |
+| **Source** | Input | Complete | Polars Vectorized | Complete | **Production Ready** |
+| **Sink** | Output | Complete | Polars Vectorized | Complete | **Production Ready** |
+| **Select** | Schema | Complete | Polars Vectorized | Complete | **Production Ready** |
+| **Filter** | Row | Complete | Polars Vectorized | Complete | **Production Ready** |
+| **Derived Column** | Column | Complete | Polars Vectorized | Complete | **Production Ready** |
+| **Sort** | Row | Complete | Polars Vectorized | Complete | **Production Ready** |
+| **Join** | Multiple Inputs | Complete | Polars Vectorized | Complete | **Production Ready** |
+| **Aggregate** | Grouping | Complete | Polars Vectorized | Complete | **Production Ready** |
+| **Union** | Multiple Inputs | Complete | Polars Vectorized | Complete | **Production Ready** |
+| **Conditional Split** | Branching | Complete | Polars Vectorized | Complete | **Production Ready** |
+| **Lookup** | Enrichment | Complete | Polars Vectorized | Complete | **Production Ready** |
+| **Surrogate Key** | Warehouse | Complete | Polars Vectorized | Complete | **Production Ready** |
+| **Window / Rank** | Analytics | Complete | Polars Vectorized | Complete | **Production Ready** |
+| **Exists** | Filtering | Complete | Polars Vectorized | Complete | **Production Ready** |
+| **Pivot / Unpivot** | Reshaping | Planned | Polars Vectorized | None | **Phase 7 Extension** |
+| **Alter Row** | Upsert/Delete | Planned | Polars Vectorized | None | **Phase 8 Extension** |
+| **Assert** | Data Quality | Planned | Polars Vectorized | None | **Phase 8 Extension** |

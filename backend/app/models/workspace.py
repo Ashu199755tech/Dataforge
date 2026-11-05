@@ -28,3 +28,4 @@ class Project(Base):
     workspace = relationship("Workspace", back_populates="projects")
     connections = relationship("Connection", back_populates="project", cascade="all, delete-orphan")
     pipelines = relationship("Pipeline", back_populates="project", cascade="all, delete-orphan")
+    dataflows = relationship("DataFlow", back_populates="project", cascade="all, delete-orphan")

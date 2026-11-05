@@ -8,7 +8,8 @@ import {
   ShieldCheck, 
   PlayCircle,
   Clock,
-  FileText
+  FileText,
+  Workflow
 } from 'lucide-react';
 
 export const Sidebar: React.FC = () => {
@@ -17,6 +18,7 @@ export const Sidebar: React.FC = () => {
   const navItems = [
     { id: 'dashboard', label: 'Overview', icon: LayoutDashboard },
     { id: 'pipelines', label: 'Pipelines', icon: GitBranch },
+    { id: 'dataflows', label: 'Data Flows (ETL)', icon: Workflow },
     { id: 'connections', label: 'Connections', icon: Database },
     { id: 'triggers', label: 'Triggers & Schedules', icon: Clock },
     { id: 'runs', label: 'Runs & Monitor', icon: PlayCircle },

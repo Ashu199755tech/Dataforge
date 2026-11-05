@@ -28,6 +28,7 @@ from backend.app.activities.webhook import WebhookActivity
 from backend.app.activities.validation import ValidationActivity
 from backend.app.activities.file_operation import FileOperationActivity
 from backend.app.activities.archive import ArchiveActivity
+from backend.app.activities.data_flow import ExecuteDataFlowActivity
 
 
 def _register_builtin_activities():
@@ -818,6 +819,35 @@ def _register_builtin_activities():
         ),
         ArchiveActivity,
         aliases=["archive_activity", "unzip", "extract", "compress"]
+    )
+
+    # 28. Execute Data Flow
+    activity_registry.register(
+        ActivityMetadata(
+            activity_type="ExecuteDataFlow",
+            display_name="Data Flow",
+            category="Move & Transform",
+            description="Executes a visual mapping transformation graph with vectorized Polars and Spark compilation.",
+            version="1.0.0",
+            icon="Workflow",
+            config_schema={
+                "type": "object",
+                "required": [],
+                "properties": {
+                    "dataflow_id": {"type": "string"},
+                    "dataflow_name": {"type": "string"}
+                }
+            },
+            outputs=[
+                {"name": "total_rows_read", "type": "int"},
+                {"name": "total_rows_written", "type": "int"},
+                {"name": "duration_seconds", "type": "number"}
+            ],
+            supports_retry=True,
+            tags=["DataFlow", "ETL", "Transformation", "Mapping", "Vectorized"]
+        ),
+        ExecuteDataFlowActivity,
+        aliases=["execute_dataflow", "data_flow", "mapping_data_flow"]
     )
 
 

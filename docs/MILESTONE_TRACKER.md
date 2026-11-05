@@ -15,7 +15,7 @@
 | **Phase 3** | **Core Control Flow & Hierarchical Orchestration** | **Completed** | 29 Passed / 0 Failed | 52.8% | 2026-11-05 |
 | **Phase 4** | **Scripting, Isolated Workers & Compute** | **Completed** | 37 Passed / 0 Failed | 62.8% | 2026-11-05 |
 | **Phase 5** | **File & API Integration Activities** | **Completed** | 45 Passed / 0 Failed | 72.8% | 2026-11-05 |
-| **Phase 6** | **Visual Data Flow Designer & Operators** | Scheduled | Scheduled | +12.0% | Pending |
+| **Phase 6** | **Visual Data Flow Designer & Operators** | **Completed** | 51 Passed / 0 Failed | 84.8% | 2026-11-05 |
 | **Phase 7** | **Expression & Parameter Framework** | Scheduled | Scheduled | +5.0% | Pending |
 | **Phase 8** | **Enterprise Data Quality & Profiling** | Scheduled | Scheduled | +5.0% | Pending |
 | **Phase 9** | **Real-Time Monitoring & Observability** | Scheduled | Scheduled | +2.0% | Pending |
@@ -24,18 +24,17 @@
 
 ---
 
-## Current Sprint Focus: Phase 6 — Visual Data Flow Designer & Operators
-- **Objective:** Build dedicated visual data transformation graph designer (Canvas 2), data stream transformation nodes (Join, Aggregate, Union, Conditional Split, Derived Column, Window, Flatten, Pivot), and vectorized execution engine (Polars / PySpark).
-- **Key Deliverables Completed in Phase 5:**
-  - `backend/app/activities/web.py`: Enterprise `WebActivity` with dynamic expressions, auth headers, and status code verification.
-  - `backend/app/activities/webhook.py`: ADF-style asynchronous `WebhookActivity` with callback URL injection and listener.
-  - `backend/app/execution/callbacks.py` & `backend/app/api/callbacks.py`: High-concurrency callback state manager and REST listener (`POST /api/v1/callbacks/{callback_id}`).
-  - `backend/app/activities/validation.py`: Dataset existence, row count minimum, and size gate `ValidationActivity` with polling loops.
-  - `backend/app/activities/file_operation.py`: File system management (`copy`, `move`, `delete`, `rename`, `file_exists`) with recursive glob patterns.
-  - `backend/app/activities/archive.py`: Archive compression and decompression (`.zip`, `.tar.gz`) with source cleanup options.
-  - `backend/app/connectors/local_file.py`: Enhanced with high-performance Apache Parquet (`pyarrow`) and Microsoft Excel (`openpyxl`) read/write streaming.
-  - Full UI integration with Lucide icons, node cards, and config drawers in `ActivityConfigDrawer.tsx`.
-  - 8 new automated tests in `backend/tests/test_file_and_api_integration.py` (45 total tests passing).
-  - `backend/app/activities/pyspark_job.py`: Distributed PySpark application launcher with spark-submit and local fallback.
-  - Full UI integration with Monaco editor preview, Lucide icons, and activity inspector configuration panels in `ActivityConfigDrawer.tsx`.
-  - 8 new automated tests in `backend/tests/test_scripting_and_compute.py` (37 total tests passing).
+## Current Sprint Focus: Phase 7 — Expression & Parameter Framework
+- **Objective:** Build robust expression evaluation engine supporting ADF-syntax functions (`@activity()`, `@pipeline()`, `@concat()`, `@formatDateTime()`, `@addDays()`, `@item()`, `@coalesce()`), dynamic JSON path dereferencing, type-casting utilities, parameter binding across parent/child scopes, and expression autocompletion UI.
+- **Key Deliverables Completed in Phase 6:**
+  - `backend/app/models/dataflow.py`: `DataFlow` entity with JSON graph definitions (`nodes`, `edges`), versioning, and workspace foreign keys.
+  - `backend/app/dataflow/engine.py`: Vectorized `DataFlowEngine` powered by Apache Arrow & Polars (v2.1.0) implementing 13 transformation operators: `Source`, `Sink`, `Select`, `Filter`, `DerivedColumn`, `Sort`, `Aggregate`, `Join`, `Union`, `SurrogateKey`, `Window`, `ConditionalSplit`, and `Lookup`.
+  - `backend/app/activities/data_flow.py`: `ExecuteDataFlowActivity` registered in `ActivityRegistry` enabling Mapping Data Flows to run seamlessly inside pipeline orchestration graphs.
+  - `backend/app/api/dataflows.py`: Complete REST API router (`/api/v1/dataflows`) with CRUD, execution runner, and interactive stage-by-stage data preview (`GET /api/v1/dataflows/{id}/preview/{node_id}`).
+  - Frontend Visual Data Flow Designer:
+    - `DataFlowCanvas.tsx`: Interactive React Flow visual transformation designer with multi-handle stream connections and live status indicators.
+    - `DataFlowNode.tsx`: Multi-stream custom node component displaying incoming schemas, record counts, and primary/secondary input handles for joins.
+    - `DataFlowToolbox.tsx`: Categorized transformation operator toolbox (Inputs & Outputs, Schema & Row, Multiple Streams, Reshaping & Analytics, Data Quality).
+    - `DataFlowConfigDrawer.tsx`: Comprehensive transformation configuration drawer with live vectorized stage preview table.
+    - `DataFlowsListPage.tsx`: Data Flow asset management dashboard with cloning, execution, and direct navigation.
+  - 6 new automated tests in `backend/tests/test_visual_dataflow_engine.py` (51 total tests passing across all suites).
