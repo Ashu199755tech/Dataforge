@@ -25,6 +25,7 @@ from backend.app.api.alerts import router as alerts_router
 from backend.app.api.environments import router as environments_router
 from backend.app.api.secrets import router as secrets_router
 from backend.app.api.audit import router as audit_router
+from backend.app.api.scenarios import router as scenarios_router
 from backend.app.orchestration.scheduler import scheduler
 from backend.app.core.migrations import run_migrations
 from backend.app.orchestration.recovery import recover_orphaned_runs
@@ -118,6 +119,7 @@ app.include_router(alerts_router, prefix=settings.API_V1_STR)
 app.include_router(environments_router, prefix=settings.API_V1_STR)
 app.include_router(secrets_router, prefix=settings.API_V1_STR)
 app.include_router(audit_router, prefix=settings.API_V1_STR)
+app.include_router(scenarios_router, prefix=settings.API_V1_STR)
 
 
 @app.get("/health")
