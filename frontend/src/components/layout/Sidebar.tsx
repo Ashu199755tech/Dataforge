@@ -30,6 +30,7 @@ export const Sidebar: React.FC = () => {
     { id: 'lineage', label: 'Data Lineage & Impact', icon: Network },
     { id: 'deployments', label: 'Deployments & CI/CD', icon: Rocket },
     { id: 'runs', label: 'Runs & Monitor', icon: PlayCircle },
+    { id: 'observability', label: 'Observability & Metrics', icon: Activity },
     { id: 'dq', label: 'Data Quality', icon: ShieldCheck },
   ];
 

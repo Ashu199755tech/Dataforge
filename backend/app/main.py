@@ -1,11 +1,12 @@
 import os
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from contextlib import asynccontextmanager
+from sqlalchemy.orm import Session
 from backend.app.core.config import settings
-from backend.app.core.database import Base, engine, SessionLocal
+from backend.app.core.database import Base, engine, SessionLocal, get_db
 from backend.app.models.user import User
 from backend.app.models.workspace import Workspace, Project
 from backend.app.core.security import get_password_hash
@@ -31,6 +32,8 @@ from backend.app.api.datasets import router as datasets_router
 from backend.app.api.git import router as git_router
 from backend.app.api.deployments import router as deployments_router
 from backend.app.api.lineage import router as lineage_router
+from backend.app.api.observability import router as observability_router
+from backend.app.services.observability_service import ObservabilityService
 from backend.app.models.runtime import IntegrationRuntime
 from datetime import datetime, timezone
 from backend.app.orchestration.scheduler import scheduler
@@ -151,11 +154,18 @@ app.include_router(datasets_router, prefix=settings.API_V1_STR)
 app.include_router(git_router, prefix=settings.API_V1_STR)
 app.include_router(deployments_router, prefix=settings.API_V1_STR)
 app.include_router(lineage_router, prefix=settings.API_V1_STR)
+app.include_router(observability_router, prefix=settings.API_V1_STR)
 
 
 @app.get("/health")
 def health_check():
     return {"status": "healthy", "service": settings.PROJECT_NAME, "version": "1.0.0"}
+
+
+@app.get("/metrics")
+def prometheus_metrics(db: Session = Depends(get_db)):
+    """Standard Prometheus scraper root endpoint."""
+    return Response(content=ObservabilityService.export_prometheus_metrics(db), media_type="text/plain; version=0.0.4; charset=utf-8")
 
 
 # Mount static production frontend if built

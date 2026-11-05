@@ -14,6 +14,7 @@ import { RuntimesPage } from './pages/RuntimesPage';
 import { DatasetsPage } from './pages/DatasetsPage';
 import { DeploymentsPage } from './pages/DeploymentsPage';
 import { LineagePage } from './pages/LineagePage';
+import { ObservabilityPage } from './pages/ObservabilityPage';
 
 export const App: React.FC = () => {
   const { currentTab, fetchInitialData } = useAppStore();
@@ -46,6 +47,8 @@ export const App: React.FC = () => {
         return <DeploymentsPage />;
       case 'runs':
         return <RunsMonitorPage />;
+      case 'observability':
+        return <ObservabilityPage />;
       case 'dq':
         return <DataQualityPage />;
       default:

@@ -148,3 +148,22 @@ Executed on: 2026-11-05
 
 
 
+
+---
+
+## 9. Phase 6 Test Execution Results (Advanced Monitoring and Observability)
+
+Executed on: 2026-11-05
+
+- **Test Suite:** `backend/tests/test_advanced_monitoring.py`
+- **Result:** **7 passed in 2.91s**
+- **Test Details:**
+  1. `test_copy_data_performance_aggregation`: Verified Copy Data throughput calculation (MB/s), total bytes transferred with human-readable formatting, hourly performance trend aggregation, rejected rows counters, and recent transfer ledger records.
+  2. `test_runtime_fleet_health_telemetry`: Verified fleet-wide telemetry aggregation (CPU % utilization, total/used RAM bytes, active task slots vs concurrency ceiling, online/offline agent breakdown, and heartbeat status).
+  3. `test_failure_diagnostics_and_error_clustering`: Verified pattern extraction and clustering of failed executions into categories (`Network/Connection Timeout`, `Authentication & Access Denied`, `Resource Exhaustion / OOM`, `Schema Drift & Compatibility`), sample error summaries, occurrence counts, and automated remediation guidance.
+  4. `test_multichannel_alert_dispatch_and_cooldown_suppression`: Verified multi-channel dispatch adapters (Microsoft Teams MessageCards, Slack blocks, Email/SMTP, Webhooks), severity classification, deduplication and cooldown suppression windows, and runtime offline alert triggers.
+  5. `test_opentelemetry_distributed_trace_generation`: Verified W3C distributed trace generation (`trace_id` 32-hex, `span_id` 16-hex), root `SERVER` span representing pipeline execution, child `INTERNAL` spans representing activity executions, relative start offsets, durations, and OpenTelemetry semantic attributes.
+  6. `test_prometheus_metrics_export_endpoints`: Verified standard Prometheus text representation (`text/plain; version=0.0.4; charset=utf-8`) at root `/metrics` and `/api/v1/observability/metrics` with `# HELP` and `# TYPE` definitions for scrapers.
+  7. `test_observability_rest_api_endpoints`: Verified FastAPI endpoints (`GET /api/v1/observability/overview`, `GET /api/v1/observability/copy-performance`, `GET /api/v1/observability/fleet-health`, `GET /api/v1/observability/failure-diagnostics`, `GET /api/v1/observability/traces/{run_id}`).
+- **Full Regression Suite:** **276 passed, 3 skipped, 0 failed in 50.71s** (100% pass rate).
+- **Frontend Build Status:** **2,110 modules transformed, 0 errors** (`tsc && vite build`).

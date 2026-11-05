@@ -15,8 +15,10 @@ class AlertRule(Base):
     pipeline_id = Column(String(36), ForeignKey("pipelines.id", ondelete="CASCADE"), nullable=True)
     condition_type = Column(String(50), nullable=False)  # OnFailure, OnSuccess, DurationExceeded, SLAThreshold, DQScoreThreshold
     threshold_value = Column(Float, nullable=True)  # SLA duration in seconds or DQ score threshold (0.0 - 100.0)
-    action_type = Column(String(50), default="Log", nullable=False)  # Log, Webhook, Email, Slack
-    action_config = Column(JSON, default=dict, nullable=False)  # webhook_url, recipients, channel, headers
+    action_type = Column(String(50), default="Log", nullable=False)  # Log, Webhook, Email, Slack, Teams
+    action_config = Column(JSON, default=dict, nullable=False)  # webhook_url, recipients, channel, headers, smtp_config
+    cooldown_minutes = Column(Integer, default=5, nullable=False)  # Cooldown suppression window
+    last_triggered_at = Column(DateTime, nullable=True)  # Deduplication tracking
     is_enabled = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)

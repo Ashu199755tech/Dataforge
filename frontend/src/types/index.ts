@@ -285,9 +285,123 @@ export interface AlertRule {
   threshold_value?: number;
   action_type: string;
   action_config: Record<string, any>;
+  cooldown_minutes?: number;
+  last_triggered_at?: string;
   is_enabled: boolean;
   created_at: string;
   updated_at: string;
+}
+
+export interface CopyDataTransferRecord {
+  activity_id: string;
+  activity_name: string;
+  pipeline_run_id: string;
+  pipeline_name: string;
+  rows_read: number;
+  rows_written: number;
+  rejected_rows: number;
+  bytes_transferred: number;
+  bytes_human: string;
+  duration_seconds: number;
+  throughput_mb_sec: number;
+  status: string;
+  ended_at: string | null;
+}
+
+export interface CopyDataPerformanceMetrics {
+  total_copy_activities: number;
+  total_rows_transferred: number;
+  total_bytes_transferred: number;
+  total_bytes_human: string;
+  average_throughput_mb_sec: number;
+  peak_throughput_mb_sec: number;
+  total_rejected_rows: number;
+  throughput_trend: Array<{
+    hour: string;
+    throughput_mb_sec: number;
+    bytes_transferred: number;
+    rows_transferred: number;
+  }>;
+  recent_transfers: CopyDataTransferRecord[];
+}
+
+export interface RuntimeAgentTelemetry {
+  id: string;
+  name: string;
+  runtime_type: string;
+  status: string;
+  cpu_cores: number;
+  cpu_usage_pct: number;
+  memory_total_bytes: number;
+  memory_used_bytes: number;
+  memory_usage_pct: number;
+  active_tasks: number;
+  concurrency_limit: number;
+  agent_version?: string;
+  agent_os?: string;
+  last_heartbeat_at?: string;
+}
+
+export interface RuntimeFleetOverview {
+  total_runtimes: number;
+  online_count: number;
+  offline_count: number;
+  fleet_cpu_usage_pct: number;
+  fleet_memory_usage_pct: number;
+  active_tasks: number;
+  total_concurrency_capacity: number;
+  runtimes: RuntimeAgentTelemetry[];
+}
+
+export interface ErrorCluster {
+  error_category: string;
+  occurrence_count: number;
+  first_seen_at?: string;
+  last_seen_at?: string;
+  sample_error: string;
+  affected_pipelines: string[];
+  affected_activities: string[];
+  suggested_remediation?: string;
+}
+
+export interface FailureDiagnosticsResponse {
+  period_days: number;
+  total_failures: number;
+  clusters: ErrorCluster[];
+}
+
+export interface OtelSpan {
+  trace_id: string;
+  span_id: string;
+  parent_span_id?: string | null;
+  name: string;
+  kind: string;
+  start_time_iso: string;
+  end_time_iso?: string | null;
+  duration_ms: number;
+  status_code: string;
+  status_message?: string | null;
+  attributes: Record<string, any>;
+  events: Array<Record<string, any>>;
+}
+
+export interface OtelTraceResponse {
+  trace_id: string;
+  pipeline_run_id: string;
+  pipeline_name: string;
+  status: string;
+  start_time: string;
+  end_time?: string | null;
+  duration_ms: number;
+  spans: OtelSpan[];
+}
+
+export interface ObservabilityOverview {
+  copy_performance: CopyDataPerformanceMetrics;
+  fleet_overview: RuntimeFleetOverview;
+  failure_diagnostics: FailureDiagnosticsResponse;
+  active_runs_count: number;
+  success_rate_24h_pct: number;
 }
 
 export interface AlertEvent {
