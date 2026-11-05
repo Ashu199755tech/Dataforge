@@ -44,18 +44,5 @@ class PipelineVersion(Base):
     pipeline = relationship("Pipeline", back_populates="versions")
 
 
-class Trigger(Base):
-    __tablename__ = "triggers"
-
-    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    pipeline_id = Column(String(36), ForeignKey("pipelines.id", ondelete="CASCADE"), nullable=False)
-    name = Column(String(100), nullable=False)
-    trigger_type = Column(String(50), default="cron", nullable=False)  # cron, manual, event
-    cron_expression = Column(String(100), nullable=True)
-    is_active = Column(Boolean, default=True, nullable=False)
-    parameters = Column(JSON, default=dict, nullable=False)
-    last_fired_at = Column(DateTime, nullable=True)
-    next_fire_time = Column(DateTime, nullable=True)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
-
-    pipeline = relationship("Pipeline", back_populates="triggers")
+# Import Trigger and TriggerRun from trigger model for modularity and backward compatibility
+from backend.app.models.trigger import Trigger, TriggerRun  # noqa: E402

@@ -27,14 +27,74 @@ export interface Connection {
 
 export interface Trigger {
   id: string;
-  pipeline_id: string;
+  pipeline_id?: string;
   name: string;
-  trigger_type: string;
+  description?: string;
+  trigger_type: 'manual' | 'schedule' | 'cron' | 'tumbling_window' | 'storage_event' | 'pipeline_dependency';
+  pipelines_to_run?: Array<{
+    pipeline_id: string;
+    pipeline_name?: string;
+    parameters?: Record<string, any>;
+  }>;
   cron_expression?: string;
+  schedule_config?: {
+    timezone?: string;
+    frequency?: string;
+    interval?: number;
+    start_time?: string;
+    end_time?: string;
+  };
+  tumbling_window_config?: {
+    frequency?: string;
+    interval?: number;
+    start_time?: string;
+    end_time?: string;
+    delay_minutes?: number;
+    max_concurrency?: number;
+    retry_count?: number;
+    retry_interval_seconds?: number;
+    depends_on_prior_window?: boolean;
+  };
+  storage_event_config?: {
+    connection_id?: string;
+    container?: string;
+    prefix?: string;
+    suffix?: string;
+    blob_path_regex?: string;
+    event_types?: string[];
+    ignore_empty_blobs?: boolean;
+  };
+  pipeline_dependency_config?: {
+    upstream_pipeline_id?: string;
+    upstream_pipeline_name?: string;
+    fire_on_status?: string[];
+    forward_parameters?: boolean;
+    timeout_minutes?: number;
+  };
+  window_state?: Record<string, any>;
   is_active: boolean;
   parameters: Record<string, any>;
   last_fired_at?: string;
   next_fire_time?: string;
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface TriggerRun {
+  id: string;
+  trigger_id: string;
+  run_status: string;
+  fired_at: string;
+  completed_at?: string;
+  duration_ms: number;
+  triggered_pipeline_runs: Array<{
+    pipeline_id: string;
+    pipeline_name?: string;
+    pipeline_run_id: string;
+    status: string;
+  }>;
+  event_payload: Record<string, any>;
+  error_message?: string;
   created_at: string;
 }
 

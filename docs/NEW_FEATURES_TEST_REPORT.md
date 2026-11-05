@@ -90,3 +90,23 @@ Executed on: 2026-11-05
 - **Full Regression Suite:** **250 passed, 3 skipped, 0 failed in 71.81s** (100% pass rate).
 - **Frontend Build Status:** **2,101 modules transformed, 0 errors** (`tsc && vite build`).
 
+---
+
+## 6. Phase 3 Test Execution Results (Advanced Trigger Management)
+
+Executed on: 2026-11-05
+
+- **Test Suite:** `backend/tests/test_advanced_triggers.py`
+- **Result:** **7 passed in 3.73s**
+- **Test Details:**
+  1. `test_schedule_trigger_with_timezone_and_bounds`: Verified timezone-aware recurrence computation (`America/New_York`), start_time and end_time boundaries, and automatic expiry after end_time elapses.
+  2. `test_tumbling_window_trigger_slicing_and_concurrency`: Verified tumbling window calculation (`[w_start, w_end]`), delay minutes handling, parameter injection (`@triggerBody().windowStartTime`, `@triggerBody().windowEndTime`), max concurrency ceiling, and state progression.
+  3. `test_storage_event_trigger_detection_and_deduplication`: Verified multi-cloud file arrival listener with prefix, suffix (`.csv`), and empty-file filtering, payload injection (`@triggerBody().fileName`, `@triggerBody().container`), and deduplication preventing redundant dispatches.
+  4. `test_pipeline_dependency_and_circular_prevention`: Verified pipeline dependency triggering on upstream completion (`Succeeded`), parameter forwarding, and DFS graph cycle detection rejecting circular dependencies (e.g., A $\to$ B $\to$ C $\to$ A) with an explanatory `ValueError`.
+  5. `test_multi_pipeline_trigger_dispatch`: Verified a single trigger targeting multiple pipelines in parallel with individual parameter overrides.
+  6. `test_trigger_rest_api_lifecycle`: Verified FastAPI endpoints (`GET /api/v1/triggers`, `POST /api/v1/triggers`, `GET /{id}`, `PUT /{id}`, `DELETE /{id}`, `POST /{id}/activate`, `POST /{id}/deactivate`, `POST /{id}/fire-now`, `GET /{id}/runs`, `GET /runs/all`).
+  7. `test_cycle_validation_endpoint`: Verified preflight cycle check API endpoint (`POST /api/v1/triggers/validate-dependency-cycle`).
+- **Full Regression Suite:** **257 passed, 3 skipped, 0 failed in 78.00s** (100% pass rate).
+- **Frontend Build Status:** **2,101 modules transformed, 0 errors** (`tsc && vite build`).
+
+

@@ -25,7 +25,8 @@ import {
   ArrowLeft, 
   AlertTriangle,
   RotateCcw,
-  Trash2
+  Trash2,
+  Clock
 } from 'lucide-react';
 
 export const getConditionEdgeProperties = (condOrHandle: string) => {
@@ -454,6 +455,15 @@ export const PipelineDesignerPage: React.FC = () => {
           >
             <CheckCircle className="h-3.5 w-3.5 text-brand-400" />
             <span>Validate DAG</span>
+          </button>
+
+          <button
+            onClick={() => setCurrentTab('triggers')}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 transition font-medium border border-slate-700/60"
+            title="Configure Schedule & Event Triggers for this Pipeline"
+          >
+            <Clock className="h-3.5 w-3.5 text-indigo-400" />
+            <span>Triggers</span>
           </button>
 
           <button

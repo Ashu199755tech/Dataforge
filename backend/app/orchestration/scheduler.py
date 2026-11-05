@@ -63,44 +63,10 @@ class TriggerScheduler:
     def check_and_fire_triggers(self):
         db: Session = SessionLocal()
         try:
-            now = datetime.now(timezone.utc)
-            # Find all active triggers that are due to fire
-            active_triggers = db.query(Trigger).filter(
-                Trigger.is_active == True,
-                Trigger.next_fire_time != None,
-                Trigger.next_fire_time <= now
-            ).all()
-
-            for trigger in active_triggers:
-                print(f"[INFO] Firing trigger '{trigger.name}' for pipeline '{trigger.pipeline_id}'")
-                
-                # Create pipeline run
-                run = PipelineRun(
-                    pipeline_id=trigger.pipeline_id,
-                    run_type=f"Trigger:{trigger.trigger_type}",
-                    status="Pending",
-                    parameters=trigger.parameters or {},
-                    started_at=datetime.now(timezone.utc)
-                )
-                db.add(run)
-                db.commit()
-                db.refresh(run)
-
-                # Update trigger next fire time
-                trigger.last_fired_at = now
-                if trigger.cron_expression:
-                    try:
-                        trigger.next_fire_time = self.calculate_next_fire(trigger.cron_expression, now)
-                    except Exception as ce:
-                        print(f"[WARN] Invalid cron in trigger {trigger.id}: {str(ce)}")
-                db.commit()
-
-                # Dispatch execution asynchronously
-                threading.Thread(
-                    target=lambda r_id: PipelineRunner(r_id).execute_sync(),
-                    args=(run.id,),
-                    daemon=True
-                ).start()
+            from backend.app.services.trigger_service import TriggerService
+            TriggerService.evaluate_all_active_triggers(db)
+        except Exception as e:
+            print(f"[ERROR] Scheduler error in evaluate_all_active_triggers: {str(e)}")
         finally:
             db.close()
 
