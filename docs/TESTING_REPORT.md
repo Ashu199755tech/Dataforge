@@ -10,13 +10,25 @@
 
 ```
 ============================= test session starts ==============================
-89 passed, 18 warnings in 21.31s
+99 passed, 18 warnings in 20.08s across 18 test suites
 ============================= 100% PASS RATE ===================================
 ```
 
 ---
 
 ## 2. Milestone Test Ledgers
+
+### Phase 11 End-to-End Multi-Engine Validation Scenarios (`test_end_to_end_validation.py`):
+1. `test_scenario_1_mysql_to_postgres_stream`: Verified full streaming ingestion transferring 30 rows from MySQL 8.0 to PostgreSQL 16 with column renaming, data type casting, and exact database record verification.
+2. `test_scenario_2_rest_api_json_flatten_to_postgres`: Verified API ingestion parsing complex nested JSON structures (`profile` object, `contacts` array), flattening into relational columns via `DataFlowEngine`, and persisting into PostgreSQL warehouse.
+3. `test_scenario_3_metadata_foreach_file_processing_archive`: Verified batch file lifecycle: `GetMetadataActivity` discovering child items, `ForEachActivity` iterating and verifying files, and `ArchiveActivity` packaging into a verified `.zip` archive.
+4. `test_scenario_4_lookup_if_condition_execute_pipeline`: Verified dynamic control flow: `LookupActivity` querying live PostgreSQL gate condition, `IfConditionActivity` evaluating `@greater(...)` expression, and triggering `ExecutePipelineActivity` running a child pipeline.
+5. `test_scenario_5_dataflow_join_aggregate_derived_sink`: Verified multi-stream Data Flow graph joining customer and transaction datasets on `cust_id`, grouping by `region`, calculating sum/count aggregates, deriving columns, and writing to PostgreSQL.
+6. `test_scenario_6_copy_dq_reconciliation_notification`: Verified enterprise data governance: copying 40 financial ledger rows, running 4 DQ validation rules (100% score), running `ReconciliationActivity` with zero variance (`MATCHED`), and dispatching webhook notification.
+7. `test_scenario_7_incremental_schema_validation_upsert`: Verified incremental loading: initial load (10 rows), source mutation (3 updated, 5 inserted), watermark discovery, schema validation, and merge/upsert into PostgreSQL warehouse resulting in exactly 15 rows with in-place updates.
+8. `test_scenario_8_parent_child_pipeline_return_value`: Verified subpipeline execution and return value bubbling: parent calls child pipeline with parameters, child computes metrics and emits `PipelineReturnValue`, and parent captures returned metric via `@activity(...).output.pipelineReturnValue` expressions.
+9. `test_e2e_retry_resilience_and_telemetry`: Verified activity retry resilience capturing attempt history, latency tracking per attempt, and eventual success.
+10. `test_e2e_failure_branch_handling_and_recovery`: Verified controlled failure handling: an intentional activity failure caught by an `On Failure` branch allowing pipeline to conclude safely with full error diagnostics and stack traces.
 
 ### Phase 10 Enterprise Hardening & Security Scenarios (`test_enterprise_hardening.py`):
 1. `test_secret_vault_encryption_masking_and_rotation`: Verified AES-256 Fernet encryption at rest, masked listings hiding secret values, internal decryption capability, and zero-downtime key rotation re-encrypting all secrets under a new primary key.

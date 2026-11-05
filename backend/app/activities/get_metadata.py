@@ -22,19 +22,47 @@ class GetMetadataActivity(BaseActivity):
         return get_connector(conn_record.connector_type, decrypted_config)
 
     def execute(self) -> ActivityExecutionResult:
+        import os
         config = self.context.config
+        path = config.get("path") or config.get("directory_path") or config.get("file_path")
         connection_id = config.get("connection_id")
         table_name = config.get("table_name")
         schema_name = config.get("schema_name")
         field_list = config.get("field_list", ["exists", "rowCount", "columnCount", "structure"])
 
-        if not connection_id or not table_name:
-            raise ValueError("Both 'connection_id' and 'table_name' are required for GetMetadataActivity.")
+        if path:
+            self.log("INFO", f"Inspecting file/directory metadata for '{path}'")
+            if not os.path.exists(path):
+                raw_meta = {"exists": False, "rowCount": 0, "columnCount": 0, "sizeInBytes": 0, "childItems": [], "structure": []}
+            elif os.path.isdir(path):
+                entries = sorted(os.listdir(path))
+                child_items = [{"name": e, "type": "Folder" if os.path.isdir(os.path.join(path, e)) else "File"} for e in entries]
+                size_total = sum(os.path.getsize(os.path.join(path, e)) for e in entries if os.path.isfile(os.path.join(path, e)))
+                raw_meta = {
+                    "exists": True,
+                    "rowCount": len(entries),
+                    "columnCount": 0,
+                    "sizeInBytes": size_total,
+                    "childItems": child_items,
+                    "structure": []
+                }
+            else:
+                raw_meta = {
+                    "exists": True,
+                    "rowCount": 0,
+                    "columnCount": 0,
+                    "sizeInBytes": os.path.getsize(path),
+                    "childItems": [],
+                    "structure": []
+                }
+        else:
+            if not connection_id or not table_name:
+                raise ValueError("Either 'path' or both 'connection_id' and 'table_name' are required for GetMetadataActivity.")
 
-        self.log("INFO", f"Inspecting metadata for '{table_name}' on connection '{connection_id}'")
+            self.log("INFO", f"Inspecting metadata for '{table_name}' on connection '{connection_id}'")
 
-        connector = self._resolve_connector(connection_id)
-        raw_meta = connector.get_metadata(object_name=table_name, schema_name=schema_name)
+            connector = self._resolve_connector(connection_id)
+            raw_meta = connector.get_metadata(object_name=table_name, schema_name=schema_name)
 
         output_vars: Dict[str, Any] = {}
         # Selectively expose requested metadata fields or all by default

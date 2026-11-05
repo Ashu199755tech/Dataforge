@@ -14,6 +14,7 @@ class ActivityExecutionContext(BaseModel):
     config: Dict[str, Any]
     pipeline_parameters: Dict[str, Any] = {}
     pipeline_variables: Dict[str, Any] = {}
+    activity_outputs: Dict[str, Any] = {}
 
     class Config:
         arbitrary_types_allowed = True

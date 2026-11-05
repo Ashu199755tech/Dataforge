@@ -76,7 +76,7 @@ class CopyDataActivity(BaseActivity):
         stream_gen = src_connector.read_data_stream(
             table_name=src_table,
             columns=source_cfg.get("columns"),
-            filter_expr=source_cfg.get("filter_expr"),
+            filter_expr=source_cfg.get("filter_expr") or source_cfg.get("filter_expression"),
             watermark_column=watermark_col,
             watermark_value=watermark_val,
             batch_size=batch_size,

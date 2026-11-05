@@ -119,3 +119,16 @@
   - **Centralized Audit Logging:** Implemented `backend/app/core/audit.py` recording structured events for all security, pipeline mutation, rollback, promotion, and secret actions into `audit_logs`.
   - **Hardened UI Views:** Implemented version history drawer with one-click rollback, environment promotion modal with JSON parameter overrides, declarative Git export button, and concurrency limit badges in `frontend/src/pages/PipelinesListPage.tsx`.
 
+---
+
+## ADR 014: End-to-End Multi-Engine Validation and Subpipeline Return Values
+- **Status:** Accepted (Implemented in Phase 11)
+- **Context:** Section 16 mandates exhaustive end-to-end acceptance scenarios integrating live relational databases (MySQL 8.0, PostgreSQL 16), filesystem manipulation, nested REST API ingestion, multi-stream mapping Data Flows, data quality gates, source-to-target reconciliation, incremental watermark upserts, parent/child pipeline returns, and failure/retry resilience.
+- **Decision:**
+  - **Pipeline Return Value Bubble-Up:** Implemented `PipelineReturnValueActivity` in `backend/app/activities/pipeline_return_value.py`. When a child pipeline executes this activity, its evaluated output variables are saved into `pipeline_run.execution_metrics["output_variables"]`. `ExecutePipelineActivity` extracts child output variables and exposes them to the parent calling context under `output.pipelineReturnValue` as well as direct variable keys.
+  - **Vectorized JSON Flattening & Parsing in Data Flows:** Added `_op_flatten`, `_op_parse`, and `_op_cast` operators to `DataFlowEngine`, allowing nested JSON strings or structs from REST APIs to be flattened into tabular columns and persisted into relational targets in a single pipeline run.
+  - **Filesystem Metadata Discovery:** Extended `GetMetadataActivity` to inspect local POSIX directories and files, exposing `childItems` with names and types (`Folder`/`File`), file count, and byte sizes, enabling dynamic batch iterations via `ForEachActivity`.
+  - **Dynamic Rule Alias Normalization:** Extended `DataQualityEngine` with a case-insensitive, punctuation-agnostic lookup map so all standard industry rule naming conventions (`mandatory`, `null_check`, `primary_key`, `range`, `schema_validation`) resolve cleanly to internal rule evaluators.
+  - **Full-Spectrum Verification:** Verified 10 acceptance scenarios in `backend/tests/test_end_to_end_validation.py` executing against live PostgreSQL port 5433 and MySQL port 3307 with 100% pass rate.
+
+

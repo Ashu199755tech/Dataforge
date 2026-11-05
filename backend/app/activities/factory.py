@@ -32,6 +32,7 @@ from backend.app.activities.validation import ValidationActivity
 from backend.app.activities.file_operation import FileOperationActivity
 from backend.app.activities.archive import ArchiveActivity
 from backend.app.activities.data_flow import ExecuteDataFlowActivity
+from backend.app.activities.pipeline_return_value import PipelineReturnValueActivity
 
 
 def _register_builtin_activities():
@@ -958,6 +959,33 @@ def _register_builtin_activities():
         DataMaskingActivity,
         aliases=["data_masking", "mask_pii", "anonymize"]
     )
+
+    # 32. Pipeline Return Value
+    activity_registry.register(
+        ActivityMetadata(
+            activity_type="PipelineReturnValue",
+            display_name="Pipeline Return Value",
+            category="Control Flow",
+            description="Returns structured values, flags, and compute metrics from a child pipeline back to parent callers.",
+            version="1.0.0",
+            icon="CornerDownLeft",
+            config_schema={
+                "type": "object",
+                "required": ["value"],
+                "properties": {
+                    "value": {"type": "object"}
+                }
+            },
+            outputs=[
+                {"name": "pipelineReturnValue", "type": "object"}
+            ],
+            supports_retry=False,
+            tags=["ControlFlow", "ReturnValue", "Output", "Subpipeline"]
+        ),
+        PipelineReturnValueActivity,
+        aliases=["pipeline_return_value", "return_value", "set_return_value"]
+    )
+
 
 
 # Perform registration upon module import

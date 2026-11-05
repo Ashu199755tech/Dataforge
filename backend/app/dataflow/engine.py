@@ -110,7 +110,12 @@ class DataFlowEngine:
         try:
             for node_id in exec_order:
                 node = nodes_by_id[node_id]
-                node_type = (node.get("data", {}).get("operatorType") or node.get("type") or "").strip()
+                node_type = (
+                    node.get("data", {}).get("operatorType")
+                    or node.get("data", {}).get("operator")
+                    or node.get("type")
+                    or ""
+                ).strip()
                 node_config = node.get("data", {}).get("config", {})
                 parent_edges = incoming_edges.get(node_id, [])
 
@@ -120,9 +125,9 @@ class DataFlowEngine:
                 if df_out is not None:
                     self.streams[node_id] = df_out
 
-                    if node_type == "Source":
+                    if node_type.lower() == "source":
                         total_rows_read += len(df_out)
-                    elif node_type == "Sink":
+                    elif node_type.lower() == "sink":
                         total_rows_written += len(df_out)
 
                     # Store preview metadata
@@ -230,6 +235,18 @@ class DataFlowEngine:
         # 13. LOOKUP
         elif op_lower == "lookup":
             return self._op_lookup(incoming_edges, config)
+
+        # 14. FLATTEN
+        elif op_lower in ("flatten", "unnest"):
+            return self._op_flatten(df_in, config)
+
+        # 15. PARSE
+        elif op_lower in ("parse", "parse_json"):
+            return self._op_parse(df_in, config)
+
+        # 16. CAST
+        elif op_lower == "cast":
+            return self._op_cast(df_in, config)
 
         else:
             # Pass-through if unrecognized operator
@@ -509,3 +526,72 @@ class DataFlowEngine:
             return primary_df.join(lookup_df, on=key, how="left")
 
         return primary_df or pl.DataFrame()
+
+    def _op_flatten(self, df: pl.DataFrame, config: Dict[str, Any]) -> pl.DataFrame:
+        import json
+        col_name = config.get("column")
+        prefix = config.get("prefix", "")
+        if not col_name or col_name not in df.columns:
+            return df
+
+        records = df.to_dicts()
+        new_records = []
+        for r in records:
+            val = r.get(col_name)
+            if isinstance(val, str):
+                try:
+                    val = json.loads(val)
+                except Exception:
+                    pass
+            base_row = {k: v for k, v in r.items() if k != col_name}
+            if isinstance(val, dict):
+                for k, v in val.items():
+                    base_row[f"{prefix}{k}"] = v
+                new_records.append(base_row)
+            elif isinstance(val, list):
+                if not val:
+                    new_records.append(base_row)
+                else:
+                    for item in val:
+                        row_copy = base_row.copy()
+                        if isinstance(item, dict):
+                            for k, v in item.items():
+                                row_copy[f"{prefix}{k}"] = v
+                        else:
+                            row_copy[f"{prefix}value"] = item
+                        new_records.append(row_copy)
+            else:
+                base_row[col_name] = val
+                new_records.append(base_row)
+
+        return pl.DataFrame(new_records) if new_records else df
+
+    def _op_parse(self, df: pl.DataFrame, config: Dict[str, Any]) -> pl.DataFrame:
+        import json
+        col_name = config.get("column")
+        target_col = config.get("target_column") or col_name
+        records = df.to_dicts()
+        for r in records:
+            if col_name in r and isinstance(r[col_name], str):
+                try:
+                    r[target_col] = json.loads(r[col_name])
+                except Exception:
+                    pass
+        return pl.DataFrame(records) if records else df
+
+    def _op_cast(self, df: pl.DataFrame, config: Dict[str, Any]) -> pl.DataFrame:
+        casts = config.get("columns", {})
+        out_df = df
+        for col, dtype in casts.items():
+            if col in out_df.columns:
+                dt_lower = str(dtype).lower()
+                if dt_lower in ("int", "integer", "bigint"):
+                    out_df = out_df.with_columns(pl.col(col).cast(pl.Int64, strict=False))
+                elif dt_lower in ("float", "numeric", "double"):
+                    out_df = out_df.with_columns(pl.col(col).cast(pl.Float64, strict=False))
+                elif dt_lower in ("str", "string", "text", "utf8"):
+                    out_df = out_df.with_columns(pl.col(col).cast(pl.Utf8, strict=False))
+                elif dt_lower in ("bool", "boolean"):
+                    out_df = out_df.with_columns(pl.col(col).cast(pl.Boolean, strict=False))
+        return out_df
+

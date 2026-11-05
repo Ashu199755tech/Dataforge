@@ -37,8 +37,38 @@ class DataQualityEngine:
         all_failed_indices = set()
         critical_failed = False
 
+        norm_map = {
+            "mandatory": "MandatoryFieldCheck",
+            "mandatoryfieldcheck": "MandatoryFieldCheck",
+            "nonblank": "NonBlankCheck",
+            "nonblankcheck": "NonBlankCheck",
+            "null": "NullValidation",
+            "nullcheck": "NullValidation",
+            "nullvalidation": "NullValidation",
+            "duplicate": "DuplicateCheck",
+            "duplicatecheck": "DuplicateCheck",
+            "primarykey": "PrimaryKeyUniqueness",
+            "primarykeyuniqueness": "PrimaryKeyUniqueness",
+            "referentialintegrity": "ReferentialIntegrity",
+            "range": "RangeValidation",
+            "rangevalidation": "RangeValidation",
+            "date": "DateValidation",
+            "datevalidation": "DateValidation",
+            "controlledlist": "ControlledListValidation",
+            "controlledlistvalidation": "ControlledListValidation",
+            "schemavalidation": "SchemaValidation",
+            "schemadrift": "SchemaDriftDetection",
+            "schemadriftdetection": "SchemaDriftDetection",
+            "rowcount": "RowCountValidation",
+            "rowcountvalidation": "RowCountValidation",
+            "pii": "PIIDetection",
+            "piidetection": "PIIDetection"
+        }
+
         for r_idx, rule in enumerate(rules):
-            rule_type = rule.get("rule_type", "").strip()
+            raw_rule_type = rule.get("rule_type", "").strip()
+            lookup_key = raw_rule_type.lower().replace("_", "").replace(" ", "")
+            rule_type = norm_map.get(lookup_key, raw_rule_type)
             column = rule.get("column")
             severity = rule.get("severity", "Error")  # Error or Warning
             threshold_pct = float(rule.get("threshold_percent", 100.0))

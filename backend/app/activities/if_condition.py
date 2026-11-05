@@ -18,7 +18,8 @@ class IfConditionActivity(BaseActivity):
 
         evaluator = ExpressionEvaluator(
             parameters=self.context.pipeline_parameters,
-            variables=self.context.pipeline_variables
+            variables=self.context.pipeline_variables,
+            activity_outputs=getattr(self.context, "activity_outputs", {})
         )
         evaluated_outcome = evaluator.evaluate(expression)
         condition_bool = bool(evaluated_outcome)

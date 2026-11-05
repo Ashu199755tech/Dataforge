@@ -72,16 +72,24 @@ class ExecutePipelineActivity(BaseActivity):
         )
 
         if child_run.status == "Succeeded":
+            child_metrics = child_run.execution_metrics or {}
+            child_output_vars = child_metrics.get("output_variables", {})
+            pipeline_return_val = child_output_vars.get("pipelineReturnValue", child_output_vars)
+
+            combined_outputs = {
+                "child_run_id": child_run.id,
+                "child_status": child_run.status,
+                "child_pipeline_name": child_pipeline.name,
+                "duration_seconds": child_run.duration_seconds or 0,
+                "pipelineReturnValue": pipeline_return_val,
+                **child_output_vars
+            }
+
             return ActivityExecutionResult(
                 status="Succeeded",
                 rows_read=child_run.total_rows_read or 0,
                 rows_written=child_run.total_rows_written or 0,
-                output_variables={
-                    "child_run_id": child_run.id,
-                    "child_status": child_run.status,
-                    "child_pipeline_name": child_pipeline.name,
-                    "duration_seconds": child_run.duration_seconds or 0
-                },
+                output_variables=combined_outputs,
                 metrics={
                     "child_rows_read": child_run.total_rows_read or 0,
                     "child_rows_written": child_run.total_rows_written or 0,

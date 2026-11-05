@@ -203,7 +203,8 @@ class PipelineRunner:
                                 activity_type=act_cfg.get("type", "CopyData"),
                                 config=resolved_config,
                                 pipeline_parameters=pipeline_run.parameters or {},
-                                pipeline_variables=pipeline_vars
+                                pipeline_variables=pipeline_vars,
+                                activity_outputs=activity_outputs
                             )
                             executor = get_activity_instance(context, db)
                             executor.activity_run_id = act_run.id
@@ -306,7 +307,9 @@ class PipelineRunner:
                 pipeline_run.status = "Succeeded"
 
             # Compute execution metrics summary
-            pipeline_run.execution_metrics = build_metrics_summary(pipeline_run)
+            metrics = build_metrics_summary(pipeline_run)
+            metrics["output_variables"] = pipeline_vars
+            pipeline_run.execution_metrics = metrics
             db.commit()
 
             # Trigger alert engine
