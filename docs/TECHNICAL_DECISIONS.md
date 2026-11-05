@@ -91,3 +91,15 @@
   - Computes composite DQ Scores (0-100%) and extracts isolated quarantine records for bad rows without stopping valid pipeline downstream ingestion unless threshold gates fail.
   - Integrated `DataProfilingActivity`, `ReconciliationActivity`, and `DataMaskingActivity` (redact, hash, partial mask) natively into `ActivityRegistry` and pipeline execution engine.
   - Persists historical rule executions and statistical summaries to PostgreSQL (`data_quality_results`, `data_profile_results`, `reconciliation_results`).
+
+---
+
+## ADR 012: Real-time Timeline Telemetry, Diagnostic Classification & Alert Engine
+- **Status:** Accepted (Implemented in Phase 9)
+- **Context:** ADF observability requires granular activity-level timelines, millisecond duration accounting, throughput metrics (rows/sec, MB/sec), automated error classification with stack trace preservation, retry attempt tracking, and automated SLA/quality alerts without proprietary cloud dependencies.
+- **Decision:** Implement native observability directly in the execution engine and metadata database:
+  - **Relational Telemetry Extensions:** Extended `pipeline_runs` with `total_bytes_processed`, `worker_info`, and `execution_metrics`; extended `activity_runs` with `worker_info`, `error_classification`, `error_stack_trace`, `retry_history`, and `output_variables`.
+  - **Diagnostic Error Classification:** Implemented rule-based classifier categorizing exceptions into 5 standard enterprise domains: `ConnectionError`, `TimeoutError`, `DataQualityError`, `UserError`, and `SystemError`.
+  - **Gantt Waterfall Telemetry:** `build_timeline()` computes start offsets and percentage bar widths relative to total execution span for interactive Gantt rendering in frontend.
+  - **Multi-Format Executive Reporting:** `generate_execution_report()` produces downloadable reports in JSON, RFC 4180 CSV, and human-readable structured ASCII TXT format.
+  - **Dynamic Alert Engine:** `AlertEngine` evaluates `AlertRule` conditions (`OnFailure`, `OnSuccess`, `DurationExceeded`, `DQScoreThreshold`) against finished execution runs and dispatches notifications via Webhook, Slack payloads, and system event logs.

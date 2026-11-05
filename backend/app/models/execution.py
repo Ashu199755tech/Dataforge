@@ -21,6 +21,9 @@ class PipelineRun(Base):
     failed_activities = Column(Integer, default=0, nullable=False)
     total_rows_read = Column(BigInteger, default=0, nullable=False)
     total_rows_written = Column(BigInteger, default=0, nullable=False)
+    total_bytes_processed = Column(BigInteger, default=0, nullable=False)
+    worker_info = Column(JSON, default=dict, nullable=False)  # host, pid, thread_id, runtime
+    execution_metrics = Column(JSON, default=dict, nullable=False)  # throughput, latencies, memory
     error_summary = Column(Text, nullable=True)
 
     pipeline = relationship("Pipeline", back_populates="runs")
@@ -44,7 +47,12 @@ class ActivityRun(Base):
     ended_at = Column(DateTime, nullable=True)
     duration_seconds = Column(Integer, default=0, nullable=False)
     metrics = Column(JSON, default=dict, nullable=False)
+    worker_info = Column(JSON, default=dict, nullable=False)  # host, pid, thread_id
+    error_classification = Column(String(50), nullable=True)  # UserError, SystemError, ConnectionError, TimeoutError, DataQualityError
     error_message = Column(Text, nullable=True)
+    error_stack_trace = Column(Text, nullable=True)
+    retry_history = Column(JSON, default=list, nullable=False)  # list of attempt records
+    output_variables = Column(JSON, default=dict, nullable=False)
 
     pipeline_run = relationship("PipelineRun", back_populates="activity_runs")
     logs = relationship("ExecutionLog", back_populates="activity_run", cascade="all, delete-orphan")

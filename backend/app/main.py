@@ -21,12 +21,14 @@ from backend.app.api.callbacks import router as callbacks_router
 from backend.app.api.dataflows import router as dataflows_router
 from backend.app.api.expressions import router as expressions_router
 from backend.app.api.data_quality import router as data_quality_router
+from backend.app.api.alerts import router as alerts_router
 from backend.app.orchestration.scheduler import scheduler
+from backend.app.core.migrations import run_migrations
 
 
 def seed_initial_metadata():
     """Seeds default admin user, default workspace, and default project if not existing."""
-    Base.metadata.create_all(bind=engine)
+    run_migrations()
     db = SessionLocal()
     try:
         admin_user = db.query(User).filter(User.email == "admin@dataflow.enterprise").first()
@@ -101,6 +103,7 @@ app.include_router(callbacks_router, prefix=settings.API_V1_STR)
 app.include_router(dataflows_router, prefix=settings.API_V1_STR)
 app.include_router(expressions_router, prefix=settings.API_V1_STR)
 app.include_router(data_quality_router, prefix=settings.API_V1_STR)
+app.include_router(alerts_router, prefix=settings.API_V1_STR)
 
 
 @app.get("/health")

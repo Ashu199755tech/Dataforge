@@ -10,19 +10,24 @@
 
 ```
 ============================= test session starts ==============================
-backend/tests/test_activity_registry.py::test_builtin_activities_registered PASSED [  3%]
-backend/tests/test_activity_registry.py::test_activity_alias_resolution PASSED [  6%]
-backend/tests/test_activity_registry.py::test_dynamic_plugin_registration PASSED [ 10%]
-backend/tests/test_activity_registry.py::test_config_schema_validation PASSED [ 13%]
-backend/tests/test_activity_registry.py::test_unknown_activity_raises_error PASSED [ 17%]
-backend/tests/test_adf_dependency_conditions.py::test_adf_four_dependency_conditions PASSED [ 20%]
-backend/tests/test_auth.py::test_password_hashing PASSED                 [ 24%]
-backend/tests/test_auth.py::test_token_creation PASSED                   [ 27%]
-backend/tests/test_auth.py::test_secret_encryption_and_masking PASSED    [ 31%]
-backend/tests/test_control_flow.py::test_set_variable_activity PASSED    [ 34%]
-backend/tests/test_control_flow.py::test_wait_activity PASSED            [ 37%]
-backend/tests/test_control_flow.py::test_if_condition_activity PASSED    [ 41%]
-backend/tests/test_control_flow.py::test_local_file_connector PASSED     [ 44%]
+81 passed, 14 warnings in 21.26s
+============================= 100% PASS RATE ===================================
+```
+
+---
+
+## 2. Milestone Test Ledgers
+
+### Phase 9 Monitoring & Observability Scenarios (`test_monitoring_and_observability.py`):
+1. `test_diagnostics_error_classification`: Verified standard domain classification classifying `OperationalError` as `ConnectionError`, `TimeoutError` as `TimeoutError`, assertion violations as `DataQualityError`, missing arguments as `UserError`, and unhandled runtime crashes as `SystemError`.
+2. `test_worker_telemetry_collection`: Verified worker telemetry capturing hostname, host IP, process ID (`pid`), execution thread ID, platform OS, and runtime process title.
+3. `test_pipeline_execution_with_telemetry_capture`: Executed multi-activity pipeline verifying activity runs automatically record worker info, millisecond durations, retry history attempt ledger, rows written, and metrics.
+4. `test_timeline_and_metrics_api`: Verified REST endpoints `/runs/{id}/timeline` and `/runs/{id}/metrics` computing start offsets, duration percentages, waterfall metrics, and 100% success rate calculation.
+5. `test_downloadable_execution_reports`: Verified multi-format downloadable reports across JSON, RFC 4180 CSV, and structured ASCII text formats derived completely from live execution records.
+6. `test_activity_diagnostics_endpoint`: Verified deep diagnostics endpoint `/runs/{id}/activities/{id}/diagnostics` exposing error classifications, stack traces, and attempt-by-attempt retry timing.
+7. `test_alert_rules_crud_and_events`: Verified full lifecycle of Alert Rules (creation, query, SLA duration thresholds, test alert trigger dispatching, event logging, and deletion).
+8. `test_alert_engine_evaluates_on_pipeline_failure`: Verified `AlertEngine` automatically evaluates matching rules upon pipeline completion and creates `Critical` alert events on failure.
+9. `test_pipeline_cancel_and_rerun`: Verified `/runs/{id}/cancel` cleanly terminates pending/running executions and `/runs/{id}/rerun` spawns and dispatches a new execution run.
 backend/tests/test_copy_data.py::test_sqlite_connector_copy_stream PASSED [ 48%]
 backend/tests/test_dag_engine.py::test_valid_dag_topological_sort PASSED [ 51%]
 backend/tests/test_dag_engine.py::test_cycle_detection PASSED            [ 55%]

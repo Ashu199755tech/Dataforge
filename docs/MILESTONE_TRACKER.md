@@ -18,27 +18,21 @@
 | **Phase 6** | **Visual Data Flow Designer & Operators** | **Completed** | 51 Passed / 0 Failed | 84.8% | 2026-11-05 |
 | **Phase 7** | **Expression & Parameter Framework** | **Completed** | 61 Passed / 0 Failed | 89.8% | 2026-11-05 |
 | **Phase 8** | **Enterprise Data Quality & Profiling** | **Completed** | 72 Passed / 0 Failed | 94.8% | 2026-11-05 |
-| **Phase 9** | **Real-Time Monitoring & Observability** | Scheduled | Scheduled | +2.0% | Pending |
+| **Phase 9** | **Real-Time Monitoring & Observability** | **Completed** | 81 Passed / 0 Failed | 96.8% | 2026-11-05 |
 | **Phase 10** | **Enterprise Hardening & RBAC** | Scheduled | Scheduled | +2.0% | Pending |
 | **Phase 11** | **End-to-End Validation Scenarios** | Scheduled | Scheduled | +1.2% | Pending |
 
 ---
 
-## Current Sprint Focus: Phase 9 — Monitoring & Observability
-- **Objective:** Real-time execution tracking, activity timeline telemetry, worker resource utilization, error diagnostics, retry audit logs, and downloadable executive execution reports.
-- **Key Deliverables Completed in Phase 8:**
-  - `backend/app/dataquality/engine.py`: Vectorized Polars Data Quality Engine implementing 17 core DQ capabilities:
-    - Rules: `MandatoryFieldCheck`, `NonBlankCheck`, `NullValidation`, `DuplicateCheck`, `PrimaryKeyUniqueness`, `ReferentialIntegrity`, `RangeValidation`, `DateValidation`, `ControlledListValidation`, `SchemaValidation`, `SchemaDriftDetection`, `RowCountValidation`, `PIIDetection`.
-    - Data Masking: Obfuscation strategies (`redact`, `hash`, `partial_mask`, `nullify`) on sensitive columns.
-    - Data Profiling: Statistical distribution (min, max, mean, stddev, null percentage, uniqueness percentage, top 5 value histograms).
-    - Source-to-Target Reconciliation: Automated parity checking across record counts, key mismatches, and column sum checksums.
-    - Composite DQ score calculation (0-100%) and automatic quarantine row extraction.
-  - `backend/app/activities/data_quality.py`: `DataQualityActivity` supporting database tables and direct file paths with threshold-based pipeline failure gates.
-  - `backend/app/activities/data_profiling.py`: `DataProfilingActivity` for pipeline-integrated automated profiling.
-  - `backend/app/activities/reconciliation.py`: `ReconciliationActivity` for dual-dataset audit parity.
-  - `backend/app/activities/data_masking.py`: `DataMaskingActivity` for secure file sanitation.
-  - Registered 4 activities in `ActivityRegistry` (31 total registered activities).
-  - `backend/app/api/data_quality.py`: Complete REST API (`/api/v1/data-quality`) with validation, profiling, reconciliation, masking, and historical run endpoints.
-  - Extended PostgreSQL models: `DataQualityResult`, `DataProfileResult`, and `ReconciliationResult`.
-  - Frontend visual configuration drawers with rules builder, threshold sliders, quarantine file selectors, and toolbox icons.
-  - 11 new automated tests in `backend/tests/test_enterprise_data_quality.py` (72 total tests passing across all suites).
+## Current Sprint Focus: Phase 10 — Enterprise Hardening & Security
+- **Objective:** Production-grade security, RBAC workspace permissions, environment management, secrets encryption, audit logging, Git integration, pipeline versioning, and worker recovery.
+- **Key Deliverables Completed in Phase 9:**
+  - `backend/app/models/execution.py` & `backend/app/core/migrations.py`: Schema migration adding `total_bytes_processed`, `worker_info`, `execution_metrics` to `PipelineRun` and `worker_info`, `error_classification`, `error_stack_trace`, `retry_history`, `output_variables` to `ActivityRun`.
+  - `backend/app/models/alert.py`: `AlertRule` and `AlertEvent` relational models for SLA and execution alerts.
+  - `backend/app/monitoring/diagnostics.py`: Error diagnostic classifier (`ConnectionError`, `TimeoutError`, `DataQualityError`, `UserError`, `SystemError`), formatted traceback extractor, and worker telemetry collector.
+  - `backend/app/monitoring/metrics.py`: High-resolution Gantt timeline builder, throughput calculator (rows/sec, MB/sec), and multi-format report generator (JSON, RFC 4180 CSV, formatted ASCII TXT).
+  - `backend/app/monitoring/alert_engine.py`: Dynamic alert evaluation engine supporting OnFailure, SLA duration breaches, and DQ score thresholds with webhook/Slack/log notifications.
+  - `backend/app/api/runs.py`: Endpoints for timeline (`GET /api/v1/runs/{id}/timeline`), metrics (`GET /api/v1/runs/{id}/metrics`), downloadable reports (`GET /api/v1/runs/{id}/report`), activity diagnostics (`GET /api/v1/runs/{id}/activities/{id}/diagnostics`), run cancellation, and rerun.
+  - `backend/app/api/alerts.py`: Complete Alert Rules and Alert Events CRUD and test trigger API.
+  - `frontend/src/pages/RunsMonitorPage.tsx`: ADF-grade enterprise monitoring UI featuring Gantt timeline waterfall view, activity logs terminal with live filters, throughput KPI cards, alerts ledger, export dropdown (JSON, CSV, TXT), and error diagnostics modal with formatted stack traces and retry history.
+  - 9 new automated tests in `backend/tests/test_monitoring_and_observability.py` (81 total tests passing across all 16 test suites).

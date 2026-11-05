@@ -12,6 +12,7 @@ from backend.app.models.data_quality import (
     ReconciliationResult,
     AuditLog
 )
+from backend.app.models.alert import AlertRule, AlertEvent
 
 __all__ = [
     "Base",
@@ -30,5 +31,7 @@ __all__ = [
     "DataQualityResult",
     "DataProfileResult",
     "ReconciliationResult",
-    "AuditLog"
+    "AuditLog",
+    "AlertRule",
+    "AlertEvent"
 ]

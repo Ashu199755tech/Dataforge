@@ -28,7 +28,12 @@ class ActivityRunResponse(BaseModel):
     started_at: Optional[datetime] = None
     ended_at: Optional[datetime] = None
     metrics: Dict[str, Any] = {}
+    worker_info: Dict[str, Any] = {}
+    error_classification: Optional[str] = None
     error_message: Optional[str] = None
+    error_stack_trace: Optional[str] = None
+    retry_history: List[Dict[str, Any]] = []
+    output_variables: Dict[str, Any] = {}
 
     class Config:
         from_attributes = True
@@ -48,6 +53,9 @@ class PipelineRunResponse(BaseModel):
     failed_activities: int
     total_rows_read: int
     total_rows_written: int
+    total_bytes_processed: int = 0
+    worker_info: Dict[str, Any] = {}
+    execution_metrics: Dict[str, Any] = {}
     error_summary: Optional[str] = None
     activity_runs: List[ActivityRunResponse] = []
 

@@ -117,7 +117,18 @@ export interface ActivityRun {
   started_at?: string;
   ended_at?: string;
   metrics: Record<string, any>;
+  worker_info?: Record<string, any>;
+  error_classification?: string;
   error_message?: string;
+  error_stack_trace?: string;
+  retry_history?: Array<{
+    attempt: number;
+    status: string;
+    timestamp: string;
+    duration_ms: number;
+    error?: string;
+  }>;
+  output_variables?: Record<string, any>;
 }
 
 export interface PipelineRun {
@@ -134,8 +145,61 @@ export interface PipelineRun {
   failed_activities: number;
   total_rows_read: number;
   total_rows_written: number;
+  total_bytes_processed?: number;
+  worker_info?: Record<string, any>;
+  execution_metrics?: Record<string, any>;
   error_summary?: string;
   activity_runs: ActivityRun[];
+}
+
+export interface TimelineItem {
+  activity_id: string;
+  activity_name: string;
+  activity_type: string;
+  status: string;
+  started_at: string | null;
+  ended_at: string | null;
+  duration_seconds: number;
+  offset_seconds: number;
+  start_percentage: number;
+  width_percentage: number;
+  retry_attempt: number;
+  rows_read: number;
+  rows_written: number;
+  bytes_processed: number;
+  error_classification?: string;
+  error_message?: string;
+  worker_info?: Record<string, any>;
+}
+
+export interface AlertRule {
+  id: string;
+  name: string;
+  description?: string;
+  target_type: string;
+  pipeline_id?: string;
+  condition_type: string;
+  threshold_value?: number;
+  action_type: string;
+  action_config: Record<string, any>;
+  is_enabled: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AlertEvent {
+  id: string;
+  alert_rule_id: string;
+  pipeline_run_id?: string;
+  activity_run_id?: string;
+  title: string;
+  severity: 'Critical' | 'Warning' | 'Info';
+  message: string;
+  payload: Record<string, any>;
+  status: 'Triggered' | 'Delivered' | 'Failed';
+  delivered_at?: string;
+  error_message?: string;
+  created_at: string;
 }
 
 export interface ExecutionLog {

@@ -11,6 +11,9 @@ from backend.app.activities.base import ActivityExecutionContext
 from backend.app.activities.factory import get_activity_instance
 from backend.app.execution.event_bus import event_bus
 from backend.app.execution.expressions import ExpressionEvaluator
+from backend.app.monitoring.diagnostics import get_worker_telemetry, classify_error, extract_stack_trace
+from backend.app.monitoring.metrics import build_metrics_summary
+from backend.app.monitoring.alert_engine import AlertEngine
 
 
 class PipelineRunner:
@@ -42,9 +45,11 @@ class PipelineRunner:
             pipeline_def = pipeline.definition_json or {}
             activities_list = pipeline_def.get("activities", [])
 
+            worker_meta = get_worker_telemetry()
             pipeline_run.status = "Running"
             pipeline_run.started_at = datetime.now(timezone.utc)
             pipeline_run.total_activities = len(activities_list)
+            pipeline_run.worker_info = worker_meta
             db.commit()
 
             if not activities_list:
@@ -67,6 +72,7 @@ class PipelineRunner:
             pending_activities = set(dag.activity_map.keys())
             total_read = 0
             total_written = 0
+            total_bytes = 0
             succeeded_count = 0
             failed_count = 0
             pipeline_vars = pipeline_def.get("variables", {}).copy()
@@ -84,7 +90,8 @@ class PipelineRunner:
                         activity_id=act_id,
                         activity_name=act_cfg.get("name", act_id),
                         activity_type=act_cfg.get("type", "Unknown"),
-                        status="Pending"
+                        status="Pending",
+                        worker_info=worker_meta
                     )
                     db.add(act_run)
             db.commit()
@@ -161,9 +168,12 @@ class PipelineRunner:
                     attempt = 0
                     success = False
                     last_error = None
+                    last_stack = None
                     res = None
+                    retry_attempts_log: List[Dict[str, Any]] = []
 
                     while attempt <= max_retries:
+                        attempt_start = time.time()
                         act_run.retry_attempt = attempt
                         db.commit()
                         try:
@@ -199,13 +209,38 @@ class PipelineRunner:
                             executor.activity_run_id = act_run.id
                             res = executor.execute()
 
+                            attempt_duration_ms = max(int((time.time() - attempt_start) * 1000), 1)
+
                             if res.status == "Succeeded":
                                 success = True
+                                retry_attempts_log.append({
+                                    "attempt": attempt,
+                                    "status": "Succeeded",
+                                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                                    "duration_ms": attempt_duration_ms
+                                })
                                 break
                             else:
                                 last_error = res.error_message or "Activity returned Failed status"
+                                last_stack = getattr(res, "error_stack_trace", None)
+                                retry_attempts_log.append({
+                                    "attempt": attempt,
+                                    "status": "Failed",
+                                    "error": last_error[:250] if last_error else "Failed",
+                                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                                    "duration_ms": attempt_duration_ms
+                                })
                         except Exception as e:
-                            last_error = f"{str(e)}\n{traceback.format_exc()}"
+                            last_error = str(e)
+                            last_stack = f"{str(e)}\n{traceback.format_exc()}"
+                            attempt_duration_ms = max(int((time.time() - attempt_start) * 1000), 1)
+                            retry_attempts_log.append({
+                                "attempt": attempt,
+                                "status": "Failed",
+                                "error": str(e)[:250],
+                                "timestamp": datetime.now(timezone.utc).isoformat(),
+                                "duration_ms": attempt_duration_ms
+                            })
                             executor = getattr(locals(), 'executor', None)
                             if executor:
                                 executor.log("ERROR", f"Attempt {attempt + 1} failed: {str(e)}")
@@ -216,6 +251,8 @@ class PipelineRunner:
 
                     act_run.ended_at = datetime.now(timezone.utc)
                     act_run.duration_seconds = max(int(time.time() - act_start_clock), 0)
+                    act_run.retry_history = retry_attempts_log
+                    act_run.worker_info = worker_meta
 
                     if success and res:
                         act_run.status = "Succeeded"
@@ -223,8 +260,10 @@ class PipelineRunner:
                         act_run.rows_written = res.rows_written
                         act_run.bytes_processed = res.bytes_processed
                         act_run.metrics = res.metrics
+                        act_run.output_variables = res.output_variables or {}
                         total_read += res.rows_read
                         total_written += res.rows_written
+                        total_bytes += res.bytes_processed
                         succeeded_count += 1
                         completed_activities[act_id] = "Succeeded"
                         pipeline_vars.update(res.output_variables)
@@ -232,6 +271,8 @@ class PipelineRunner:
                     else:
                         act_run.status = "Failed"
                         act_run.error_message = last_error
+                        act_run.error_classification = classify_error(last_error or last_stack)
+                        act_run.error_stack_trace = last_stack or last_error
                         failed_count += 1
                         completed_activities[act_id] = "Failed"
 
@@ -240,9 +281,10 @@ class PipelineRunner:
 
             # Update final pipeline run record
             pipeline_run.ended_at = datetime.now(timezone.utc)
-            pipeline_run.duration_seconds = int(time.time() - start_clock)
+            pipeline_run.duration_seconds = max(int(time.time() - start_clock), 0)
             pipeline_run.total_rows_read = total_read
             pipeline_run.total_rows_written = total_written
+            pipeline_run.total_bytes_processed = total_bytes
             pipeline_run.succeeded_activities = succeeded_count
             pipeline_run.failed_activities = failed_count
 
@@ -263,7 +305,15 @@ class PipelineRunner:
             else:
                 pipeline_run.status = "Succeeded"
 
+            # Compute execution metrics summary
+            pipeline_run.execution_metrics = build_metrics_summary(pipeline_run)
             db.commit()
+
+            # Trigger alert engine
+            try:
+                AlertEngine.evaluate_pipeline_run(pipeline_run, db)
+            except Exception as alert_err:
+                print(f"[WARN] Alert engine evaluation error: {alert_err}")
 
         except Exception as global_ex:
             pipeline_run = db.query(PipelineRun).filter(PipelineRun.id == self.run_id).first()
@@ -272,5 +322,9 @@ class PipelineRunner:
                 pipeline_run.error_summary = f"Fatal engine error: {str(global_ex)}\n{traceback.format_exc()}"
                 pipeline_run.ended_at = datetime.now(timezone.utc)
                 db.commit()
+                try:
+                    AlertEngine.evaluate_pipeline_run(pipeline_run, db)
+                except Exception:
+                    pass
         finally:
             db.close()

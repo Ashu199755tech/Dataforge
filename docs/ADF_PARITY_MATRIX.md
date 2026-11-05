@@ -163,3 +163,24 @@
 | **Statistical Data Profiling** | Vectorized Polars | `DataProfiling` | Stored in DB | Verified (11/11) | **Production Ready** |
 | **Source-to-Target Reconciliation**| Vectorized Polars | `Reconciliation` | Parity Variance | Verified (11/11) | **Production Ready** |
 | **Composite DQ Score Calculation** | Weighted Rule Engine | `DataQualityCheck` | Threshold Failure | Verified (11/11) | **Production Ready** |
+
+---
+
+## 6. Real-Time Monitoring & Observability (Phase 9)
+
+| Observability Capability | Underlying Mechanism | API Endpoint | UI Presentation | Automated Tests | Parity Status |
+|---|---|---|---|---|---|
+| **Pipeline Execution History** | Relational `pipeline_runs` table | `GET /api/v1/runs` | Filterable Run Ledger | Verified (9/9) | **Production Ready** |
+| **Activity Execution History** | Relational `activity_runs` table | `GET /api/v1/runs/{id}` | Activity Ledger Cards | Verified (9/9) | **Production Ready** |
+| **Gantt / Waterfall Timeline** | High-res duration & offset telemetry | `GET /api/v1/runs/{id}/timeline` | Interactive Gantt Waterfall | Verified (9/9) | **Production Ready** |
+| **Execution Duration Metrics** | Millisecond clock calculations | `GET /api/v1/runs/{id}/metrics` | Duration Cards & Tooltips | Verified (9/9) | **Production Ready** |
+| **Rows Read / Written Counters** | Engine telemetry aggregation | `GET /api/v1/runs/{id}` | Ingestion Metric Badges | Verified (9/9) | **Production Ready** |
+| **Bytes Processed & Volume** | BigInteger byte streaming telemetry | `GET /api/v1/runs/{id}/metrics` | MB & Volume Metric KPI | Verified (9/9) | **Production Ready** |
+| **Throughput Calculation** | Rows/sec & MB/sec throughput engine | `GET /api/v1/runs/{id}/metrics` | Live Throughput Dashboard | Verified (9/9) | **Production Ready** |
+| **Error Diagnostics & Classification**| Standard domain error classifier | `GET /api/v1/runs/{id}/activities/{id}/diagnostics` | Diagnostic Modal with Type Badge | Verified (9/9) | **Production Ready** |
+| **Stack Trace Capture** | Full traceback extraction | `GET /api/v1/runs/{id}/activities/{id}/diagnostics` | Formatted Trace with Copy | Verified (9/9) | **Production Ready** |
+| **Retry History & Resilience** | Attempt ledger with timing & errors | `GET /api/v1/runs/{id}/activities/{id}/diagnostics` | Attempt Timeline List | Verified (9/9) | **Production Ready** |
+| **Worker Process Telemetry** | Host, PID, thread & platform collector | `GET /api/v1/runs/{id}/metrics` | Worker Environment Card | Verified (9/9) | **Production Ready** |
+| **Structured Log Streaming** | Leveled logs (`INFO`, `WARNING`, `ERROR`) | `GET /api/v1/runs/{id}/activities/{id}/logs` | Filterable Console Terminal | Verified (9/9) | **Production Ready** |
+| **SLA & Execution Alerts** | `AlertRule` & `AlertEvent` Engine | `GET /api/v1/alerts/events`, `rules` | Alerts Ledger & Event Feed | Verified (9/9) | **Production Ready** |
+| **Downloadable Reports** | JSON, RFC 4180 CSV, ASCII Text | `GET /api/v1/runs/{id}/report` | Export Dropdown (JSON, CSV, TXT)| Verified (9/9) | **Production Ready** |
