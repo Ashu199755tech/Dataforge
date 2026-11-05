@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  dataflow-metadata-db:
+    image: postgres:16-alpine
+    container_name: dataflow-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: enterprise_password_change_me
+      POSTGRES_DB: dataflow_metadata
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  dataflow-server:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: dataflow-server
+    environment:
+      DATABASE_URL: postgresql+psycopg2://postgres:enterprise_password_change_me@dataflow-metadata-db:5432/dataflow_metadata
+      SECRET_KEY: ${SECRET_KEY:-production-dataflow-secret-key-32chars}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-bGFyZ2Utc2VjdXJlLWtleS0zMi1ieXRlcy1mb3ItZmVybmV0ISE=}
+    ports:
+      - "8000:8000"
+    depends_on:
+      dataflow-metadata-db:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

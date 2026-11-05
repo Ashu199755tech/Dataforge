@@ -1,0 +1,41 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-slate-950 text-slate-100 min-h-screen;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.6);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(51, 65, 85, 0.8);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 1);
+}
+
+/* React Flow custom styling */
+.react-flow__node {
+  border-radius: 8px;
+}
+.react-flow__handle {
+  width: 9px;
+  height: 9px;
+  background: #38a8f6;
+  border: 2px solid #0f172a;
+}
+.react-flow__edge-path {
+  stroke: #38a8f6;
+  stroke-width: 2.5;
+}
