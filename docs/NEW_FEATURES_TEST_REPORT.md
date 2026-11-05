@@ -71,6 +71,22 @@ Executed on: 2026-11-05
 - **Full Regression Suite:** **243 passed, 3 skipped, 0 failed in 65.48s** (100% pass rate).
 - **Frontend Build Status:** **2,100 modules transformed, 0 errors** (`tsc && vite build`).
 
-2. **Zero Regressions:** Every phase must run `PYTHONPATH=. venv/bin/pytest` and maintain a 100% pass rate on all prior tests.
-3. **Frontend Build Parity:** Every phase with frontend additions must pass `tsc && vite build` with 0 compilation errors.
-4. **Isolated Workloads:** Worker task execution must remain decoupled from FastAPI request handlers.
+---
+
+## 5. Phase 2 Test Execution Results (Reusable Dataset Management)
+
+Executed on: 2026-11-05
+
+- **Test Suite:** `backend/tests/test_datasets.py`
+- **Result:** **7 passed in 4.82s**
+- **Test Details:**
+  1. `test_dataset_crud_and_versioning`: Verified dataset creation across relational and cloud storage types, automatic `DatasetVersion` creation (v1), property updates, and version history incrementation (v2).
+  2. `test_schema_inference_and_auto_discovery`: Verified live connector schema introspection via `SQLiteConnector.discover_columns()`, type inference, and JSON schema structure storage.
+  3. `test_schema_drift_detection_and_sync`: Verified schema drift detection after physical table schema alteration (adding `country` column, dropping `status` column), categorized drift diff generation (`added_columns`, `removed_columns`), and `sync_schema` state update to `Current` with version increment.
+  4. `test_dataset_bounded_preview`: Verified bounded row preview limiting memory footprint, supporting custom row counts up to a safety ceiling (100 rows).
+  5. `test_dataset_usages`: Verified reverse dependency discovery by searching pipeline definitions for activities referencing the dataset ID as source or destination.
+  6. `test_copy_data_with_dataset_references`: Verified end-to-end `CopyDataActivity` execution resolving both source and destination datasets by ID, merging storage locations and format settings dynamically while copying records.
+  7. `test_dataset_rest_api_endpoints`: Verified FastAPI endpoints (`GET /api/v1/datasets`, `POST /api/v1/datasets`, `POST /infer-schema`, `POST /detect-drift`, `POST /sync-schema`, `POST /preview`, `GET /{id}/usages`, `GET /{id}/versions`, `DELETE /api/v1/datasets/{id}`).
+- **Full Regression Suite:** **250 passed, 3 skipped, 0 failed in 71.81s** (100% pass rate).
+- **Frontend Build Status:** **2,101 modules transformed, 0 errors** (`tsc && vite build`).
+

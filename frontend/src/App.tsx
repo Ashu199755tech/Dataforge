@@ -11,6 +11,7 @@ import { RunsMonitorPage } from './pages/RunsMonitorPage';
 import { DataQualityPage } from './pages/DataQualityPage';
 import { DataFlowsListPage } from './features/dataflow-designer/DataFlowsListPage';
 import { RuntimesPage } from './pages/RuntimesPage';
+import { DatasetsPage } from './pages/DatasetsPage';
 
 export const App: React.FC = () => {
   const { currentTab, fetchInitialData } = useAppStore();
@@ -31,6 +32,8 @@ export const App: React.FC = () => {
         return <DataFlowsListPage />;
       case 'connections':
         return <ConnectionsPage />;
+      case 'datasets':
+        return <DatasetsPage />;
       case 'runtimes':
         return <RuntimesPage />;
       case 'triggers':

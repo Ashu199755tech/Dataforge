@@ -10,7 +10,7 @@ class SQLiteConnector(BaseConnector):
     """
 
     def _get_connection(self):
-        database_path = self.config.get("database_path", ":memory:")
+        database_path = self.config.get("database_path") or self.config.get("database") or ":memory:"
         conn = sqlite3.connect(database_path)
         conn.row_factory = sqlite3.Row
         return conn

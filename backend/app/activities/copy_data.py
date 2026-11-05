@@ -4,6 +4,7 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime
 from backend.app.activities.base import BaseActivity, ActivityExecutionResult
 from backend.app.models.connection import Connection
+from backend.app.models.dataset import Dataset
 from backend.app.connectors.factory import get_connector
 from backend.app.connectors.storage.base import BaseStorageConnector
 from backend.app.transfer.engine import TransferEngine
@@ -26,8 +27,51 @@ class CopyDataActivity(BaseActivity):
 
     def execute(self) -> ActivityExecutionResult:
         config = self.context.config
-        source_cfg = config.get("source", {})
-        dest_cfg = config.get("destination", {})
+        source_cfg = dict(config.get("source", {}))
+        dest_cfg = dict(config.get("destination", {}) or config.get("sink", {}))
+
+        # Resolve Reusable Source Dataset if referenced
+        source_dataset_id = source_cfg.get("dataset_id") or config.get("source_dataset_id")
+        if source_dataset_id:
+            src_ds = self.db.query(Dataset).filter(Dataset.id == source_dataset_id).first()
+            if not src_ds:
+                raise ValueError(f"Referenced source dataset '{source_dataset_id}' not found.")
+            loc = src_ds.location_config or {}
+            resolved_src = {
+                "connection_id": src_ds.connection_id,
+                "table_name": loc.get("table") or loc.get("table_name"),
+                "schema_name": loc.get("schema") or loc.get("schema_name"),
+                "query": loc.get("query"),
+                "container": loc.get("container") or loc.get("bucket"),
+                "bucket": loc.get("bucket") or loc.get("container"),
+                "path": loc.get("path") or loc.get("file_name"),
+                "file_path": loc.get("path") or loc.get("file_name"),
+                "format": src_ds.format_settings.get("format") or loc.get("format")
+            }
+            resolved_src.update(src_ds.format_settings)
+            resolved_src.update(source_cfg)
+            source_cfg = resolved_src
+
+        # Resolve Reusable Destination Dataset if referenced
+        dest_dataset_id = dest_cfg.get("dataset_id") or config.get("sink_dataset_id")
+        if dest_dataset_id:
+            dst_ds = self.db.query(Dataset).filter(Dataset.id == dest_dataset_id).first()
+            if not dst_ds:
+                raise ValueError(f"Referenced destination dataset '{dest_dataset_id}' not found.")
+            loc = dst_ds.location_config or {}
+            resolved_dst = {
+                "connection_id": dst_ds.connection_id,
+                "table_name": loc.get("table") or loc.get("table_name"),
+                "schema_name": loc.get("schema") or loc.get("schema_name"),
+                "container": loc.get("container") or loc.get("bucket"),
+                "bucket": loc.get("bucket") or loc.get("container"),
+                "path": loc.get("path") or loc.get("file_name"),
+                "file_path": loc.get("path") or loc.get("file_name"),
+                "format": dst_ds.format_settings.get("format") or loc.get("format")
+            }
+            resolved_dst.update(dst_ds.format_settings)
+            resolved_dst.update(dest_cfg)
+            dest_cfg = resolved_dst
 
         src_conn_id = source_cfg.get("connection_id")
         dst_conn_id = dest_cfg.get("connection_id")

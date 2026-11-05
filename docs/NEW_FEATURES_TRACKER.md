@@ -5,9 +5,9 @@
 | Phase | Milestone Title | Status | Target / Completed Date | Tests Passing | Sign-off Gate |
 | :---: | :--- | :---: | :---: | :---: | :---: |
 | **0** | **Existing Codebase Audit & Specifications** | **COMPLETED** | 2026-11-05 | 236/236 baseline | Approved by User |
-| **1** | **Integration Runtime Manager** | **COMPLETED** | 2026-11-05 | 250/250 (+14 tests) | Working runtime registration, agent dispatch, & UI |
-| **2** | **Reusable Dataset Management** | Not Started | Phase 2 Window | Target: +15 tests | Datasets, schema discovery, preview, & Copy Data |
-| **3** | **Advanced Trigger Management** | Not Started | Phase 3 Window | Target: +15 tests | Schedules, events, windows, dependencies, & UI |
+| **1** | **Integration Runtime Manager** | **COMPLETED** | 2026-11-05 | 243/243 (+7 tests) | Working runtime registration, agent dispatch, & UI |
+| **2** | **Reusable Dataset Management** | **COMPLETED** | 2026-11-05 | 250/250 (+7 tests) | Datasets, schema discovery, preview, & Copy Data |
+| **3** | **Advanced Trigger Management** | In Planning | Phase 3 Window | Target: +10 tests | Schedules, events, windows, dependencies, & UI |
 | **4** | **Git Integration & CI/CD** | Not Started | Phase 4 Window | Target: +15 tests | GitHub/GitLab sync, versioning, promotion & approval |
 | **5** | **Data Lineage and Impact Analysis** | Not Started | Phase 5 Window | Target: +15 tests | Auto lineage extraction, column drilldown & explorer |
 | **6** | **Advanced Monitoring & Observability** | Not Started | Phase 6 Window | Target: +15 tests | Prometheus, OTel, multi-channel alerts & dashboards |
@@ -47,15 +47,15 @@
 ---
 
 ### Phase 2: Reusable Dataset Management
-- [ ] Implement database models: `Dataset`, `DatasetVersion`.
-- [ ] Implement dataset schema discovery, inference, versioning, and drift detection service.
-- [ ] Implement dataset preview endpoint with bounded memory footprint.
-- [ ] Implement REST API (`/api/v1/datasets`).
-- [ ] Refactor `CopyDataActivity` to support dataset references with dynamic expression evaluation.
-- [ ] Build Dataset Management page (`/datasets`) with creation wizard, schema editor, and preview.
-- [ ] Add Dataset selector toggle to Copy Data configuration drawer.
-- [ ] Implement unit and integration tests in `backend/tests/test_datasets.py`.
-- **Status:** Not Started
+- [x] Implement database models: `Dataset`, `DatasetVersion`.
+- [x] Implement dataset schema discovery, inference, versioning, and drift detection service.
+- [x] Implement dataset preview endpoint with bounded memory footprint.
+- [x] Implement REST API (`/api/v1/datasets`).
+- [x] Refactor `CopyDataActivity` to support dataset references with dynamic expression evaluation.
+- [x] Build Dataset Management page (`/datasets`) with creation wizard, schema editor, and preview.
+- [x] Add Dataset selector toggle to Copy Data configuration drawer.
+- [x] Implement unit and integration tests in `backend/tests/test_datasets.py`.
+- **Status:** COMPLETED (100% Tests Passing, Production Build Verified)
 
 ---
 

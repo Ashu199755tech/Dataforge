@@ -10,7 +10,8 @@ import {
   Clock,
   FileText,
   Workflow,
-  Cpu
+  Cpu,
+  Layers
 } from 'lucide-react';
 
 export const Sidebar: React.FC = () => {
@@ -21,6 +22,7 @@ export const Sidebar: React.FC = () => {
     { id: 'pipelines', label: 'Pipelines', icon: GitBranch },
     { id: 'dataflows', label: 'Data Flows (ETL)', icon: Workflow },
     { id: 'connections', label: 'Connections', icon: Database },
+    { id: 'datasets', label: 'Reusable Datasets', icon: Layers },
     { id: 'runtimes', label: 'Integration Runtimes', icon: Cpu },
     { id: 'triggers', label: 'Triggers & Schedules', icon: Clock },
     { id: 'runs', label: 'Runs & Monitor', icon: PlayCircle },

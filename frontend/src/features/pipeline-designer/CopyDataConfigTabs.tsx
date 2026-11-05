@@ -104,6 +104,13 @@ export const CopyDataConfigTabs: React.FC<CopyDataConfigTabsProps> = ({
   // Source containers list cached
   const [sourceContainers, setSourceContainers] = useState<string[]>([]);
   const [destContainers, setDestContainers] = useState<string[]>([]);
+  const [catalogDatasets, setCatalogDatasets] = useState<any[]>([]);
+
+  useEffect(() => {
+    api.get('/datasets')
+      .then(res => setCatalogDatasets(res.data))
+      .catch(() => setCatalogDatasets([]));
+  }, []);
 
   // Safe nested config access
   const source = config.source || {};
@@ -523,6 +530,74 @@ export const CopyDataConfigTabs: React.FC<CopyDataConfigTabsProps> = ({
         {/* ================================================================= */}
         {activeTab === 'source' && (
           <div className="space-y-4">
+            {/* Reusable Source Dataset Selector */}
+            <div className="p-3.5 bg-slate-950/70 border border-brand-500/30 rounded-lg space-y-2.5">
+              <div className="flex items-center justify-between">
+                <label className="text-brand-300 text-[11px] font-semibold flex items-center gap-1.5 uppercase tracking-wider">
+                  <Layers className="h-4 w-4 text-brand-400" />
+                  Reusable Source Dataset (Catalog)
+                </label>
+                {source.dataset_id && (
+                  <span className="text-[10px] px-2 py-0.5 rounded bg-brand-500/20 text-brand-300 font-mono font-semibold">
+                    Dataset Bound
+                  </span>
+                )}
+              </div>
+              <p className="text-[11px] text-slate-400">
+                Select a centralized dataset from the Catalog, or configure inline connection settings below.
+              </p>
+              <select
+                value={source.dataset_id || ''}
+                onChange={(e) => {
+                  const selectedId = e.target.value;
+                  if (!selectedId) {
+                    updateSource({ dataset_id: undefined });
+                  } else {
+                    const selectedDs = catalogDatasets.find((d) => d.id === selectedId);
+                    if (selectedDs) {
+                      updateSource({
+                        dataset_id: selectedId,
+                        connection_id: selectedDs.connection_id,
+                        ...(selectedDs.location_config || {})
+                      });
+                      if (selectedDs.format_settings) {
+                        updateSourceSettings(selectedDs.format_settings);
+                      }
+                    }
+                  }
+                }}
+                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-200 text-xs font-medium focus:border-brand-500 focus:outline-none"
+              >
+                <option value="">-- None (Configure Custom / Inline Source Below) --</option>
+                {catalogDatasets.map((ds) => (
+                  <option key={ds.id} value={ds.id}>
+                    {ds.name} [{ds.dataset_type}] - Status: {ds.schema_status || 'Current'}
+                  </option>
+                ))}
+              </select>
+              {source.dataset_id && (() => {
+                const activeDs = catalogDatasets.find((d) => d.id === source.dataset_id);
+                if (!activeDs) return null;
+                return (
+                  <div className="text-[11px] text-slate-400 bg-slate-900/60 p-2.5 rounded border border-slate-800 flex items-center justify-between">
+                    <span>
+                      Type: <strong className="text-slate-200">{activeDs.dataset_type}</strong> | Columns:{' '}
+                      <strong className="text-slate-200">{activeDs.schema_definition?.columns?.length || 0}</strong>
+                    </span>
+                    <span
+                      className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
+                        activeDs.schema_status === 'DriftDetected'
+                          ? 'bg-amber-500/20 text-amber-400'
+                          : 'bg-emerald-500/20 text-emerald-400'
+                      }`}
+                    >
+                      {activeDs.schema_status || 'Current'}
+                    </span>
+                  </div>
+                );
+              })()}
+            </div>
+
             <div className="p-3.5 bg-slate-950/70 border border-slate-800 rounded-lg space-y-3">
               <div className="flex items-center justify-between text-slate-300 font-semibold text-[11px] uppercase tracking-wider">
                 <span>Source Provider & Connection</span>
@@ -931,6 +1006,72 @@ export const CopyDataConfigTabs: React.FC<CopyDataConfigTabsProps> = ({
         {/* ================================================================= */}
         {activeTab === 'destination' && (
           <div className="space-y-4">
+            {/* Reusable Destination Dataset Selector */}
+            <div className="p-3.5 bg-slate-950/70 border border-blue-500/30 rounded-lg space-y-2.5">
+              <div className="flex items-center justify-between">
+                <label className="text-blue-300 text-[11px] font-semibold flex items-center gap-1.5 uppercase tracking-wider">
+                  <Layers className="h-4 w-4 text-blue-400" />
+                  Reusable Destination Dataset (Catalog)
+                </label>
+                {destination.dataset_id && (
+                  <span className="text-[10px] px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 font-mono font-semibold">
+                    Dataset Bound
+                  </span>
+                )}
+              </div>
+              <p className="text-[11px] text-slate-400">
+                Select a centralized dataset from the Catalog, or configure inline connection settings below.
+              </p>
+              <select
+                value={destination.dataset_id || ''}
+                onChange={(e) => {
+                  const selectedId = e.target.value;
+                  if (!selectedId) {
+                    updateDestination({ dataset_id: undefined });
+                  } else {
+                    const selectedDs = catalogDatasets.find((d) => d.id === selectedId);
+                    if (selectedDs) {
+                      updateDestination({
+                        dataset_id: selectedId,
+                        connection_id: selectedDs.connection_id,
+                        ...(selectedDs.location_config || {}),
+                        ...(selectedDs.format_settings || {})
+                      });
+                    }
+                  }
+                }}
+                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-200 text-xs font-medium focus:border-brand-500 focus:outline-none"
+              >
+                <option value="">-- None (Configure Custom / Inline Destination Below) --</option>
+                {catalogDatasets.map((ds) => (
+                  <option key={ds.id} value={ds.id}>
+                    {ds.name} [{ds.dataset_type}] - Status: {ds.schema_status || 'Current'}
+                  </option>
+                ))}
+              </select>
+              {destination.dataset_id && (() => {
+                const activeDs = catalogDatasets.find((d) => d.id === destination.dataset_id);
+                if (!activeDs) return null;
+                return (
+                  <div className="text-[11px] text-slate-400 bg-slate-900/60 p-2.5 rounded border border-slate-800 flex items-center justify-between">
+                    <span>
+                      Type: <strong className="text-slate-200">{activeDs.dataset_type}</strong> | Columns:{' '}
+                      <strong className="text-slate-200">{activeDs.schema_definition?.columns?.length || 0}</strong>
+                    </span>
+                    <span
+                      className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
+                        activeDs.schema_status === 'DriftDetected'
+                          ? 'bg-amber-500/20 text-amber-400'
+                          : 'bg-emerald-500/20 text-emerald-400'
+                      }`}
+                    >
+                      {activeDs.schema_status || 'Current'}
+                    </span>
+                  </div>
+                );
+              })()}
+            </div>
+
             <div className="p-3.5 bg-slate-950/70 border border-slate-800 rounded-lg space-y-3">
               <div className="flex items-center justify-between text-slate-300 font-semibold text-[11px] uppercase tracking-wider">
                 <span>Destination Provider & Target</span>
