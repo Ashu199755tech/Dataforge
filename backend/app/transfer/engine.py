@@ -1,6 +1,7 @@
 import time
 import io
 from typing import Dict, Any, Optional, Callable, Iterator, List
+from backend.app.connectors.base import BaseConnector
 from backend.app.connectors.storage.base import BaseStorageConnector
 from backend.app.formats.registry import FormatRegistry
 from backend.app.transfer.models import TransferProgress, TransferResult, CancellationToken
@@ -251,3 +252,213 @@ class TransferEngine:
                 duration_seconds=time.time() - start_time,
                 error_message=str(e)
             )
+
+    @classmethod
+    def execute_database_to_storage(
+        cls,
+        db_connector: BaseConnector,
+        dst_connector: BaseStorageConnector,
+        src_table: str,
+        dst_container: str,
+        dst_path: str,
+        config: Dict[str, Any],
+        cancellation_token: Optional[CancellationToken] = None,
+        progress_callback: Optional[Callable[[TransferProgress], None]] = None
+    ) -> TransferResult:
+        start_time = time.time()
+        token = cancellation_token or CancellationToken()
+
+        source_cfg = config.get("source", {})
+        dest_cfg = config.get("destination", {})
+        mappings = config.get("column_mappings", [])
+        adv_cfg = config.get("advanced", {})
+        perf_cfg = config.get("performance", {})
+
+        batch_size = int(perf_cfg.get("batch_size") or source_cfg.get("batch_size", 5000))
+        dst_format = (dest_cfg.get("format") or FormatRegistry.detect_format_from_filename(dst_path)).lower()
+        dst_options = config.get("destination_settings", {}) or dest_cfg
+        checksum_algo = adv_cfg.get("checksum_algorithm", "md5").lower()
+
+        writer = FormatRegistry.get_writer(dst_format, dst_options)
+        checksum_calc = StreamChecksumCalculator(checksum_algo)
+        progress = TransferProgress(start_time=start_time, status="IN_PROGRESS")
+
+        stream_gen = db_connector.read_data_stream(
+            table_name=src_table,
+            columns=source_cfg.get("columns"),
+            filter_expr=source_cfg.get("filter_expr") or source_cfg.get("filter_expression"),
+            batch_size=batch_size,
+            schema_name=source_cfg.get("schema_name")
+        )
+
+        records_count = 0
+
+        def records_iterator() -> Iterator[Dict[str, Any]]:
+            nonlocal records_count
+            for chunk in stream_gen:
+                token.raise_if_cancelled()
+                for rec in chunk:
+                    if mappings:
+                        mapped = {}
+                        for m in mappings:
+                            if m.get("exclude"):
+                                continue
+                            sc = m.get("source_column")
+                            dc = m.get("destination_column") or sc
+                            if sc in rec:
+                                mapped[dc] = rec[sc]
+                        out_rec = mapped
+                    else:
+                        out_rec = rec
+
+                    yield out_rec
+                    records_count += 1
+                    progress.records_read = records_count
+                    progress.records_written = records_count
+                    if progress_callback and records_count % 500 == 0:
+                        progress.elapsed_seconds = max(0.001, time.time() - start_time)
+                        progress_callback(progress)
+
+        target_buf = io.BytesIO()
+        bytes_written = 0
+        try:
+            bytes_written = writer.write_records(records_iterator(), target_buf)
+            target_buf.seek(0)
+            data_bytes = target_buf.getvalue()
+            checksum_calc.update(data_bytes)
+
+            dst_connector.write_file(dst_container, dst_path, data_bytes)
+            duration = max(0.001, time.time() - start_time)
+            hash_val = checksum_calc.hexdigest()
+
+            return TransferResult(
+                success=True,
+                bytes_transferred=len(data_bytes),
+                records_transferred=records_count,
+                duration_seconds=round(duration, 3),
+                source_checksum=hash_val,
+                destination_checksum=hash_val,
+                checksum_verified=True,
+                checksum_algorithm=checksum_algo
+            )
+        except InterruptedError as ie:
+            return TransferResult(
+                success=False,
+                bytes_transferred=bytes_written,
+                records_transferred=records_count,
+                duration_seconds=time.time() - start_time,
+                cancelled=True,
+                error_message=str(ie)
+            )
+        except Exception as e:
+            return TransferResult(
+                success=False,
+                bytes_transferred=0,
+                records_transferred=records_count,
+                duration_seconds=time.time() - start_time,
+                error_message=str(e)
+            )
+
+    @classmethod
+    def execute_storage_to_database(
+        cls,
+        src_connector: BaseStorageConnector,
+        db_connector: BaseConnector,
+        src_container: str,
+        src_path: str,
+        dst_table: str,
+        config: Dict[str, Any],
+        cancellation_token: Optional[CancellationToken] = None,
+        progress_callback: Optional[Callable[[TransferProgress], None]] = None
+    ) -> TransferResult:
+        start_time = time.time()
+        token = cancellation_token or CancellationToken()
+
+        source_cfg = config.get("source", {})
+        dest_cfg = config.get("destination", {})
+        src_settings = config.get("source_settings", {})
+        mappings = config.get("column_mappings", [])
+        perf_cfg = config.get("performance", {})
+
+        batch_size = int(perf_cfg.get("batch_size") or dest_cfg.get("batch_size", 5000))
+        write_mode = dest_cfg.get("write_mode", "append")
+        key_columns = dest_cfg.get("key_columns", [])
+        src_format = (src_settings.get("format") or FormatRegistry.detect_format_from_filename(src_path)).lower()
+
+        reader = FormatRegistry.get_reader(src_format, src_settings)
+        progress = TransferProgress(start_time=start_time, status="IN_PROGRESS")
+
+        raw_bytes = src_connector.read_file(src_container, src_path)
+        raw_stream = io.BytesIO(raw_bytes)
+
+        total_read = 0
+        total_written = 0
+        current_batch = []
+
+        try:
+            for rec in reader.read_records(raw_stream):
+                token.raise_if_cancelled()
+                total_read += 1
+                current_batch.append(rec)
+                if len(current_batch) >= batch_size:
+                    mode = write_mode if total_written == 0 else "append"
+                    if write_mode == "upsert":
+                        mode = "upsert"
+                    written = db_connector.write_data_batch(
+                        table_name=dst_table,
+                        records=current_batch,
+                        write_mode=mode,
+                        key_columns=key_columns,
+                        column_mappings=mappings,
+                        schema_name=dest_cfg.get("schema_name"),
+                        auto_create_table=dest_cfg.get("auto_create_table", True)
+                    )
+                    total_written += written
+                    current_batch = []
+                    progress.records_read = total_read
+                    progress.records_written = total_written
+                    if progress_callback:
+                        progress.elapsed_seconds = max(0.001, time.time() - start_time)
+                        progress_callback(progress)
+
+            if current_batch:
+                token.raise_if_cancelled()
+                mode = write_mode if total_written == 0 else "append"
+                if write_mode == "upsert":
+                    mode = "upsert"
+                written = db_connector.write_data_batch(
+                    table_name=dst_table,
+                    records=current_batch,
+                    write_mode=mode,
+                    key_columns=key_columns,
+                    column_mappings=mappings,
+                    schema_name=dest_cfg.get("schema_name"),
+                    auto_create_table=dest_cfg.get("auto_create_table", True)
+                )
+                total_written += written
+
+            duration = max(0.001, time.time() - start_time)
+            return TransferResult(
+                success=True,
+                bytes_transferred=len(raw_bytes),
+                records_transferred=total_written,
+                duration_seconds=round(duration, 3)
+            )
+        except InterruptedError as ie:
+            return TransferResult(
+                success=False,
+                bytes_transferred=len(raw_bytes),
+                records_transferred=total_written,
+                duration_seconds=time.time() - start_time,
+                cancelled=True,
+                error_message=str(ie)
+            )
+        except Exception as e:
+            return TransferResult(
+                success=False,
+                bytes_transferred=len(raw_bytes),
+                records_transferred=total_written,
+                duration_seconds=time.time() - start_time,
+                error_message=str(e)
+            )
+

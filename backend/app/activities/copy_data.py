@@ -87,6 +87,75 @@ class CopyDataActivity(BaseActivity):
                 }
             )
 
+        # Database-to-Cloud Ingestion
+        if not is_src_storage and is_dst_storage:
+            src_table = source_cfg.get("table_name")
+            dst_container = dest_cfg.get("container") or dest_cfg.get("bucket")
+            dst_path = dest_cfg.get("path") or dest_cfg.get("file_path") or dest_cfg.get("object_key")
+
+            if not src_table or not dst_container or not dst_path:
+                raise ValueError("Database to cloud transfer requires source.table_name and destination container + path.")
+
+            self.log("INFO", f"Executing Database-to-Cloud Ingestion: {src_table} -> {dst_container}/{dst_path}")
+            res = TransferEngine.execute_database_to_storage(
+                db_connector=src_connector,
+                dst_connector=dst_connector,
+                src_table=src_table,
+                dst_container=dst_container,
+                dst_path=dst_path,
+                config=config
+            )
+            if not res.success:
+                raise RuntimeError(f"Database-to-cloud transfer failed: {res.error_message}")
+
+            self.log("INFO", f"Database-to-cloud ingestion completed: {res.records_transferred} rows ({res.bytes_transferred} bytes)")
+            return ActivityExecutionResult(
+                status="Succeeded",
+                rows_read=res.records_transferred,
+                rows_written=res.records_transferred,
+                bytes_processed=res.bytes_transferred,
+                metrics={
+                    "duration_seconds": res.duration_seconds,
+                    "bytes_transferred": res.bytes_transferred,
+                    "records_transferred": res.records_transferred,
+                    "checksum": res.destination_checksum
+                }
+            )
+
+        # Cloud-to-Database Reverse ETL
+        if is_src_storage and not is_dst_storage:
+            src_container = source_cfg.get("container") or source_cfg.get("bucket")
+            src_path = source_cfg.get("path") or source_cfg.get("file_path") or source_cfg.get("object_key")
+            dst_table = dest_cfg.get("table_name")
+
+            if not src_container or not src_path or not dst_table:
+                raise ValueError("Cloud to database transfer requires source container + path and destination table_name.")
+
+            self.log("INFO", f"Executing Cloud-to-Database Reverse ETL: {src_container}/{src_path} -> {dst_table}")
+            res = TransferEngine.execute_storage_to_database(
+                src_connector=src_connector,
+                db_connector=dst_connector,
+                src_container=src_container,
+                src_path=src_path,
+                dst_table=dst_table,
+                config=config
+            )
+            if not res.success:
+                raise RuntimeError(f"Cloud-to-database transfer failed: {res.error_message}")
+
+            self.log("INFO", f"Cloud-to-database reverse ETL completed: {res.records_transferred} rows ({res.bytes_transferred} bytes)")
+            return ActivityExecutionResult(
+                status="Succeeded",
+                rows_read=res.records_transferred,
+                rows_written=res.records_transferred,
+                bytes_processed=res.bytes_transferred,
+                metrics={
+                    "duration_seconds": res.duration_seconds,
+                    "bytes_transferred": res.bytes_transferred,
+                    "records_transferred": res.records_transferred
+                }
+            )
+
         src_table = source_cfg.get("table_name")
         dst_table = dest_cfg.get("table_name")
         batch_size = int(source_cfg.get("batch_size", 5000))

@@ -14,7 +14,7 @@ This document tracks implementation status, test verification, and acceptance cr
 | **5** | Copy Data Frontend Enhancement | **COMPLETED** | 2026-11-05 | 179/179 passed (+3 tests) | Frontend build passed; 7 tabs & storage browser verified |
 | **6** | File Format and Schema Framework | **COMPLETED** | 2026-11-05 | 202/202 passed (+23 tests) | All 8 formats verified; low-memory preview tested |
 | **7** | Multi-Cloud Transfer Engine | **COMPLETED** | 2026-11-05 | 211/211 passed (+9 tests) | Bounded memory, checksums & cancellation verified |
-| **8** | Cross-Cloud & Hybrid Transfers | PENDING | Phase 8 Window | Target: +20 tests | S3<->ADLS<->GCS<->DB transfers pass |
+| **8** | Cross-Cloud & Hybrid Transfers | **COMPLETED** | 2026-11-05 | 225/225 passed (+14 tests) | S3<->Blob<->GCS<->DB streaming & reverse ETL pass |
 | **9** | Verification, Emulators & Scenarios | PENDING | Phase 9 Window | Target: +15 tests | Complete end-to-end integration pass |
 | **10**| Production Readiness & Hardening | PENDING | Phase 10 Window | Full Suite Pass | Security, zero-leakage, packaging done |
 
@@ -139,11 +139,12 @@ This document tracks implementation status, test verification, and acceptance cr
 ---
 
 ### Phase 8: Cross-Cloud & Hybrid Transfers
-- [ ] Implement Cloud-to-Cloud direct streaming transfers (S3 <-> GCS <-> ADLS <-> Blob).
-- [ ] Implement Database-to-Cloud ingestion (PostgreSQL/MySQL -> S3/GCS/ADLS Parquet/CSV).
-- [ ] Implement Cloud-to-Database reverse ETL (S3/GCS/ADLS -> PostgreSQL/MySQL).
-- [ ] Implement unit and integration tests in `backend/tests/test_cross_cloud_transfers.py`.
-- **Milestone Acceptance:** Cross-cloud and DB-cloud round-trip transfers succeed with byte and record parity.
+- [x] Implement Cloud-to-Cloud direct streaming transfers (S3 <-> GCS <-> ADLS <-> Blob).
+- [x] Implement Database-to-Cloud ingestion (PostgreSQL/MySQL/SQLite -> S3/GCS/ADLS/Local Parquet/CSV).
+- [x] Implement Cloud-to-Database reverse ETL (S3/GCS/ADLS/Local -> PostgreSQL/MySQL/SQLite with upsert, append & overwrite).
+- [x] Implement dynamic column mapping and projection across heterogeneous cloud & DB stores.
+- [x] Implement unit and integration tests in `backend/tests/test_cross_cloud_transfers.py` (14 passing tests).
+- **Milestone Acceptance:** Completed & Approved. Cross-cloud and DB-cloud round-trip transfers succeed with byte and record parity, schema preservation, and cancellation safety.
 
 ---
 

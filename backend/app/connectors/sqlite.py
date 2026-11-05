@@ -147,9 +147,13 @@ class SQLiteConnector(BaseConnector):
 
         mapped_records = []
         if column_mappings:
-            mapping_dict = {m["source_column"]: m["target_column"] for m in column_mappings}
+            mapping_dict = {
+                m["source_column"]: (m.get("target_column") or m.get("destination_column") or m["source_column"])
+                for m in column_mappings
+                if not m.get("exclude")
+            }
             for r in records:
-                mapped_records.append({mapping_dict.get(k, k): v for k, v in r.items()})
+                mapped_records.append({mapping_dict.get(k, k): v for k, v in r.items() if k in mapping_dict})
         else:
             mapped_records = records
 
