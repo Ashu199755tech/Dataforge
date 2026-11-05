@@ -16,6 +16,7 @@ from backend.app.api.pipelines import router as pipelines_router
 from backend.app.api.runs import router as runs_router
 from backend.app.api.dashboard import router as dashboard_router
 from backend.app.api.triggers import router as triggers_router
+from backend.app.api.activities import router as activities_router
 from backend.app.orchestration.scheduler import scheduler
 
 
@@ -91,6 +92,7 @@ app.include_router(pipelines_router, prefix=settings.API_V1_STR)
 app.include_router(runs_router, prefix=settings.API_V1_STR)
 app.include_router(dashboard_router, prefix=settings.API_V1_STR)
 app.include_router(triggers_router, prefix=settings.API_V1_STR)
+app.include_router(activities_router, prefix=settings.API_V1_STR)
 
 
 @app.get("/health")
