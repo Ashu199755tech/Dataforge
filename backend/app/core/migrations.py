@@ -32,6 +32,9 @@ def run_migrations():
                 conn.execute(text("ALTER TABLE pipeline_versions ADD COLUMN IF NOT EXISTS created_by_id VARCHAR(36);"))
                 conn.execute(text("ALTER TABLE pipeline_versions ADD COLUMN IF NOT EXISTS git_commit_hash VARCHAR(40);"))
                 conn.execute(text("ALTER TABLE pipeline_versions ADD COLUMN IF NOT EXISTS environment_name VARCHAR(50) DEFAULT 'Dev' NOT NULL;"))
+                # Feature 1 additions: pipelines.runtime_id
+                conn.execute(text("ALTER TABLE pipelines ADD COLUMN IF NOT EXISTS runtime_id VARCHAR(36);"))
+                conn.execute(text("ALTER TABLE integration_runtimes ALTER COLUMN project_id DROP NOT NULL;"))
                 conn.commit()
     except Exception as e:
         print(f"[WARN] Schema migration encountered notice/exception (non-fatal): {e}")

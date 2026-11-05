@@ -6,6 +6,8 @@ from sqlalchemy.orm import Session
 from backend.app.core.database import SessionLocal
 from backend.app.models.execution import PipelineRun, ActivityRun, ExecutionLog
 from backend.app.models.pipeline import Pipeline
+from backend.app.models.runtime import IntegrationRuntime
+from backend.app.services.runtime_manager import RuntimeManagerService
 from backend.app.execution.dag_engine import PipelineDAG, DAGValidationError
 from backend.app.activities.base import ActivityExecutionContext
 from backend.app.activities.factory import get_activity_instance
@@ -171,6 +173,7 @@ class PipelineRunner:
                     last_stack = None
                     res = None
                     retry_attempts_log: List[Dict[str, Any]] = []
+                    runtime_worker_meta = worker_meta
 
                     while attempt <= max_retries:
                         attempt_start = time.time()
@@ -196,19 +199,100 @@ class PipelineRunner:
                             )
                             resolved_config = evaluator.evaluate(act_cfg.get("config", {}))
 
-                            context = ActivityExecutionContext(
-                                pipeline_run_id=self.run_id,
-                                activity_id=act_id,
-                                activity_name=act_cfg.get("name", act_id),
-                                activity_type=act_cfg.get("type", "CopyData"),
-                                config=resolved_config,
-                                pipeline_parameters=pipeline_run.parameters or {},
-                                pipeline_variables=pipeline_vars,
-                                activity_outputs=activity_outputs
+                            # 1. Resolve Integration Runtime (Activity override > Config override > Pipeline default > AutoResolve fallback)
+                            target_runtime_id = (
+                                act_cfg.get("runtime_id")
+                                or (resolved_config.get("runtime_id") if isinstance(resolved_config, dict) else None)
+                                or getattr(pipeline, "runtime_id", None)
                             )
-                            executor = get_activity_instance(context, db)
-                            executor.activity_run_id = act_run.id
-                            res = executor.execute()
+                            runtime = None
+                            if target_runtime_id:
+                                runtime = db.query(IntegrationRuntime).filter(IntegrationRuntime.id == target_runtime_id).first()
+                            if not runtime:
+                                runtime = db.query(IntegrationRuntime).filter(IntegrationRuntime.name == "AutoResolveIntegrationRuntime").first()
+
+                            if runtime and (not runtime.is_enabled or runtime.status == "Disabled"):
+                                raise RuntimeError(f"Integration Runtime '{runtime.name}' is disabled.")
+
+                            # Update act_run worker telemetry with assigned runtime info
+                            runtime_worker_meta = {
+                                **worker_meta,
+                                "runtime_id": runtime.id if runtime else None,
+                                "runtime_name": runtime.name if runtime else "AutoResolveIntegrationRuntime",
+                                "runtime_type": getattr(runtime, "runtime_type", "Cloud")
+                            }
+                            if runtime and runtime.runtime_type == "SelfHosted":
+                                runtime_worker_meta["agent_host"] = runtime.host_name
+                                runtime_worker_meta["agent_os"] = runtime.agent_os
+                                runtime_worker_meta["agent_version"] = runtime.agent_version
+                            act_run.worker_info = runtime_worker_meta
+
+                            if runtime and runtime.runtime_type == "SelfHosted":
+                                if runtime.status != "Online":
+                                    raise RuntimeError(f"Self-Hosted Integration Runtime '{runtime.name}' is currently {runtime.status}. Cannot dispatch activity.")
+
+                                task_payload = {
+                                    "activity_id": act_id,
+                                    "activity_name": act_cfg.get("name", act_id),
+                                    "activity_type": act_cfg.get("type", "CopyData"),
+                                    "config": resolved_config,
+                                    "pipeline_parameters": pipeline_run.parameters or {},
+                                    "pipeline_variables": pipeline_vars,
+                                    "activity_outputs": activity_outputs
+                                }
+                                timeout_sec = int(act_cfg.get("timeout_seconds") or 300)
+                                rt_task = RuntimeManagerService.enqueue_task(
+                                    db=db,
+                                    runtime_id=runtime.id,
+                                    task_type=act_cfg.get("type", "CopyData"),
+                                    payload=task_payload,
+                                    pipeline_run_id=self.run_id,
+                                    activity_run_id=act_run.id,
+                                    timeout_seconds=timeout_sec
+                                )
+
+                                poll_start = time.time()
+                                while True:
+                                    db.refresh(rt_task)
+                                    if rt_task.status == "Completed":
+                                        t_res = rt_task.task_result or {}
+                                        class _AgentResult:
+                                            def __init__(self, d):
+                                                self.status = "Succeeded"
+                                                self.rows_read = int(d.get("rows_read", 0))
+                                                self.rows_written = int(d.get("rows_written", 0))
+                                                self.bytes_processed = int(d.get("bytes_processed", 0))
+                                                self.metrics = d.get("metrics") or {}
+                                                self.output_variables = d.get("output_variables") or {}
+                                                self.error_message = None
+                                                self.error_stack_trace = None
+                                        res = _AgentResult(t_res)
+                                        break
+                                    elif rt_task.status in ("Failed", "Cancelled"):
+                                        t_res = rt_task.task_result or {}
+                                        raise RuntimeError(t_res.get("error_message") or f"Task execution failed on agent '{runtime.name}'")
+
+                                    if time.time() - poll_start > timeout_sec:
+                                        rt_task.status = "Failed"
+                                        rt_task.task_result = {"error_message": f"Task timed out after {timeout_sec}s on runtime '{runtime.name}'"}
+                                        db.commit()
+                                        raise TimeoutError(rt_task.task_result["error_message"])
+
+                                    time.sleep(1.0)
+                            else:
+                                context = ActivityExecutionContext(
+                                    pipeline_run_id=self.run_id,
+                                    activity_id=act_id,
+                                    activity_name=act_cfg.get("name", act_id),
+                                    activity_type=act_cfg.get("type", "CopyData"),
+                                    config=resolved_config,
+                                    pipeline_parameters=pipeline_run.parameters or {},
+                                    pipeline_variables=pipeline_vars,
+                                    activity_outputs=activity_outputs
+                                )
+                                executor = get_activity_instance(context, db)
+                                executor.activity_run_id = act_run.id
+                                res = executor.execute()
 
                             attempt_duration_ms = max(int((time.time() - attempt_start) * 1000), 1)
 
@@ -253,7 +337,7 @@ class PipelineRunner:
                     act_run.ended_at = datetime.now(timezone.utc)
                     act_run.duration_seconds = max(int(time.time() - act_start_clock), 0)
                     act_run.retry_history = retry_attempts_log
-                    act_run.worker_info = worker_meta
+                    act_run.worker_info = runtime_worker_meta
 
                     if success and res:
                         act_run.status = "Succeeded"

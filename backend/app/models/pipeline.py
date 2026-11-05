@@ -17,10 +17,12 @@ class Pipeline(Base):
     current_version = Column(Integer, default=1, nullable=False)
     concurrency_limit = Column(Integer, default=5, nullable=False)
     environment_id = Column(String(36), nullable=True)
+    runtime_id = Column(String(36), ForeignKey("integration_runtimes.id", ondelete="SET NULL"), nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
 
     project = relationship("Project", back_populates="pipelines")
+    runtime = relationship("IntegrationRuntime", backref="pipelines")
     versions = relationship("PipelineVersion", back_populates="pipeline", cascade="all, delete-orphan")
     runs = relationship("PipelineRun", back_populates="pipeline", cascade="all, delete-orphan")
     triggers = relationship("Trigger", back_populates="pipeline", cascade="all, delete-orphan")

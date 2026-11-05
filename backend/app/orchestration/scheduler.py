@@ -45,9 +45,20 @@ class TriggerScheduler:
         while self._running:
             try:
                 self.check_and_fire_triggers()
+                self.check_runtimes_health()
             except Exception as e:
                 print(f"[ERROR] Scheduler error: {str(e)}")
             time.sleep(self.poll_interval)
+
+    def check_runtimes_health(self):
+        db: Session = SessionLocal()
+        try:
+            from backend.app.services.runtime_manager import RuntimeManagerService
+            RuntimeManagerService.check_offline_runtimes(db)
+        except Exception as e:
+            pass
+        finally:
+            db.close()
 
     def check_and_fire_triggers(self):
         db: Session = SessionLocal()

@@ -3,7 +3,7 @@ import { Workspace, Project, Connection, Pipeline } from '../types';
 import api from '../api/client';
 
 interface AppState {
-  currentTab: 'dashboard' | 'pipelines' | 'designer' | 'dataflows' | 'connections' | 'triggers' | 'runs' | 'dq';
+  currentTab: 'dashboard' | 'pipelines' | 'designer' | 'dataflows' | 'connections' | 'triggers' | 'runs' | 'dq' | 'runtimes';
   selectedPipelineId: string | null;
   workspaces: Workspace[];
   activeWorkspace: Workspace | null;
@@ -13,7 +13,7 @@ interface AppState {
   pipelines: Pipeline[];
   isLoading: boolean;
   
-  setCurrentTab: (tab: 'dashboard' | 'pipelines' | 'designer' | 'dataflows' | 'connections' | 'triggers' | 'runs' | 'dq') => void;
+  setCurrentTab: (tab: 'dashboard' | 'pipelines' | 'designer' | 'dataflows' | 'connections' | 'triggers' | 'runs' | 'dq' | 'runtimes') => void;
   setSelectedPipelineId: (id: string | null) => void;
   fetchInitialData: () => Promise<void>;
   fetchConnections: () => Promise<void>;

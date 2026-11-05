@@ -14,6 +14,7 @@ from backend.app.models.data_quality import (
 )
 from backend.app.models.alert import AlertRule, AlertEvent
 from backend.app.models.security import WorkspaceMember, Environment, SecretVaultEntry
+from backend.app.models.runtime import IntegrationRuntime, RuntimeTask
 
 __all__ = [
     "Base",
@@ -37,5 +38,7 @@ __all__ = [
     "AlertEvent",
     "WorkspaceMember",
     "Environment",
-    "SecretVaultEntry"
+    "SecretVaultEntry",
+    "IntegrationRuntime",
+    "RuntimeTask"
 ]

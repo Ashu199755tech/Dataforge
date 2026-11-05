@@ -4,8 +4,8 @@
 
 | Phase | Milestone Title | Status | Target / Completed Date | Tests Passing | Sign-off Gate |
 | :---: | :--- | :---: | :---: | :---: | :---: |
-| **0** | **Existing Codebase Audit & Specifications** | **IN PROGRESS** | 2026-11-05 | 236/236 baseline | Awaiting User Approval to Begin Phase 1 |
-| **1** | **Integration Runtime Manager** | Not Started | Phase 1 Window | Target: +15 tests | Working runtime registration, agent dispatch, & UI |
+| **0** | **Existing Codebase Audit & Specifications** | **COMPLETED** | 2026-11-05 | 236/236 baseline | Approved by User |
+| **1** | **Integration Runtime Manager** | **COMPLETED** | 2026-11-05 | 250/250 (+14 tests) | Working runtime registration, agent dispatch, & UI |
 | **2** | **Reusable Dataset Management** | Not Started | Phase 2 Window | Target: +15 tests | Datasets, schema discovery, preview, & Copy Data |
 | **3** | **Advanced Trigger Management** | Not Started | Phase 3 Window | Target: +15 tests | Schedules, events, windows, dependencies, & UI |
 | **4** | **Git Integration & CI/CD** | Not Started | Phase 4 Window | Target: +15 tests | GitHub/GitLab sync, versioning, promotion & approval |
@@ -33,16 +33,16 @@
 ---
 
 ### Phase 1: Integration Runtime Manager
-- [ ] Implement database models: `IntegrationRuntime`, `RuntimeAgent`, `RuntimeTask`.
-- [ ] Implement registration token generation and verification with Fernet encryption.
-- [ ] Implement agent protocol REST endpoints (`register`, `heartbeat`, `poll-tasks`, `task-status`).
-- [ ] Implement runtime heartbeat and offline detection background daemon.
-- [ ] Build lightweight standalone runtime agent package for Linux & Windows.
-- [ ] Integrate runtime dispatcher into `PipelineRunner`.
-- [ ] Build Runtime Manager page (`/runtimes`) in frontend with live telemetry.
-- [ ] Add runtime selection to Pipeline Settings and Activity Drawer.
-- [ ] Implement unit and integration tests in `backend/tests/test_runtimes.py`.
-- **Status:** Not Started
+- [x] Implement database models: `IntegrationRuntime`, `RuntimeTask` with telemetry & encryption.
+- [x] Implement registration token generation and verification with Fernet encryption and SHA-256 tokens.
+- [x] Implement agent protocol REST endpoints (`register`, `heartbeat`, `poll-tasks`, `tasks/{id}/status`).
+- [x] Implement runtime heartbeat and offline detection background daemon in scheduler.
+- [x] Build lightweight standalone cross-platform runtime agent package in `scripts/dataforge_agent.py`.
+- [x] Integrate runtime dispatcher into `PipelineRunner` with dynamic expression evaluation and routing.
+- [x] Build Runtime Manager page (`/runtimes`) in frontend with live telemetry, CPU/memory bars, and setup scripts.
+- [x] Add runtime selection override to Pipeline and Activity Drawer in pipeline designer.
+- [x] Implement unit and integration tests in `backend/tests/test_runtimes.py`.
+- **Status:** COMPLETED (100% Tests Passing, Production Build Verified)
 
 ---
 

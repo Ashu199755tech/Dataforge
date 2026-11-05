@@ -26,6 +26,9 @@ from backend.app.api.environments import router as environments_router
 from backend.app.api.secrets import router as secrets_router
 from backend.app.api.audit import router as audit_router
 from backend.app.api.scenarios import router as scenarios_router
+from backend.app.api.runtimes import router as runtimes_router
+from backend.app.models.runtime import IntegrationRuntime
+from datetime import datetime, timezone
 from backend.app.orchestration.scheduler import scheduler
 from backend.app.core.migrations import run_migrations
 from backend.app.orchestration.recovery import recover_orphaned_runs
@@ -68,7 +71,26 @@ def seed_initial_metadata():
             )
             db.add(proj)
             db.commit()
+            db.refresh(proj)
             print("[INFO] Default core project created.")
+
+        default_ir = db.query(IntegrationRuntime).filter(
+            IntegrationRuntime.project_id == proj.id,
+            IntegrationRuntime.name == "AutoResolveIntegrationRuntime"
+        ).first()
+        if not default_ir:
+            default_ir = IntegrationRuntime(
+                project_id=proj.id,
+                name="AutoResolveIntegrationRuntime",
+                description="Default managed multi-cloud serverless integration runtime.",
+                runtime_type="Cloud",
+                status="Online",
+                concurrency_limit=10,
+                last_heartbeat_at=datetime.now(timezone.utc)
+            )
+            db.add(default_ir)
+            db.commit()
+            print("[INFO] Default AutoResolveIntegrationRuntime created.")
     finally:
         db.close()
 
@@ -120,6 +142,7 @@ app.include_router(environments_router, prefix=settings.API_V1_STR)
 app.include_router(secrets_router, prefix=settings.API_V1_STR)
 app.include_router(audit_router, prefix=settings.API_V1_STR)
 app.include_router(scenarios_router, prefix=settings.API_V1_STR)
+app.include_router(runtimes_router, prefix=settings.API_V1_STR)
 
 
 @app.get("/health")

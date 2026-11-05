@@ -9,7 +9,8 @@ import {
   PlayCircle,
   Clock,
   FileText,
-  Workflow
+  Workflow,
+  Cpu
 } from 'lucide-react';
 
 export const Sidebar: React.FC = () => {
@@ -20,6 +21,7 @@ export const Sidebar: React.FC = () => {
     { id: 'pipelines', label: 'Pipelines', icon: GitBranch },
     { id: 'dataflows', label: 'Data Flows (ETL)', icon: Workflow },
     { id: 'connections', label: 'Connections', icon: Database },
+    { id: 'runtimes', label: 'Integration Runtimes', icon: Cpu },
     { id: 'triggers', label: 'Triggers & Schedules', icon: Clock },
     { id: 'runs', label: 'Runs & Monitor', icon: PlayCircle },
     { id: 'dq', label: 'Data Quality', icon: ShieldCheck },

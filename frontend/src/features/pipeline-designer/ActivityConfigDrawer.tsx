@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAppStore } from '../../store/useAppStore';
 import { Node, Edge } from '@xyflow/react';
 import api from '../../api/client';
@@ -78,6 +78,13 @@ export const ActivityConfigDrawer: React.FC<ConfigDrawerProps> = ({
   const state = data.state || 'Active';
   const retryPolicy = data.retry_policy || { max_retries: 0, retry_interval_seconds: 2 };
   const [isExpanded, setIsExpanded] = useState(activityType === 'CopyData');
+  const [availableRuntimes, setAvailableRuntimes] = useState<any[]>([]);
+
+  useEffect(() => {
+    api.get('/runtimes')
+      .then(res => setAvailableRuntimes(res.data))
+      .catch(err => console.error('Failed to fetch runtimes', err));
+  }, []);
 
   // Incoming edges (dependencies for this activity)
   const incomingEdges = allEdges.filter((e) => e.target === id);
@@ -2045,6 +2052,34 @@ export const ActivityConfigDrawer: React.FC<ConfigDrawerProps> = ({
                   />
                 </div>
               </div>
+            </div>
+
+            {/* Integration Runtime Override (Feature 1) */}
+            <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-lg space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="block text-slate-300 font-semibold text-[11px] uppercase tracking-wider flex items-center gap-1.5">
+                  <Cpu className="w-3.5 h-3.5 text-brand-400" />
+                  Integration Runtime Override
+                </label>
+                <span className="text-[10px] text-slate-500 font-mono">
+                  {data.runtime_id ? 'Activity Override' : 'Pipeline Default'}
+                </span>
+              </div>
+              <select
+                value={data.runtime_id || ''}
+                onChange={(e) => onUpdateNode(id, { ...data, runtime_id: e.target.value || null })}
+                className="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-1 text-slate-200"
+              >
+                <option value="">Default (Inherit Pipeline Runtime)</option>
+                {availableRuntimes.map((rt: any) => (
+                  <option key={rt.id} value={rt.id}>
+                    {rt.name} ({rt.runtime_type} - {rt.status})
+                  </option>
+                ))}
+              </select>
+              <p className="text-[10px] text-slate-500">
+                Direct this activity to run on a specific private Self-Hosted gateway or Cloud runtime cluster.
+              </p>
             </div>
           </div>
         )}
