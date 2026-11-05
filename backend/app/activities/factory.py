@@ -23,6 +23,11 @@ from backend.app.activities.stored_procedure import StoredProcedureActivity
 from backend.app.activities.custom_activity import CustomActivity
 from backend.app.activities.databricks import DatabricksNotebookActivity
 from backend.app.activities.pyspark_job import PySparkJobActivity
+from backend.app.activities.web import WebActivity
+from backend.app.activities.webhook import WebhookActivity
+from backend.app.activities.validation import ValidationActivity
+from backend.app.activities.file_operation import FileOperationActivity
+from backend.app.activities.archive import ArchiveActivity
 
 
 def _register_builtin_activities():
@@ -660,6 +665,159 @@ def _register_builtin_activities():
         ),
         PySparkJobActivity,
         aliases=["pyspark_job", "pyspark", "spark_job"]
+    )
+
+    # 23. Web Activity
+    activity_registry.register(
+        ActivityMetadata(
+            activity_type="WebActivity",
+            display_name="Web Activity",
+            category="File & API Integration",
+            description="Executes custom HTTP/S requests with authentication, payload formatting, and response parsing.",
+            version="1.0.0",
+            icon="Globe",
+            config_schema={
+                "type": "object",
+                "required": ["url"],
+                "properties": {
+                    "url": {"type": "string"},
+                    "method": {"type": "string", "default": "GET"},
+                    "headers": {"type": "object"},
+                    "body": {"type": "object"},
+                    "timeout_seconds": {"type": "integer", "default": 30}
+                }
+            },
+            outputs=[
+                {"name": "status_code", "type": "int"},
+                {"name": "response", "type": "object"},
+                {"name": "duration_seconds", "type": "number"}
+            ],
+            supports_retry=True,
+            tags=["HTTP", "REST", "API", "Web"]
+        ),
+        WebActivity,
+        aliases=["web_activity", "web", "http"]
+    )
+
+    # 24. Webhook Activity
+    activity_registry.register(
+        ActivityMetadata(
+            activity_type="Webhook",
+            display_name="Webhook",
+            category="File & API Integration",
+            description="Dispatches external notification with unique callback URL and awaits asynchronous callback completion.",
+            version="1.0.0",
+            icon="Send",
+            config_schema={
+                "type": "object",
+                "required": ["url"],
+                "properties": {
+                    "url": {"type": "string"},
+                    "method": {"type": "string", "default": "POST"},
+                    "headers": {"type": "object"},
+                    "body": {"type": "object"},
+                    "timeout_seconds": {"type": "integer", "default": 300}
+                }
+            },
+            outputs=[
+                {"name": "callback_data", "type": "object"},
+                {"name": "duration_seconds", "type": "number"}
+            ],
+            supports_retry=False,
+            tags=["Webhook", "Callback", "Async", "Integration"]
+        ),
+        WebhookActivity,
+        aliases=["webhook_activity", "webhook"]
+    )
+
+    # 25. Validation Activity
+    activity_registry.register(
+        ActivityMetadata(
+            activity_type="Validation",
+            display_name="Validation",
+            category="Control Flow",
+            description="Polls and verifies dataset or file availability and minimum size thresholds before proceeding.",
+            version="1.0.0",
+            icon="CheckCheck",
+            config_schema={
+                "type": "object",
+                "required": [],
+                "properties": {
+                    "dataset_name": {"type": "string"},
+                    "file_path": {"type": "string"},
+                    "timeout_seconds": {"type": "integer", "default": 60},
+                    "sleep_interval_seconds": {"type": "integer", "default": 5}
+                }
+            },
+            outputs=[
+                {"name": "exists", "type": "boolean"},
+                {"name": "size_bytes", "type": "int"},
+                {"name": "row_count", "type": "int"}
+            ],
+            supports_retry=False,
+            tags=["Validation", "Sensing", "Gates", "Prerequisites"]
+        ),
+        ValidationActivity,
+        aliases=["validation_activity", "validate", "check_exists"]
+    )
+
+    # 26. File Operation
+    activity_registry.register(
+        ActivityMetadata(
+            activity_type="FileOperation",
+            display_name="File Operation",
+            category="File & Storage",
+            description="Performs copy, move, delete, rename, or existence checks across file system paths.",
+            version="1.0.0",
+            icon="FolderCog",
+            config_schema={
+                "type": "object",
+                "required": ["source_path"],
+                "properties": {
+                    "operation": {"type": "string", "enum": ["copy", "move", "delete", "rename", "file_exists"]},
+                    "source_path": {"type": "string"},
+                    "destination_path": {"type": "string"}
+                }
+            },
+            outputs=[
+                {"name": "affected_count", "type": "int"},
+                {"name": "affected_files", "type": "array"}
+            ],
+            supports_retry=True,
+            tags=["File", "Filesystem", "Storage", "Maintenance"]
+        ),
+        FileOperationActivity,
+        aliases=["file_operation", "file_transfer", "file_exists"]
+    )
+
+    # 27. Archive Activity
+    activity_registry.register(
+        ActivityMetadata(
+            activity_type="Archive",
+            display_name="Archive & Compression",
+            category="File & Storage",
+            description="Compresses files into .zip/.tar.gz archives or extracts compressed packages to a folder.",
+            version="1.0.0",
+            icon="Archive",
+            config_schema={
+                "type": "object",
+                "required": ["source_path", "destination_path"],
+                "properties": {
+                    "action": {"type": "string", "enum": ["compress", "extract"]},
+                    "format": {"type": "string", "default": "zip"},
+                    "source_path": {"type": "string"},
+                    "destination_path": {"type": "string"}
+                }
+            },
+            outputs=[
+                {"name": "archive_size_bytes", "type": "int"},
+                {"name": "extracted_count", "type": "int"}
+            ],
+            supports_retry=True,
+            tags=["Archive", "Zip", "Tar", "Compression", "Storage"]
+        ),
+        ArchiveActivity,
+        aliases=["archive_activity", "unzip", "extract", "compress"]
     )
 
 

@@ -5,11 +5,24 @@ import time
 from typing import List, Dict, Any, Iterator, Optional
 from backend.app.connectors.base import BaseConnector, ConnectionTestResult, TableMetadata, ColumnMetadata
 
+try:
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+    HAS_PYARROW = True
+except ImportError:
+    HAS_PYARROW = False
+
+try:
+    import openpyxl
+    HAS_OPENPYXL = True
+except ImportError:
+    HAS_OPENPYXL = False
+
 
 class LocalFileConnector(BaseConnector):
     """
     Local File & Object Storage Connector.
-    Supports CSV and JSON file extraction and ingestion.
+    Supports CSV, JSON, Parquet, and Excel (.xlsx) file extraction and ingestion.
     """
 
     def __init__(self, config: Dict[str, Any]):
@@ -38,16 +51,17 @@ class LocalFileConnector(BaseConnector):
 
     def discover_tables(self, schema_name: Optional[str] = None) -> List[TableMetadata]:
         files = []
-        for f in os.listdir(self.base_dir):
-            if f.endswith((".csv", ".json")):
-                full_path = os.path.join(self.base_dir, f)
-                cols = self.discover_columns(f)
-                files.append(TableMetadata(
-                    name=f,
-                    schema_name="default",
-                    table_type="FILE",
-                    columns=cols
-                ))
+        supported_exts = (".csv", ".json", ".parquet", ".xlsx", ".xls")
+        if os.path.exists(self.base_dir):
+            for f in os.listdir(self.base_dir):
+                if f.endswith(supported_exts):
+                    cols = self.discover_columns(f)
+                    files.append(TableMetadata(
+                        name=f,
+                        schema_name="default",
+                        table_type="FILE",
+                        columns=cols
+                    ))
         return files
 
     def discover_columns(self, table_name: str, schema_name: Optional[str] = None) -> List[ColumnMetadata]:
@@ -72,6 +86,26 @@ class LocalFileConnector(BaseConnector):
                             cols.append(ColumnMetadata(name=k, data_type="STRING"))
                 except Exception:
                     pass
+        elif table_name.endswith(".parquet") and HAS_PYARROW:
+            try:
+                schema = pq.read_schema(file_path)
+                for field_name in schema.names:
+                    field = schema.field(field_name)
+                    cols.append(ColumnMetadata(name=field_name, data_type=str(field.type).upper()))
+            except Exception:
+                pass
+        elif table_name.endswith((".xlsx", ".xls")) and HAS_OPENPYXL:
+            try:
+                wb = openpyxl.load_workbook(file_path, read_only=True, data_only=True)
+                ws = wb.active
+                first_row = next(ws.iter_rows(values_only=True), None)
+                if first_row:
+                    for val in first_row:
+                        if val is not None:
+                            cols.append(ColumnMetadata(name=str(val).strip(), data_type="STRING"))
+                wb.close()
+            except Exception:
+                pass
         return cols
 
     def read_data_stream(
@@ -93,12 +127,10 @@ class LocalFileConnector(BaseConnector):
             with open(file_path, "r", encoding="utf-8") as f:
                 reader = csv.DictReader(f)
                 for row in reader:
-                    # Apply watermark filter if requested
                     if watermark_column and watermark_value is not None:
                         val = row.get(watermark_column)
                         if val is None or str(val) <= str(watermark_value):
                             continue
-
                     batch.append(dict(row))
                     if len(batch) >= batch_size:
                         yield batch
@@ -120,6 +152,34 @@ class LocalFileConnector(BaseConnector):
                         batch = []
                 if batch:
                     yield batch
+        elif table_name.endswith(".parquet") and HAS_PYARROW:
+            parquet_file = pq.ParquetFile(file_path)
+            for batch_record in parquet_file.iter_batches(batch_size=batch_size, columns=columns):
+                dicts = batch_record.to_pylist()
+                if watermark_column and watermark_value is not None:
+                    dicts = [r for r in dicts if r.get(watermark_column) is not None and str(r.get(watermark_column)) > str(watermark_value)]
+                if dicts:
+                    yield dicts
+        elif table_name.endswith((".xlsx", ".xls")) and HAS_OPENPYXL:
+            wb = openpyxl.load_workbook(file_path, read_only=True, data_only=True)
+            ws = wb.active
+            rows_iter = ws.iter_rows(values_only=True)
+            headers = next(rows_iter, None)
+            if headers:
+                header_names = [str(h) if h is not None else f"col_{i}" for i, h in enumerate(headers)]
+                for r in rows_iter:
+                    row_dict = {header_names[i]: r[i] for i in range(min(len(header_names), len(r)))}
+                    if watermark_column and watermark_value is not None:
+                        val = row_dict.get(watermark_column)
+                        if val is None or str(val) <= str(watermark_value):
+                            continue
+                    batch.append(row_dict)
+                    if len(batch) >= batch_size:
+                        yield batch
+                        batch = []
+                if batch:
+                    yield batch
+            wb.close()
 
     def write_data_batch(
         self,
@@ -134,7 +194,6 @@ class LocalFileConnector(BaseConnector):
         if not records:
             return 0
 
-        # Ensure correct extension
         filename = table_name if ("." in table_name) else f"{table_name}.csv"
         file_path = os.path.join(self.base_dir, filename)
 
@@ -167,6 +226,21 @@ class LocalFileConnector(BaseConnector):
             existing.extend(mapped_records)
             with open(file_path, "w", encoding="utf-8") as f:
                 json.dump(existing, f, indent=2, default=str)
+        elif filename.endswith(".parquet") and HAS_PYARROW:
+            table = pa.Table.from_pylist(mapped_records)
+            if file_exists and write_mode != "overwrite":
+                existing_table = pq.read_table(file_path)
+                table = pa.concat_tables([existing_table, table])
+            pq.write_table(table, file_path)
+        elif filename.endswith((".xlsx", ".xls")) and HAS_OPENPYXL:
+            wb = openpyxl.Workbook()
+            ws = wb.active
+            headers = list(mapped_records[0].keys())
+            ws.append(headers)
+            for r in mapped_records:
+                ws.append([r.get(h) for h in headers])
+            wb.save(file_path)
+            wb.close()
 
         return len(mapped_records)
 
@@ -197,13 +271,19 @@ class LocalFileConnector(BaseConnector):
             if object_name.endswith(".csv"):
                 with open(file_path, "r", encoding="utf-8") as f:
                     reader = csv.reader(f)
-                    # header count
                     next(reader, None)
                     row_cnt = sum(1 for _ in reader)
             elif object_name.endswith(".json"):
                 with open(file_path, "r", encoding="utf-8") as f:
                     data = json.load(f)
                     row_cnt = len(data) if isinstance(data, list) else 1
+            elif object_name.endswith(".parquet") and HAS_PYARROW:
+                row_cnt = pq.ParquetFile(file_path).metadata.num_rows
+            elif object_name.endswith((".xlsx", ".xls")) and HAS_OPENPYXL:
+                wb = openpyxl.load_workbook(file_path, read_only=True)
+                ws = wb.active
+                row_cnt = max(0, ws.max_row - 1) if ws.max_row else 0
+                wb.close()
         except Exception:
             row_cnt = 0
 

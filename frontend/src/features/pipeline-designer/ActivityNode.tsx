@@ -26,7 +26,11 @@ import {
   DatabaseZap,
   CloudLightning,
   Flame,
-  Cpu
+  Cpu,
+  Send,
+  CheckCheck,
+  FolderCog,
+  Archive
 } from 'lucide-react';
 
 export const ActivityNode: React.FC<NodeProps> = ({ id, data, selected }) => {
@@ -91,6 +95,16 @@ export const ActivityNode: React.FC<NodeProps> = ({ id, data, selected }) => {
         return <CloudLightning className="h-4 w-4 text-orange-400" />;
       case 'PySparkJob':
         return <Flame className="h-4 w-4 text-rose-400" />;
+      case 'WebActivity':
+        return <Globe className="h-4 w-4 text-sky-400" />;
+      case 'Webhook':
+        return <Send className="h-4 w-4 text-teal-400" />;
+      case 'Validation':
+        return <CheckCheck className="h-4 w-4 text-lime-400" />;
+      case 'FileOperation':
+        return <FolderCog className="h-4 w-4 text-amber-400" />;
+      case 'Archive':
+        return <Archive className="h-4 w-4 text-indigo-400" />;
       default:
         return <Layers className="h-4 w-4 text-slate-400" />;
     }
@@ -300,6 +314,41 @@ export const ActivityNode: React.FC<NodeProps> = ({ id, data, selected }) => {
           <div className="truncate text-rose-400 text-[10px] flex items-center gap-1 font-mono">
             <span className="text-slate-500">Spark:</span>
             <span className="truncate">{activityData.config?.master || 'local[*]'}</span>
+          </div>
+        )}
+
+        {(activityData.activityType === 'WebActivity' || activityData.activityType === 'RestApi') && activityData.config?.url && (
+          <div className="truncate text-sky-400 text-[10px] flex items-center gap-1 font-mono">
+            <span className="text-slate-500">{activityData.config.method || 'GET'}</span>
+            <span className="truncate">{activityData.config.url}</span>
+          </div>
+        )}
+
+        {activityData.activityType === 'Webhook' && activityData.config?.url && (
+          <div className="truncate text-teal-400 text-[10px] flex items-center gap-1 font-mono">
+            <span className="text-slate-500">Hook:</span>
+            <span className="truncate">{activityData.config.url}</span>
+          </div>
+        )}
+
+        {activityData.activityType === 'Validation' && (
+          <div className="truncate text-lime-400 text-[10px] flex items-center gap-1 font-mono">
+            <span className="text-slate-500">Check:</span>
+            <span className="truncate">{activityData.config?.dataset_name || activityData.config?.file_path || 'Target Dataset'}</span>
+          </div>
+        )}
+
+        {activityData.activityType === 'FileOperation' && (
+          <div className="truncate text-amber-400 text-[10px] flex items-center gap-1 font-mono">
+            <span className="text-slate-500">{activityData.config?.operation || 'copy'}:</span>
+            <span className="truncate">{activityData.config?.source_path || 'Files'}</span>
+          </div>
+        )}
+
+        {activityData.activityType === 'Archive' && (
+          <div className="truncate text-indigo-400 text-[10px] flex items-center gap-1 font-mono">
+            <span className="text-slate-500">{activityData.config?.action || 'compress'}:</span>
+            <span className="truncate">{activityData.config?.destination_path || 'Target'}</span>
           </div>
         )}
       </div>

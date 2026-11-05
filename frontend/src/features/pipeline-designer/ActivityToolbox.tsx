@@ -23,7 +23,11 @@ import {
   Terminal,
   DatabaseZap,
   CloudLightning,
-  Flame
+  Flame,
+  Send,
+  CheckCheck,
+  FolderCog,
+  Archive
 } from 'lucide-react';
 import api from '../../api/client';
 
@@ -58,6 +62,7 @@ const DEFAULT_ACTIVITIES = [
       { type: 'AppendVariable', label: 'Append Variable', icon: ListPlus, color: 'text-teal-400', desc: 'Append item to array variable' },
       { type: 'Wait', label: 'Wait', icon: Clock, color: 'text-amber-400', desc: 'Pause execution for N seconds' },
       { type: 'Until', label: 'Until', icon: RotateCw, color: 'text-pink-400', desc: 'Loop until condition is met' },
+      { type: 'Validation', label: 'Validation', icon: CheckCheck, color: 'text-lime-400', desc: 'Verify dataset or file existence' },
       { type: 'Fail', label: 'Fail', icon: AlertOctagon, color: 'text-red-500', desc: 'Trigger deliberate pipeline error' },
     ]
   },
@@ -70,7 +75,16 @@ const DEFAULT_ACTIVITIES = [
       { type: 'CustomActivity', label: 'Custom Activity', icon: Cpu, color: 'text-amber-400', desc: 'Execute custom command/binary' },
       { type: 'DatabricksNotebook', label: 'Databricks Notebook', icon: CloudLightning, color: 'text-orange-400', desc: 'Run Databricks notebook job' },
       { type: 'PySparkJob', label: 'PySpark Job', icon: Flame, color: 'text-rose-400', desc: 'Submit Apache Spark / PySpark job' },
+      { type: 'WebActivity', label: 'Web Activity', icon: Globe, color: 'text-sky-400', desc: 'Send HTTP request & capture response' },
+      { type: 'Webhook', label: 'Webhook', icon: Send, color: 'text-teal-400', desc: 'Call endpoint with async callback URL' },
       { type: 'RestApi', label: 'REST API Call', icon: Globe, color: 'text-sky-400', desc: 'Invoke external HTTP webhooks' },
+    ]
+  },
+  {
+    category: 'File & Storage',
+    items: [
+      { type: 'FileOperation', label: 'File Operation', icon: FolderCog, color: 'text-amber-400', desc: 'Copy, move, delete, rename files' },
+      { type: 'Archive', label: 'Archive & Unzip', icon: Archive, color: 'text-indigo-400', desc: 'Compress to zip or extract archives' },
     ]
   }
 ];
@@ -121,6 +135,14 @@ const getIconComponent = (iconName: string) => {
       return CloudLightning;
     case 'flame':
       return Flame;
+    case 'send':
+      return Send;
+    case 'checkcheck':
+      return CheckCheck;
+    case 'foldercog':
+      return FolderCog;
+    case 'archive':
+      return Archive;
     default:
       return Layers;
   }
@@ -149,6 +171,11 @@ const getColorClass = (type: string) => {
     case 'customactivity': return 'text-amber-400';
     case 'databricksnotebook': return 'text-orange-400';
     case 'pysparkjob': return 'text-rose-400';
+    case 'webactivity': return 'text-sky-400';
+    case 'webhook': return 'text-teal-400';
+    case 'validation': return 'text-lime-400';
+    case 'fileoperation': return 'text-amber-400';
+    case 'archive': return 'text-indigo-400';
     case 'restapi': return 'text-sky-400';
     default: return 'text-slate-400';
   }

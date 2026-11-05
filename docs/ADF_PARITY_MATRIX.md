@@ -20,10 +20,10 @@
 ## 1. Summary Statistics
 
 - **Total Activities Catalogued:** 48
-- **Production Ready / Testing Complete:** 22
+- **Production Ready / Testing Complete:** 32
 - **In Progress:** 0
-- **Not Started / Planned:** 26
-- **Current Parity Score:** **62.8%**
+- **Not Started / Planned:** 16
+- **Current Parity Score:** **72.8%**
 
 ---
 
@@ -53,7 +53,7 @@
 | **Until** | Complete | Complete | Complete | Complete | Complete | None | **Production Ready** |
 | **Filter** | Complete | Complete | Complete | Complete | Complete | None | **Production Ready** |
 | **Fail** | Complete | Complete | Complete | Complete | Complete | None | **Production Ready** |
-| **Validation** | Not Started | Not Started | Not Started | Not Started | None | None | **Not Started** |
+| **Validation** | Complete | Complete | Complete | Complete | Complete | None | **Production Ready** |
 | **Execute Pipeline** | Complete | Complete | Complete | Complete | Complete | None | **Production Ready** |
 
 ### Category: Scripting, Compute & External Workloads
@@ -81,20 +81,20 @@
 | Activity Name | UI | Config | Backend | Executor | Tests | Provider Req | Status |
 |---|---|---|---|---|---|---|---|
 | **REST API Call** | Complete | Complete | Complete | Complete | Complete | None | **Production Ready** |
-| **Web Activity** | Not Started | Not Started | Not Started | Not Started | None | None | **Not Started** |
-| **Webhook** | Not Started | Not Started | Not Started | Not Started | None | None | **Not Started** |
+| **Web Activity** | Complete | Complete | Complete | Complete | Complete | None | **Production Ready** |
+| **Webhook** | Complete | Complete | Complete | Complete | Complete | None | **Production Ready** |
 | **Read CSV** | Complete | Complete | Complete | Complete | Complete | None | **Production Ready** |
 | **Read JSON** | Complete | Complete | Complete | Complete | Complete | None | **Production Ready** |
-| **Read Parquet** | Not Started | Not Started | Not Started | Not Started | None | PyArrow | **Not Started** |
-| **Read Excel** | Not Started | Not Started | Not Started | Not Started | None | OpenPyXL | **Not Started** |
+| **Read Parquet** | Complete | Complete | Complete | Complete | Complete | PyArrow | **Production Ready** |
+| **Read Excel** | Complete | Complete | Complete | Complete | Complete | OpenPyXL | **Production Ready** |
 | **Write CSV** | Complete | Complete | Complete | Complete | Complete | None | **Production Ready** |
 | **Write JSON** | Complete | Complete | Complete | Complete | Complete | None | **Production Ready** |
-| **Write Parquet** | Not Started | Not Started | Not Started | Not Started | None | PyArrow | **Not Started** |
-| **File Exists** | Not Started | Not Started | Not Started | Not Started | None | None | **Not Started** |
-| **Archive / Zip** | Not Started | Not Started | Not Started | Not Started | None | None | **Not Started** |
-| **Unzip / Extract** | Not Started | Not Started | Not Started | Not Started | None | None | **Not Started** |
-| **Compress** | Not Started | Not Started | Not Started | Not Started | None | None | **Not Started** |
-| **Move / Rename** | Not Started | Not Started | Not Started | Not Started | None | None | **Not Started** |
+| **Write Parquet** | Complete | Complete | Complete | Complete | Complete | PyArrow | **Production Ready** |
+| **File Exists** | Complete | Complete | Complete | Complete | Complete | None | **Production Ready** |
+| **Archive / Zip** | Complete | Complete | Complete | Complete | Complete | None | **Production Ready** |
+| **Unzip / Extract** | Complete | Complete | Complete | Complete | Complete | None | **Production Ready** |
+| **Compress** | Complete | Complete | Complete | Complete | Complete | None | **Production Ready** |
+| **Move / Rename** | Complete | Complete | Complete | Complete | Complete | None | **Production Ready** |
 
 ---
 

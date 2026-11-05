@@ -29,7 +29,11 @@ import {
   DatabaseZap,
   CloudLightning,
   Flame,
-  Cpu
+  Cpu,
+  Send,
+  CheckCheck,
+  FolderCog,
+  Archive
 } from 'lucide-react';
 
 interface ConfigDrawerProps {
@@ -1128,6 +1132,388 @@ export const ActivityConfigDrawer: React.FC<ConfigDrawerProps> = ({
                     }}
                     className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono text-[11px]"
                   />
+                </div>
+              </div>
+            )}
+
+            {/* WEB ACTIVITY */}
+            {activityType === 'WebActivity' && (
+              <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-lg space-y-2.5">
+                <div className="flex items-center justify-between text-slate-300 font-semibold text-[11px] uppercase tracking-wider">
+                  <span>Web HTTP Request</span>
+                  <Globe className="h-3.5 w-3.5 text-sky-400" />
+                </div>
+
+                <div className="grid grid-cols-4 gap-2">
+                  <div>
+                    <label className="block text-slate-400 mb-1 text-[11px]">Method</label>
+                    <select
+                      value={config.method || 'GET'}
+                      onChange={(e) => updateConfig({ method: e.target.value })}
+                      className="w-full bg-slate-900 border border-slate-700/80 rounded px-2 py-1 text-slate-200 text-[11px]"
+                    >
+                      <option value="GET">GET</option>
+                      <option value="POST">POST</option>
+                      <option value="PUT">PUT</option>
+                      <option value="DELETE">DELETE</option>
+                      <option value="PATCH">PATCH</option>
+                    </select>
+                  </div>
+                  <div className="col-span-3">
+                    <label className="block text-slate-400 mb-1 text-[11px]">URL Endpoint</label>
+                    <input
+                      type="text"
+                      placeholder="https://api.example.com/v1/orders"
+                      value={config.url || ''}
+                      onChange={(e) => updateConfig({ url: e.target.value })}
+                      className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono text-[11px]"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 mb-1 text-[11px]">Headers (JSON map)</label>
+                  <input
+                    type="text"
+                    placeholder='{"Content-Type": "application/json"}'
+                    value={typeof config.headers === 'string' ? config.headers : JSON.stringify(config.headers || {})}
+                    onChange={(e) => {
+                      try {
+                        updateConfig({ headers: JSON.parse(e.target.value) });
+                      } catch {
+                        updateConfig({ headers: e.target.value });
+                      }
+                    }}
+                    className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono text-[11px]"
+                  />
+                </div>
+
+                {['POST', 'PUT', 'PATCH'].includes(config.method || 'GET') && (
+                  <div>
+                    <label className="block text-slate-400 mb-1 text-[11px]">Request Body</label>
+                    <textarea
+                      rows={3}
+                      placeholder='{"order_id": 100, "status": "APPROVED"}'
+                      value={typeof config.body === 'string' ? config.body : JSON.stringify(config.body || {}, null, 2)}
+                      onChange={(e) => {
+                        try {
+                          updateConfig({ body: JSON.parse(e.target.value) });
+                        } catch {
+                          updateConfig({ body: e.target.value });
+                        }
+                      }}
+                      className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono text-[11px]"
+                    />
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-slate-400 mb-1 text-[11px]">Timeout (s)</label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={600}
+                      value={config.timeout_seconds || 30}
+                      onChange={(e) => updateConfig({ timeout_seconds: parseInt(e.target.value) || 30 })}
+                      className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono text-[11px]"
+                    />
+                  </div>
+                  <div className="flex items-center gap-1.5 pt-4">
+                    <input
+                      type="checkbox"
+                      id="dis_ssl"
+                      checked={config.disable_cert_validation || false}
+                      onChange={(e) => updateConfig({ disable_cert_validation: e.target.checked })}
+                      className="rounded bg-slate-800 text-brand-500"
+                    />
+                    <label htmlFor="dis_ssl" className="text-slate-300 text-[10px]">Disable SSL verify</label>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* WEBHOOK */}
+            {activityType === 'Webhook' && (
+              <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-lg space-y-2.5">
+                <div className="flex items-center justify-between text-slate-300 font-semibold text-[11px] uppercase tracking-wider">
+                  <span>Asynchronous Webhook</span>
+                  <Send className="h-3.5 w-3.5 text-teal-400" />
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 mb-1 text-[11px]">External Service URL</label>
+                  <input
+                    type="text"
+                    placeholder="https://external-service.io/api/start-job"
+                    value={config.url || ''}
+                    onChange={(e) => updateConfig({ url: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono text-[11px]"
+                  />
+                  <p className="text-[10px] text-slate-500 mt-0.5">The platform auto-injects a unique <code className="text-teal-400">callBackUri</code> into the request.</p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-slate-400 mb-1 text-[11px]">Callback Param Name</label>
+                    <input
+                      type="text"
+                      placeholder="callBackUri"
+                      value={config.callback_param_name || 'callBackUri'}
+                      onChange={(e) => updateConfig({ callback_param_name: e.target.value })}
+                      className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono text-[11px]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-slate-400 mb-1 text-[11px]">Timeout (seconds)</label>
+                    <input
+                      type="number"
+                      min={5}
+                      max={86400}
+                      value={config.timeout_seconds || 300}
+                      onChange={(e) => updateConfig({ timeout_seconds: parseInt(e.target.value) || 300 })}
+                      className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono text-[11px]"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 mb-1 text-[11px]">Request Body (JSON)</label>
+                  <input
+                    type="text"
+                    placeholder='{"job_name": "daily_report", "priority": "high"}'
+                    value={typeof config.body === 'string' ? config.body : JSON.stringify(config.body || {})}
+                    onChange={(e) => {
+                      try {
+                        updateConfig({ body: JSON.parse(e.target.value) });
+                      } catch {
+                        updateConfig({ body: e.target.value });
+                      }
+                    }}
+                    className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono text-[11px]"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* VALIDATION */}
+            {activityType === 'Validation' && (
+              <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-lg space-y-2.5">
+                <div className="flex items-center justify-between text-slate-300 font-semibold text-[11px] uppercase tracking-wider">
+                  <span>Prerequisite Validation Gate</span>
+                  <CheckCheck className="h-3.5 w-3.5 text-lime-400" />
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 mb-1 text-[11px]">Database Connection (Optional)</label>
+                  <select
+                    value={config.connection_id || ''}
+                    onChange={(e) => updateConfig({ connection_id: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 text-[11px]"
+                  >
+                    <option value="">None (Local / Direct Path)</option>
+                    {connections.map((c) => (
+                      <option key={c.id} value={c.id}>{c.name} ({c.connector_type})</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 mb-1 text-[11px]">Dataset / Table / File Name</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. daily_transactions.parquet or dim_customers"
+                    value={config.dataset_name || ''}
+                    onChange={(e) => updateConfig({ dataset_name: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono text-[11px]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 mb-1 text-[11px]">Direct File Path (Optional)</label>
+                  <input
+                    type="text"
+                    placeholder="/data/incoming/ready.flag"
+                    value={config.file_path || ''}
+                    onChange={(e) => updateConfig({ file_path: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono text-[11px]"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-slate-400 mb-1 text-[11px]">Min Size (bytes)</label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={config.minimum_size_bytes || 0}
+                      onChange={(e) => updateConfig({ minimum_size_bytes: parseInt(e.target.value) || 0 })}
+                      className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono text-[11px]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-slate-400 mb-1 text-[11px]">Min Rows</label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={config.minimum_row_count || 0}
+                      onChange={(e) => updateConfig({ minimum_row_count: parseInt(e.target.value) || 0 })}
+                      className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono text-[11px]"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-slate-400 mb-1 text-[11px]">Timeout (seconds)</label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={3600}
+                      value={config.timeout_seconds || 60}
+                      onChange={(e) => updateConfig({ timeout_seconds: parseInt(e.target.value) || 60 })}
+                      className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono text-[11px]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-slate-400 mb-1 text-[11px]">Poll Interval (s)</label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={60}
+                      value={config.sleep_interval_seconds || 5}
+                      onChange={(e) => updateConfig({ sleep_interval_seconds: parseInt(e.target.value) || 5 })}
+                      className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono text-[11px]"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* FILE OPERATION */}
+            {activityType === 'FileOperation' && (
+              <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-lg space-y-2.5">
+                <div className="flex items-center justify-between text-slate-300 font-semibold text-[11px] uppercase tracking-wider">
+                  <span>File System Operation</span>
+                  <FolderCog className="h-3.5 w-3.5 text-amber-400" />
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 mb-1 text-[11px]">Operation</label>
+                  <select
+                    value={config.operation || 'copy'}
+                    onChange={(e) => updateConfig({ operation: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 text-[11px]"
+                  >
+                    <option value="copy">Copy File / Directory</option>
+                    <option value="move">Move File / Directory</option>
+                    <option value="rename">Rename File</option>
+                    <option value="delete">Delete File / Directory</option>
+                    <option value="file_exists">Check File Exists</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 mb-1 text-[11px]">Source Path / Pattern</label>
+                  <input
+                    type="text"
+                    placeholder="/data/inbox/*.csv or /data/raw/feed.json"
+                    value={config.source_path || ''}
+                    onChange={(e) => updateConfig({ source_path: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono text-[11px]"
+                  />
+                </div>
+
+                {config.operation !== 'delete' && config.operation !== 'file_exists' && (
+                  <div>
+                    <label className="block text-slate-400 mb-1 text-[11px]">Destination Path / Target</label>
+                    <input
+                      type="text"
+                      placeholder="/data/archive/ or /data/processed/feed_2026.json"
+                      value={config.destination_path || ''}
+                      onChange={(e) => updateConfig({ destination_path: e.target.value })}
+                      className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono text-[11px]"
+                    />
+                  </div>
+                )}
+
+                <div className="flex items-center gap-2 pt-1">
+                  <input
+                    type="checkbox"
+                    id="ovrw"
+                    checked={config.overwrite !== false}
+                    onChange={(e) => updateConfig({ overwrite: e.target.checked })}
+                    className="rounded bg-slate-800 text-brand-500"
+                  />
+                  <label htmlFor="ovrw" className="text-slate-300 text-[11px]">Overwrite existing target files</label>
+                </div>
+              </div>
+            )}
+
+            {/* ARCHIVE & UNZIP */}
+            {activityType === 'Archive' && (
+              <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-lg space-y-2.5">
+                <div className="flex items-center justify-between text-slate-300 font-semibold text-[11px] uppercase tracking-wider">
+                  <span>Archive & Decompress</span>
+                  <Archive className="h-3.5 w-3.5 text-indigo-400" />
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-slate-400 mb-1 text-[11px]">Action</label>
+                    <select
+                      value={config.action || 'compress'}
+                      onChange={(e) => updateConfig({ action: e.target.value })}
+                      className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 text-[11px]"
+                    >
+                      <option value="compress">Compress to Archive</option>
+                      <option value="extract">Extract / Unzip</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-slate-400 mb-1 text-[11px]">Format</label>
+                    <select
+                      value={config.format || 'zip'}
+                      onChange={(e) => updateConfig({ format: e.target.value })}
+                      className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 text-[11px]"
+                    >
+                      <option value="zip">ZIP Archive (.zip)</option>
+                      <option value="tar.gz">GZip Tarball (.tar.gz)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 mb-1 text-[11px]">Source Path</label>
+                  <input
+                    type="text"
+                    placeholder="/data/raw_feed/ or /data/package.zip"
+                    value={config.source_path || ''}
+                    onChange={(e) => updateConfig({ source_path: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono text-[11px]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 mb-1 text-[11px]">Destination Path</label>
+                  <input
+                    type="text"
+                    placeholder="/data/backups/feed.zip or /data/extracted/"
+                    value={config.destination_path || ''}
+                    onChange={(e) => updateConfig({ destination_path: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono text-[11px]"
+                  />
+                </div>
+
+                <div className="flex items-center gap-2 pt-1">
+                  <input
+                    type="checkbox"
+                    id="rem_src"
+                    checked={config.remove_source || false}
+                    onChange={(e) => updateConfig({ remove_source: e.target.checked })}
+                    className="rounded bg-slate-800 text-brand-500"
+                  />
+                  <label htmlFor="rem_src" className="text-slate-300 text-[11px]">Remove source file/folder after process</label>
                 </div>
               </div>
             )}

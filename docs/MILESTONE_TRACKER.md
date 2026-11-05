@@ -14,7 +14,7 @@
 | **Phase 2** | **Core Data Movement & Metadata Activities** | **Completed** | 22 Passed / 0 Failed | 37.8% | 2026-11-05 |
 | **Phase 3** | **Core Control Flow & Hierarchical Orchestration** | **Completed** | 29 Passed / 0 Failed | 52.8% | 2026-11-05 |
 | **Phase 4** | **Scripting, Isolated Workers & Compute** | **Completed** | 37 Passed / 0 Failed | 62.8% | 2026-11-05 |
-| **Phase 5** | **File & API Integration Activities** | Scheduled | Scheduled | +10.0% | Pending |
+| **Phase 5** | **File & API Integration Activities** | **Completed** | 45 Passed / 0 Failed | 72.8% | 2026-11-05 |
 | **Phase 6** | **Visual Data Flow Designer & Operators** | Scheduled | Scheduled | +12.0% | Pending |
 | **Phase 7** | **Expression & Parameter Framework** | Scheduled | Scheduled | +5.0% | Pending |
 | **Phase 8** | **Enterprise Data Quality & Profiling** | Scheduled | Scheduled | +5.0% | Pending |
@@ -24,15 +24,18 @@
 
 ---
 
-## Current Sprint Focus: Phase 5 — File, Webhook & API Integration Activities
-- **Objective:** Implement advanced file manipulation, compression/decompression, SFTP/S3/Azure Blob/GCS storage sync, Webhook, and validation activities.
-- **Key Deliverables Completed in Phase 4:**
-  - `backend/app/execution/worker.py`: Sandboxed `IsolatedSubprocessWorker` with temporary directory isolation, parameter binding, live stdout/stderr streaming, and hard timeout termination.
-  - `backend/app/activities/python_script.py`: Production `PythonScriptActivity` with dynamic parameters and variable outputs.
-  - `backend/app/activities/stored_procedure.py`: Enterprise `StoredProcedureActivity` supporting PostgreSQL and MySQL routines and functions.
-  - `backend/app/activities/custom_activity.py`: CLI and executable runner with working directory and exit code verification.
-  - `backend/app/execution/providers/`: Extensible compute abstractions (`BaseComputeProvider`, `ComputeJobHandle`) and clean-room `DatabricksExecutionProvider` using Jobs API 2.1.
-  - `backend/app/activities/databricks.py`: Remote Databricks notebook execution activity with active run polling and status bubble-up.
+## Current Sprint Focus: Phase 6 — Visual Data Flow Designer & Operators
+- **Objective:** Build dedicated visual data transformation graph designer (Canvas 2), data stream transformation nodes (Join, Aggregate, Union, Conditional Split, Derived Column, Window, Flatten, Pivot), and vectorized execution engine (Polars / PySpark).
+- **Key Deliverables Completed in Phase 5:**
+  - `backend/app/activities/web.py`: Enterprise `WebActivity` with dynamic expressions, auth headers, and status code verification.
+  - `backend/app/activities/webhook.py`: ADF-style asynchronous `WebhookActivity` with callback URL injection and listener.
+  - `backend/app/execution/callbacks.py` & `backend/app/api/callbacks.py`: High-concurrency callback state manager and REST listener (`POST /api/v1/callbacks/{callback_id}`).
+  - `backend/app/activities/validation.py`: Dataset existence, row count minimum, and size gate `ValidationActivity` with polling loops.
+  - `backend/app/activities/file_operation.py`: File system management (`copy`, `move`, `delete`, `rename`, `file_exists`) with recursive glob patterns.
+  - `backend/app/activities/archive.py`: Archive compression and decompression (`.zip`, `.tar.gz`) with source cleanup options.
+  - `backend/app/connectors/local_file.py`: Enhanced with high-performance Apache Parquet (`pyarrow`) and Microsoft Excel (`openpyxl`) read/write streaming.
+  - Full UI integration with Lucide icons, node cards, and config drawers in `ActivityConfigDrawer.tsx`.
+  - 8 new automated tests in `backend/tests/test_file_and_api_integration.py` (45 total tests passing).
   - `backend/app/activities/pyspark_job.py`: Distributed PySpark application launcher with spark-submit and local fallback.
   - Full UI integration with Monaco editor preview, Lucide icons, and activity inspector configuration panels in `ActivityConfigDrawer.tsx`.
   - 8 new automated tests in `backend/tests/test_scripting_and_compute.py` (37 total tests passing).

@@ -30,29 +30,37 @@ backend/tests/test_dag_engine.py::test_dependency_conditions PASSED      [ 58%]
 backend/tests/test_data_movement.py::test_get_metadata_activity PASSED   [ 62%]
 backend/tests/test_data_movement.py::test_delete_data_conditional_and_truncate PASSED [ 65%]
 backend/tests/test_data_movement.py::test_acceptance_scenario_mysql_to_postgres PASSED [ 68%]
-backend/tests/test_expressions.py::test_expression_evaluator PASSED      [ 72%]
-backend/tests/test_hierarchical_control_flow.py::test_scenario_1_lookup_if_condition_flow PASSED [ 75%]
-backend/tests/test_hierarchical_control_flow.py::test_scenario_2_and_4_for_each_sequential_and_parallel PASSED [ 79%]
-backend/tests/test_hierarchical_control_flow.py::test_scenario_3_parent_executes_child_pipeline PASSED [ 82%]
-backend/tests/test_hierarchical_control_flow.py::test_switch_activity PASSED [ 86%]
-backend/tests/test_hierarchical_control_flow.py::test_filter_activity PASSED [ 89%]
-backend/tests/test_hierarchical_control_flow.py::test_fail_activity PASSED [ 72%]
-backend/tests/test_hierarchical_control_flow.py::test_append_variable_activity PASSED [ 75%]
-backend/tests/test_scheduler.py::test_scheduler_cron_calculation PASSED  [ 78%]
-backend/tests/test_scripting_and_compute.py::test_registry_contains_phase4_activities PASSED [ 81%]
-backend/tests/test_scripting_and_compute.py::test_python_script_execution_with_outputs PASSED [ 83%]
-backend/tests/test_scripting_and_compute.py::test_python_script_timeout_handling PASSED [ 86%]
-backend/tests/test_scripting_and_compute.py::test_python_script_syntax_or_runtime_error PASSED [ 89%]
-backend/tests/test_custom_activity_success PASSED [ 91%]
-backend/tests/test_custom_activity_failure_exit_code PASSED [ 94%]
+backend/tests/test_expressions.py::test_expression_evaluator PASSED      [ 46%]
+backend/tests/test_file_and_api_integration.py::test_registry_contains_phase5_activities PASSED [ 48%]
+backend/tests/test_file_and_api_integration.py::test_web_activity_get_request PASSED [ 51%]
+backend/tests/test_file_and_api_integration.py::test_webhook_activity_callback_success PASSED [ 53%]
+backend/tests/test_file_and_api_integration.py::test_webhook_activity_timeout PASSED [ 55%]
+backend/tests/test_file_and_api_integration.py::test_validation_activity_local_file PASSED [ 57%]
+backend/tests/test_file_and_api_integration.py::test_file_operations_lifecycle PASSED [ 60%]
+backend/tests/test_file_and_api_integration.py::test_archive_compress_and_extract PASSED [ 62%]
+backend/tests/test_file_and_api_integration.py::test_local_file_connector_parquet_and_excel PASSED [ 64%]
+backend/tests/test_hierarchical_control_flow.py::test_scenario_1_lookup_if_condition_flow PASSED [ 66%]
+backend/tests/test_hierarchical_control_flow.py::test_scenario_2_and_4_for_each_sequential_and_parallel PASSED [ 68%]
+backend/tests/test_hierarchical_control_flow.py::test_scenario_3_parent_executes_child_pipeline PASSED [ 71%]
+backend/tests/test_hierarchical_control_flow.py::test_switch_activity PASSED [ 73%]
+backend/tests/test_hierarchical_control_flow.py::test_filter_activity PASSED [ 75%]
+backend/tests/test_hierarchical_control_flow.py::test_fail_activity PASSED [ 77%]
+backend/tests/test_hierarchical_control_flow.py::test_append_variable_activity PASSED [ 80%]
+backend/tests/test_scheduler.py::test_scheduler_cron_calculation PASSED  [ 82%]
+backend/tests/test_scripting_and_compute.py::test_registry_contains_phase4_activities PASSED [ 84%]
+backend/tests/test_scripting_and_compute.py::test_python_script_execution_with_outputs PASSED [ 86%]
+backend/tests/test_scripting_and_compute.py::test_python_script_timeout_handling PASSED [ 88%]
+backend/tests/test_scripting_and_compute.py::test_python_script_syntax_or_runtime_error PASSED [ 91%]
+backend/tests/test_custom_activity_success PASSED [ 93%]
+backend/tests/test_custom_activity_failure_exit_code PASSED [ 95%]
 backend/tests/test_stored_procedure_postgresql PASSED [ 97%]
 backend/tests/test_databricks_execution_provider_flow PASSED [100%]
 
-======================== 37 passed, 2 warnings in 9.85s ========================
+======================= 45 passed, 2 warnings in 17.66s ========================
 ```
 
-- **Total Tests Executed:** 37
-- **Passed:** 37 (100%)
+- **Total Tests Executed:** 45
+- **Passed:** 45 (100%)
 - **Failed:** 0 (0%)
 - **Regressions:** 0
 
@@ -60,7 +68,16 @@ backend/tests/test_databricks_execution_provider_flow PASSED [100%]
 
 ## 2. Live Database Verification History
 
-1. **Phase 4 Scripting & Compute Scenarios (`test_scripting_and_compute.py`):**
+1. **Phase 5 File & API Integration Scenarios (`test_file_and_api_integration.py`):**
+   - `test_web_activity_get_request`: Executed live HTTP GET request against FastAPI `/health` endpoint validating status 200, response body JSON parsing, and latency metrics.
+   - `test_webhook_activity_callback_success`: Dispatched webhook trigger with injected `callBackUri` and successfully captured asynchronous multi-threaded callback payload with status 200.
+   - `test_webhook_activity_timeout`: Verified strict timeout enforcement cleanly failing when no callback arrives within configured threshold.
+   - `test_validation_activity_local_file`: Polled and validated file presence and minimum byte size gates, verifying error detection on missing targets.
+   - `test_file_operations_lifecycle`: Executed comprehensive file lifecycle operations: copy, rename, move, file existence check, and recursive deletion.
+   - `test_archive_compress_and_extract`: Compressed multi-file directories into standard ZIP archives, verified byte sizes, and successfully extracted archive contents with byte-for-byte content verification.
+   - `test_local_file_connector_parquet_and_excel`: Streamed and persisted Apache Parquet tables (`pyarrow`) and Microsoft Excel workbooks (`openpyxl`), verifying instant column/row metadata inspection.
+
+2. **Phase 4 Scripting & Compute Scenarios (`test_scripting_and_compute.py`):**
    - `test_python_script_execution_with_outputs`: Verified sandboxed child process isolation, parameter injection via `context.get_param()`, output variable binding via `context.set_output()`, and live stdout streaming.
    - `test_python_script_timeout_handling`: Verified hard timeout enforcement terminating hung processes cleanly with status `Failed`.
    - `test_python_script_syntax_or_runtime_error`: Verified Python exception tracebacks captured without crashing parent runner.

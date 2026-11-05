@@ -44,3 +44,17 @@
 - **Status:** Accepted (Implemented in Phase 4)
 - **Context:** Custom scripting (`PythonScript`, `CustomActivity`) poses safety and stability risks if executed inside the API server process. Remote big data jobs (`DatabricksNotebook`, `PySparkJob`) need vendor-independent execution abstraction.
 - **Decision:** Implement `IsolatedSubprocessWorker` providing clean temporary directories, stdin/stdout/stderr streaming, JSON context parameters, and hard timeout guards. Provide `BaseComputeProvider` interface with clean-room `DatabricksExecutionProvider` targeting public Databricks Jobs REST API 2.1 without cloud-vendor proprietary SDK dependencies.
+
+---
+
+## ADR 007: Asynchronous Webhook & Callback Event Store
+- **Status:** Accepted (Implemented in Phase 5)
+- **Context:** Long-running external tasks (e.g. ETL jobs running in third-party services) need to notify DataFlow pipelines upon completion without holding synchronous HTTP socket connections open.
+- **Decision:** Implement `CallbackStore` with thread-safe `threading.Event` signaling and REST endpoint `/api/v1/callbacks/{callback_id}`. `WebhookActivity` auto-generates a unique callback URL, dispatches the external trigger, and pauses with an interruptible timeout wait until external delivery.
+
+---
+
+## ADR 008: Multi-Format Vectorized File Connectors (Parquet & Excel)
+- **Status:** Accepted (Implemented in Phase 5)
+- **Context:** Enterprise data ingestion requires processing columnar storage formats (Apache Parquet) and business spreadsheets (Microsoft Excel .xlsx) alongside raw CSV/JSON.
+- **Decision:** Integrate `pyarrow` for vectorized Parquet table reading/writing and instant metadata schema discovery, and `openpyxl` for Excel worksheet extraction. All formats conform to the unified `read_data_stream()` and `write_data_batch()` contracts of `BaseConnector`.
