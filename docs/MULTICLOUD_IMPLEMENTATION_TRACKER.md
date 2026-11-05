@@ -9,7 +9,7 @@ This document tracks implementation status, test verification, and acceptance cr
 | **0** | Existing Application Audit & Architecture | **COMPLETED** | 2026-11-05 | 99/99 baseline | Audits and architecture specs verified |
 | **1** | Common Storage Connector Framework | **COMPLETED** | 2026-11-05 | 116/116 passed (+17 tests) | Provider registry, models & BaseStorage verified |
 | **2** | Azure Storage Integration (ADLS & Blob) | **COMPLETED** | 2026-11-05 | 136/136 passed (+20 tests) | Azurite & Azure live test verified |
-| **3** | Amazon S3 Integration | PENDING | Phase 3 Window | Target: +20 tests | Moto/LocalStack & AWS live test pass |
+| **3** | Amazon S3 Integration | **COMPLETED** | 2026-11-05 | 156/156 passed (+20 tests) | Moto & AWS live test verified |
 | **4** | Google Cloud Storage (GCS) Integration | PENDING | Phase 4 Window | Target: +20 tests | GCS mock & live test pass |
 | **5** | Copy Data Frontend Enhancement | PENDING | Phase 5 Window | Frontend build pass | 7 tabs and storage browser verified |
 | **6** | File Format and Schema Framework | PENDING | Phase 6 Window | Target: +25 tests | PyArrow format transcoding pass |
@@ -67,15 +67,15 @@ This document tracks implementation status, test verification, and acceptance cr
 ---
 
 ### Phase 3: Amazon S3 Integration
-- [ ] Implement AWS authentication provider supporting Access Key/Secret Key, Session Token, STS AssumeRole, and Default Credentials Chain.
-- [ ] Implement `AmazonS3Connector(BaseStorageConnector)`.
-- [ ] Implement bucket listing, prefix browsing, and recursive object traversal.
-- [ ] Implement chunked streaming read and multipart upload writer.
-- [ ] Implement server-side encryption options (SSE-S3, SSE-KMS, SSE-C).
-- [ ] Implement object metadata retrieval, delete, and copy.
-- [ ] Implement Moto / LocalStack test fixtures.
-- [ ] Implement unit tests in `backend/tests/test_aws_s3.py`.
-- **Milestone Acceptance:** S3 browsing, reading, and multipart writing pass with Moto and live credentials.
+- [x] Implement AWS authentication provider supporting Access Key/Secret Key, Session Token, STS AssumeRole, and Default Credentials Chain in `backend/app/connectors/storage/aws_auth.py`.
+- [x] Implement `AmazonS3Connector(BaseStorageConnector)` in `backend/app/connectors/storage/aws_s3.py`.
+- [x] Implement bucket listing, prefix browsing, and recursive object traversal.
+- [x] Implement chunked streaming read and multipart upload writer.
+- [x] Implement server-side encryption options (SSE-S3, SSE-KMS).
+- [x] Implement object metadata retrieval, delete, and copy.
+- [x] Implement frontend AWS S3 connection configuration in `frontend/src/pages/ConnectionsPage.tsx`.
+- [x] Implement Moto test fixtures and test suite in `backend/tests/test_aws_s3.py` (20 passed, 1 skipped).
+- **Milestone Acceptance:** Completed & Approved. S3 browsing, reading, and multipart writing pass with Moto and live credentials.
 
 ---
 

@@ -17,7 +17,8 @@ import {
   Layers,
   HardDrive,
   FolderTree,
-  ShieldCheck
+  ShieldCheck,
+  Lock
 } from 'lucide-react';
 
 export const ConnectionsPage: React.FC = () => {
@@ -39,7 +40,7 @@ export const ConnectionsPage: React.FC = () => {
   const [formPassword, setFormPassword] = useState('');
   const [formDatabase, setFormDatabase] = useState('postgres');
   
-  // Cloud & Object Storage Form state
+  // Azure Storage Form state
   const [formAccountName, setFormAccountName] = useState('');
   const [formContainerName, setFormContainerName] = useState('');
   const [formAuthMode, setFormAuthMode] = useState('account_key');
@@ -50,6 +51,19 @@ export const ConnectionsPage: React.FC = () => {
   const [formTenantId, setFormTenantId] = useState('');
   const [formCustomEndpoint, setFormCustomEndpoint] = useState('');
   const [formBasePath, setFormBasePath] = useState('./data_storage');
+
+  // AWS S3 Form state
+  const [formAwsBucket, setFormAwsBucket] = useState('');
+  const [formAwsRegion, setFormAwsRegion] = useState('us-east-1');
+  const [formAwsAuthMode, setFormAwsAuthMode] = useState('access_key');
+  const [formAwsAccessKeyId, setFormAwsAccessKeyId] = useState('');
+  const [formAwsSecretAccessKey, setFormAwsSecretAccessKey] = useState('');
+  const [formAwsSessionToken, setFormAwsSessionToken] = useState('');
+  const [formAwsRoleArn, setFormAwsRoleArn] = useState('');
+  const [formAwsExternalId, setFormAwsExternalId] = useState('');
+  const [formAwsEndpointUrl, setFormAwsEndpointUrl] = useState('');
+  const [formAwsEncryption, setFormAwsEncryption] = useState('none');
+  const [formAwsKmsKeyId, setFormAwsKmsKeyId] = useState('');
   
   const [isSaving, setIsSaving] = useState(false);
 
@@ -97,7 +111,21 @@ export const ConnectionsPage: React.FC = () => {
     try {
       let config: Record<string, any> = {};
 
-      if (formType === 'azure_blob') {
+      if (formType === 'aws_s3') {
+        config = {
+          bucket: formAwsBucket || undefined,
+          region_name: formAwsRegion || 'us-east-1',
+          auth_mode: formAwsAuthMode,
+          access_key_id: formAwsAuthMode === 'access_key' || formAwsAuthMode === 'sts_assume_role' ? formAwsAccessKeyId : undefined,
+          secret_access_key: formAwsAuthMode === 'access_key' || formAwsAuthMode === 'sts_assume_role' ? formAwsSecretAccessKey : undefined,
+          session_token: formAwsSessionToken || undefined,
+          role_arn: formAwsAuthMode === 'sts_assume_role' ? formAwsRoleArn : undefined,
+          external_id: formAwsAuthMode === 'sts_assume_role' ? formAwsExternalId : undefined,
+          endpoint_url: formAwsEndpointUrl || undefined,
+          server_side_encryption: formAwsEncryption !== 'none' ? formAwsEncryption : undefined,
+          kms_key_id: formAwsEncryption === 'aws:kms' ? formAwsKmsKeyId : undefined
+        };
+      } else if (formType === 'azure_blob') {
         config = {
           account_name: formAccountName,
           container_name: formContainerName || undefined,
@@ -147,6 +175,8 @@ export const ConnectionsPage: React.FC = () => {
       setFormAccountKey('');
       setFormClientSecret('');
       setFormSasToken('');
+      setFormAwsSecretAccessKey('');
+      setFormAwsAccessKeyId('');
       fetchConnections();
     } catch (err: any) {
       alert(`Error creating connection: ${err.response?.data?.detail || err.message}`);
@@ -157,6 +187,12 @@ export const ConnectionsPage: React.FC = () => {
 
   const renderConnectorIcon = (type: string) => {
     switch (type) {
+      case 'aws_s3':
+        return (
+          <div className="p-2 rounded-lg border bg-amber-500/10 border-amber-500/30 text-amber-400">
+            <Cloud className="h-4 w-4" />
+          </div>
+        );
       case 'azure_blob':
         return (
           <div className="p-2 rounded-lg border bg-sky-500/10 border-sky-500/30 text-sky-400">
@@ -203,7 +239,7 @@ export const ConnectionsPage: React.FC = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-white tracking-tight">Enterprise Connections</h1>
-          <p className="text-xs text-slate-400">Multi-cloud storage credentials and live database connectors</p>
+          <p className="text-xs text-slate-400">Multi-cloud storage credentials (AWS S3, Azure ADLS/Blob) and relational databases</p>
         </div>
         <button
           onClick={() => setShowAddModal(true)}
@@ -218,6 +254,7 @@ export const ConnectionsPage: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {connections.map((conn) => {
           const cfg = conn.config_masked || {};
+          const isAws = conn.connector_type === 'aws_s3' || conn.connector_type === 's3';
           const isAzure = conn.connector_type.startsWith('azure_');
           const isLocal = conn.connector_type.includes('local');
 
@@ -258,7 +295,15 @@ export const ConnectionsPage: React.FC = () => {
 
                 {/* Masked Endpoint Details */}
                 <div className="mt-3 p-2 rounded bg-slate-950/60 border border-slate-800/80 text-[11px] font-mono text-slate-400 space-y-0.5">
-                  {isAzure ? (
+                  {isAws ? (
+                    <>
+                      <div>Bucket: <span className="text-slate-300">{cfg.bucket || 'All Buckets'}</span></div>
+                      <div>Region: <span className="text-slate-300">{cfg.region_name || 'us-east-1'}</span></div>
+                      <div>Auth: <span className="text-amber-400">{cfg.auth_mode || 'access_key'}</span></div>
+                      {cfg.server_side_encryption && <div>SSE: <span className="text-emerald-400">{cfg.server_side_encryption}</span></div>}
+                      {cfg.endpoint_url && <div>Endpoint: <span className="text-slate-400">{cfg.endpoint_url}</span></div>}
+                    </>
+                  ) : isAzure ? (
                     <>
                       <div>Account: <span className="text-slate-300">{cfg.account_name || 'devstoreaccount1'}</span></div>
                       <div>Container/FS: <span className="text-slate-300">{cfg.container_name || cfg.filesystem || 'All'}</span></div>
@@ -361,7 +406,7 @@ export const ConnectionsPage: React.FC = () => {
       {/* Add Connection Modal */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-xl max-w-lg w-full p-5 space-y-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-xl max-w-lg w-full p-5 space-y-4 max-h-[90vh] overflow-y-auto">
             <h3 className="text-sm font-semibold text-white">Create Enterprise Connection</h3>
             <form onSubmit={handleCreateConnection} className="space-y-3 text-xs">
               <div>
@@ -369,7 +414,7 @@ export const ConnectionsPage: React.FC = () => {
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Azure Datalake Raw, Production Postgres"
+                  placeholder="e.g. AWS S3 DataLake, Production Postgres"
                   value={formName}
                   onChange={(e) => setFormName(e.target.value)}
                   className="w-full bg-slate-950 border border-slate-800 rounded px-3 py-1.5 text-slate-200 focus:outline-none focus:border-brand-500"
@@ -393,6 +438,7 @@ export const ConnectionsPage: React.FC = () => {
                   className="w-full bg-slate-950 border border-slate-800 rounded px-3 py-1.5 text-slate-200 focus:outline-none focus:border-brand-500"
                 >
                   <optgroup label="Cloud Object Storage">
+                    <option value="aws_s3">Amazon Web Services S3</option>
                     <option value="azure_adls">Azure Data Lake Storage Gen2 (ADLS)</option>
                     <option value="azure_blob">Azure Blob Storage</option>
                     <option value="local_storage">Local Filesystem / Mounted Volume</option>
@@ -404,6 +450,150 @@ export const ConnectionsPage: React.FC = () => {
                   </optgroup>
                 </select>
               </div>
+
+              {/* AWS S3 Configuration Fields */}
+              {formType === 'aws_s3' && (
+                <div className="space-y-3 p-3 rounded-lg bg-slate-950/70 border border-slate-800/80">
+                  <div className="flex items-center gap-1.5 text-amber-400 font-medium">
+                    <Cloud className="h-3.5 w-3.5" />
+                    <span>Amazon S3 Configuration</span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-slate-400 mb-1">S3 Bucket Name</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. dataforge-lake-raw"
+                        value={formAwsBucket}
+                        onChange={(e) => setFormAwsBucket(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-800 rounded px-3 py-1.5 text-slate-200 focus:outline-none focus:border-brand-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-slate-400 mb-1">AWS Region</label>
+                      <select
+                        value={formAwsRegion}
+                        onChange={(e) => setFormAwsRegion(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-800 rounded px-3 py-1.5 text-slate-200 focus:outline-none focus:border-brand-500"
+                      >
+                        <option value="us-east-1">US East (N. Virginia) us-east-1</option>
+                        <option value="us-east-2">US East (Ohio) us-east-2</option>
+                        <option value="us-west-1">US West (N. California) us-west-1</option>
+                        <option value="us-west-2">US West (Oregon) us-west-2</option>
+                        <option value="eu-west-1">Europe (Ireland) eu-west-1</option>
+                        <option value="eu-central-1">Europe (Frankfurt) eu-central-1</option>
+                        <option value="ap-southeast-1">Asia Pacific (Singapore) ap-southeast-1</option>
+                        <option value="ap-south-1">Asia Pacific (Mumbai) ap-south-1</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-slate-400 mb-1">Authentication Mode</label>
+                    <select
+                      value={formAwsAuthMode}
+                      onChange={(e) => setFormAwsAuthMode(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-800 rounded px-3 py-1.5 text-slate-200 focus:outline-none focus:border-brand-500"
+                    >
+                      <option value="access_key">IAM Access Key & Secret Key</option>
+                      <option value="sts_assume_role">STS AssumeRole (Cross-Account Delegation)</option>
+                      <option value="iam_role">IAM Role / Instance Profile</option>
+                      <option value="default_chain">Default AWS Credentials Chain</option>
+                    </select>
+                  </div>
+
+                  {(formAwsAuthMode === 'access_key' || formAwsAuthMode === 'sts_assume_role') && (
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-slate-400 mb-1">AWS Access Key ID</label>
+                        <input
+                          type="text"
+                          required={formAwsAuthMode === 'access_key'}
+                          placeholder="AKIAIOSFODNN7EXAMPLE"
+                          value={formAwsAccessKeyId}
+                          onChange={(e) => setFormAwsAccessKeyId(e.target.value)}
+                          className="w-full bg-slate-900 border border-slate-800 rounded px-3 py-1.5 text-slate-200 focus:outline-none focus:border-brand-500 font-mono text-[11px]"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-slate-400 mb-1">AWS Secret Access Key</label>
+                        <input
+                          type="password"
+                          required={formAwsAuthMode === 'access_key'}
+                          placeholder="wJalrXUtnFEMI/K7MDENG/..."
+                          value={formAwsSecretAccessKey}
+                          onChange={(e) => setFormAwsSecretAccessKey(e.target.value)}
+                          className="w-full bg-slate-900 border border-slate-800 rounded px-3 py-1.5 text-slate-200 focus:outline-none focus:border-brand-500 font-mono text-[11px]"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {formAwsAuthMode === 'sts_assume_role' && (
+                    <div className="space-y-2">
+                      <div>
+                        <label className="block text-slate-400 mb-1">Role ARN to Assume</label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="arn:aws:iam::123456789012:role/DataForgeIngestionRole"
+                          value={formAwsRoleArn}
+                          onChange={(e) => setFormAwsRoleArn(e.target.value)}
+                          className="w-full bg-slate-900 border border-slate-800 rounded px-3 py-1.5 text-slate-200 focus:outline-none focus:border-brand-500 font-mono text-[11px]"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-slate-400 mb-1">External ID (Optional)</label>
+                        <input
+                          type="text"
+                          placeholder="Enterprise external trust identifier"
+                          value={formAwsExternalId}
+                          onChange={(e) => setFormAwsExternalId(e.target.value)}
+                          className="w-full bg-slate-900 border border-slate-800 rounded px-3 py-1.5 text-slate-200 focus:outline-none focus:border-brand-500 font-mono text-[11px]"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-slate-400 mb-1">Server-Side Encryption</label>
+                      <select
+                        value={formAwsEncryption}
+                        onChange={(e) => setFormAwsEncryption(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-800 rounded px-3 py-1.5 text-slate-200 focus:outline-none focus:border-brand-500"
+                      >
+                        <option value="none">None (Bucket Default)</option>
+                        <option value="AES256">SSE-S3 (AES-256)</option>
+                        <option value="aws:kms">SSE-KMS (AWS KMS Managed Key)</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-slate-400 mb-1">KMS Key ID / ARN</label>
+                      <input
+                        type="text"
+                        disabled={formAwsEncryption !== 'aws:kms'}
+                        placeholder="arn:aws:kms:us-east-1:..."
+                        value={formAwsKmsKeyId}
+                        onChange={(e) => setFormAwsKmsKeyId(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-800 rounded px-3 py-1.5 text-slate-200 focus:outline-none focus:border-brand-500 disabled:opacity-40 font-mono text-[11px]"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-slate-400 mb-1">Custom Endpoint URL (Moto / LocalStack / MinIO)</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. http://localhost:4566 or http://minio:9000"
+                      value={formAwsEndpointUrl}
+                      onChange={(e) => setFormAwsEndpointUrl(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-800 rounded px-3 py-1.5 text-slate-200 focus:outline-none focus:border-brand-500 font-mono text-[11px]"
+                    />
+                  </div>
+                </div>
+              )}
 
               {/* Azure ADLS Gen2 & Blob Configuration Fields */}
               {(formType === 'azure_blob' || formType === 'azure_adls') && (
