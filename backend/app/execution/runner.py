@@ -168,10 +168,21 @@ class PipelineRunner:
                         db.commit()
                         try:
                             # Dynamically evaluate expressions inside activity config
+                            pipeline_info = {
+                                "RunId": self.run_id,
+                                "Pipeline": pipeline.name if pipeline else "Pipeline",
+                                "PipelineId": pipeline.id if pipeline else "",
+                                "WorkspaceId": getattr(pipeline, "workspace_id", getattr(getattr(pipeline, "project", None), "workspace_id", "")) if pipeline else "",
+                                "TriggerType": getattr(pipeline_run, "trigger_type", "Manual") or "Manual",
+                                "TriggerTime": pipeline_run.started_at.isoformat() if pipeline_run.started_at else datetime.now(timezone.utc).isoformat()
+                            }
+                            global_params = pipeline_def.get("global_parameters", {})
                             evaluator = ExpressionEvaluator(
                                 parameters=pipeline_run.parameters or {},
+                                global_parameters=global_params,
                                 variables=pipeline_vars,
-                                activity_outputs=activity_outputs
+                                activity_outputs=activity_outputs,
+                                pipeline_info=pipeline_info
                             )
                             resolved_config = evaluator.evaluate(act_cfg.get("config", {}))
 

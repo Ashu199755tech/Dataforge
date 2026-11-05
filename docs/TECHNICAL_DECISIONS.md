@@ -69,3 +69,14 @@
   - Polars lazy-frame execution allows streaming, SIMD vectorization, and multi-core parallelism natively in Rust/C++, achieving sub-20ms transformation throughput on developer and production workstations.
   - The intermediate preview cache captures schemas, row counts, and sample slices for every node, allowing users to inspect any step in the visual designer without re-executing upstream nodes.
   - An `ExecuteDataFlowActivity` bridges visual data flows directly into pipeline orchestration graphs.
+
+---
+
+## ADR 010: Recursive Descent Expression Engine & Clean-Room ADF Grammar
+- **Status:** Accepted (Implemented in Phase 7)
+- **Context:** Azure Data Factory dynamic content expressions feature nested functions (`@concat('prefix_', formatDateTime(utcNow(), 'yyyyMMdd'), '.csv')`), dot navigation (`@activity('Lookup').output.first_row.id`), array indexing (`[0]`), and string interpolation (`@{...}`). Simple regex replacement fails on nested parentheses, quoted commas, and chained member accessors.
+- **Decision:** Implement a clean-room recursive descent tokenizer and parser in `backend/app/execution/expressions.py`.
+  - The `Tokenizer` streams `IDENTIFIER`, `STRING`, `NUMBER`, `BOOLEAN`, `NULL`, `LPAREN`, `RPAREN`, `LBRACKET`, `RBRACKET`, `COMMA`, `DOT`, and `AT` tokens with string escape support.
+  - The `ExpressionParser` executes AST evaluation against `ExpressionContext` containing `parameters`, `global_parameters`, `variables`, `activity_outputs`, `item`, and `pipeline_info`.
+  - Over 35 built-in functions covering String, Math, Logical, Date/Time, Collection, and Type Conversion are supported natively without external language eval (`eval` / `exec`) risks.
+  - The frontend `ExpressionBuilderModal` interfaces with discovery (`GET /api/v1/expressions/functions`), syntax validation (`POST /api/v1/expressions/validate`), and preview simulation (`POST /api/v1/expressions/evaluate`).

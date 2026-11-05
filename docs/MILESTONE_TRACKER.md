@@ -16,7 +16,7 @@
 | **Phase 4** | **Scripting, Isolated Workers & Compute** | **Completed** | 37 Passed / 0 Failed | 62.8% | 2026-11-05 |
 | **Phase 5** | **File & API Integration Activities** | **Completed** | 45 Passed / 0 Failed | 72.8% | 2026-11-05 |
 | **Phase 6** | **Visual Data Flow Designer & Operators** | **Completed** | 51 Passed / 0 Failed | 84.8% | 2026-11-05 |
-| **Phase 7** | **Expression & Parameter Framework** | Scheduled | Scheduled | +5.0% | Pending |
+| **Phase 7** | **Expression & Parameter Framework** | **Completed** | 61 Passed / 0 Failed | 89.8% | 2026-11-05 |
 | **Phase 8** | **Enterprise Data Quality & Profiling** | Scheduled | Scheduled | +5.0% | Pending |
 | **Phase 9** | **Real-Time Monitoring & Observability** | Scheduled | Scheduled | +2.0% | Pending |
 | **Phase 10** | **Enterprise Hardening & RBAC** | Scheduled | Scheduled | +2.0% | Pending |
@@ -24,17 +24,13 @@
 
 ---
 
-## Current Sprint Focus: Phase 7 — Expression & Parameter Framework
-- **Objective:** Build robust expression evaluation engine supporting ADF-syntax functions (`@activity()`, `@pipeline()`, `@concat()`, `@formatDateTime()`, `@addDays()`, `@item()`, `@coalesce()`), dynamic JSON path dereferencing, type-casting utilities, parameter binding across parent/child scopes, and expression autocompletion UI.
-- **Key Deliverables Completed in Phase 6:**
-  - `backend/app/models/dataflow.py`: `DataFlow` entity with JSON graph definitions (`nodes`, `edges`), versioning, and workspace foreign keys.
-  - `backend/app/dataflow/engine.py`: Vectorized `DataFlowEngine` powered by Apache Arrow & Polars (v2.1.0) implementing 13 transformation operators: `Source`, `Sink`, `Select`, `Filter`, `DerivedColumn`, `Sort`, `Aggregate`, `Join`, `Union`, `SurrogateKey`, `Window`, `ConditionalSplit`, and `Lookup`.
-  - `backend/app/activities/data_flow.py`: `ExecuteDataFlowActivity` registered in `ActivityRegistry` enabling Mapping Data Flows to run seamlessly inside pipeline orchestration graphs.
-  - `backend/app/api/dataflows.py`: Complete REST API router (`/api/v1/dataflows`) with CRUD, execution runner, and interactive stage-by-stage data preview (`GET /api/v1/dataflows/{id}/preview/{node_id}`).
-  - Frontend Visual Data Flow Designer:
-    - `DataFlowCanvas.tsx`: Interactive React Flow visual transformation designer with multi-handle stream connections and live status indicators.
-    - `DataFlowNode.tsx`: Multi-stream custom node component displaying incoming schemas, record counts, and primary/secondary input handles for joins.
-    - `DataFlowToolbox.tsx`: Categorized transformation operator toolbox (Inputs & Outputs, Schema & Row, Multiple Streams, Reshaping & Analytics, Data Quality).
-    - `DataFlowConfigDrawer.tsx`: Comprehensive transformation configuration drawer with live vectorized stage preview table.
-    - `DataFlowsListPage.tsx`: Data Flow asset management dashboard with cloning, execution, and direct navigation.
-  - 6 new automated tests in `backend/tests/test_visual_dataflow_engine.py` (51 total tests passing across all suites).
+## Current Sprint Focus: Phase 8 — Enterprise Data Quality & Profiling
+- **Objective:** Build enterprise DQ validation rules (Mandatory fields, Non-blank, Null validations, Duplicate checks, Referential integrity, Range gates, Date formats, Schema drift detection, PII detection & masking, and DQ Score calculations).
+- **Key Deliverables Completed in Phase 7:**
+  - `backend/app/execution/expressions.py`: Complete recursive descent tokenizer and parser for ADF dynamic expressions supporting 35+ built-in functions (String, Math, Logical, Date/Time, Collection, Type Conversion, and Null handling).
+  - Scope resolution for pipeline parameters (`@parameters()`, `@pipeline().parameters`), global parameters (`@pipeline().globalParameters`), variables (`@variables()`), upstream activity outputs (`@activity().output.prop[0].subprop`), loop items (`@item()`), and system variables (`@pipeline().RunId`, `@pipeline().Pipeline`, `@pipeline().TriggerType`, `@pipeline().TriggerTime`).
+  - String interpolation with `@{...}` syntax and ADF `@@` escape sequence handling.
+  - `backend/app/api/expressions.py`: Expression API router providing function discovery (`GET /api/v1/expressions/functions`), syntax validation (`POST /api/v1/expressions/validate`), and interactive simulation (`POST /api/v1/expressions/evaluate`).
+  - `frontend/src/components/common/ExpressionBuilderModal.tsx`: ADF-style "Add Dynamic Content" modal with searchable categorized functions, snippet insertions, parameter/variable selectors, live validation badge, and interactive test evaluator.
+  - Seamless integration into `ActivityConfigDrawer.tsx` with dynamic content triggers on all configurable activity inputs.
+  - 10 new automated unit/integration tests in `backend/tests/test_enterprise_expressions.py` (61 total tests passing across all suites).

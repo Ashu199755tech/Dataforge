@@ -116,6 +116,26 @@
 | **Surrogate Key** | Warehouse | Complete | Polars Vectorized | Complete | **Production Ready** |
 | **Window / Rank** | Analytics | Complete | Polars Vectorized | Complete | **Production Ready** |
 | **Exists** | Filtering | Complete | Polars Vectorized | Complete | **Production Ready** |
-| **Pivot / Unpivot** | Reshaping | Planned | Polars Vectorized | None | **Phase 7 Extension** |
+| **Pivot / Unpivot** | Reshaping | Planned | Polars Vectorized | None | **Phase 8 Extension** |
 | **Alter Row** | Upsert/Delete | Planned | Polars Vectorized | None | **Phase 8 Extension** |
 | **Assert** | Data Quality | Planned | Polars Vectorized | None | **Phase 8 Extension** |
+
+---
+
+## 4. Expression & Parameter Framework (Phase 7)
+
+| Feature / Category | Syntax / Mechanism | Parser & Evaluator | UI Autocomplete | Automated Tests | Parity Status |
+|---|---|---|---|---|---|
+| **Pipeline Parameters** | `@parameters('name')`, `@pipeline().parameters` | Recursive Descent Parser | Interactive Selector | Verified (10/10) | **Production Ready** |
+| **Global Parameters** | `@pipeline().globalParameters.name` | Recursive Descent Parser | Interactive Selector | Verified (10/10) | **Production Ready** |
+| **Pipeline Variables** | `@variables('name')` | Recursive Descent Parser | Interactive Selector | Verified (10/10) | **Production Ready** |
+| **Activity Output Navigation** | `@activity('name').output.path[0].key` | Recursive Descent Parser | Upstream Node Explorer | Verified (10/10) | **Production Ready** |
+| **System Variables** | `@pipeline().RunId, Pipeline, TriggerType` | Recursive Descent Parser | Quick-Insert Palette | Verified (10/10) | **Production Ready** |
+| **Loop Item Resolution** | `@item()`, `@item().property` | Recursive Descent Parser | Context Inspector | Verified (10/10) | **Production Ready** |
+| **String Functions** | `concat, substring, toUpper, toLower, replace, split, join, guid` | Full Built-in Library | Searchable Catalog | Verified (10/10) | **Production Ready** |
+| **Math Functions** | `add, sub, mul, div, mod, min, max, abs, round` | Full Built-in Library | Searchable Catalog | Verified (10/10) | **Production Ready** |
+| **Logical & Comparison** | `equals, greater, less, and, or, not, if` | Full Built-in Library | Searchable Catalog | Verified (10/10) | **Production Ready** |
+| **Date & Time Functions** | `utcNow, addDays, addHours, formatDateTime, dayOfMonth` | Full Built-in Library | Searchable Catalog | Verified (10/10) | **Production Ready** |
+| **Collection & Conversion** | `createArray, first, last, take, skip, empty, coalesce, json` | Full Built-in Library | Searchable Catalog | Verified (10/10) | **Production Ready** |
+| **String Interpolation** | `text_@{pipeline().RunId}.csv`, `@@` escaped | Full Regex & AST Sub-eval | Dynamic Content Modal | Verified (10/10) | **Production Ready** |
+| **Expression Modal & Preview** | `/api/v1/expressions/validate`, `/evaluate` | REST API Endpoints | Monaco/Textarea Modal | Verified (10/10) | **Production Ready** |

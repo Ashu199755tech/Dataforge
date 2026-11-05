@@ -33,8 +33,10 @@ import {
   Send,
   CheckCheck,
   FolderCog,
-  Archive
+  Archive,
+  Sparkles
 } from 'lucide-react';
+import { ExpressionBuilderModal } from '../../components/common/ExpressionBuilderModal';
 
 interface ConfigDrawerProps {
   selectedNode: Node | null;
@@ -71,6 +73,40 @@ export const ActivityConfigDrawer: React.FC<ConfigDrawerProps> = ({
 
   // Incoming edges (dependencies for this activity)
   const incomingEdges = allEdges.filter((e) => e.target === id);
+
+  // Phase 7: Dynamic Expression Builder state
+  const [exprModalOpen, setExprModalOpen] = useState(false);
+  const [exprTarget, setExprTarget] = useState<{ fieldName: string; value: string; onApply: (val: string) => void } | null>(null);
+
+  const openExpressionBuilder = (fieldName: string, value: string, onApply: (val: string) => void) => {
+    setExprTarget({ fieldName, value, onApply });
+    setExprModalOpen(true);
+  };
+
+  const upstreamNodeIds = incomingEdges.map((e) => e.source);
+  const upstreamActivities = allNodes
+    .filter((n) => upstreamNodeIds.includes(n.id))
+    .map((n) => ({
+      id: n.id,
+      name: (n.data as any)?.label || n.id,
+      type: (n.data as any)?.activityType || 'Activity'
+    }));
+
+  const DynamicContentTrigger: React.FC<{ fieldName: string; value: string; onApply: (val: string) => void }> = ({
+    fieldName,
+    value,
+    onApply
+  }) => (
+    <button
+      type="button"
+      onClick={() => openExpressionBuilder(fieldName, value, onApply)}
+      className="text-[10px] text-indigo-400 hover:text-indigo-300 hover:underline flex items-center gap-1 font-mono transition"
+      title="Add dynamic content [Alt+P]"
+    >
+      <Sparkles className="w-3 h-3 text-indigo-400" />
+      <span>Dynamic content</span>
+    </button>
+  );
 
   const updateConfig = (newConfigPartial: any) => {
     const updated = {
@@ -383,7 +419,14 @@ export const ActivityConfigDrawer: React.FC<ConfigDrawerProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-slate-400 mb-1 text-[11px]">Expression / Value</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-slate-400 text-[11px]">Expression / Value</label>
+                    <DynamicContentTrigger
+                      fieldName="value"
+                      value={config.value || ''}
+                      onApply={(val) => updateConfig({ value: val })}
+                    />
+                  </div>
                   <input
                     type="text"
                     placeholder="@activity('Lookup').output.first_row.max_date"
@@ -404,7 +447,14 @@ export const ActivityConfigDrawer: React.FC<ConfigDrawerProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-slate-400 mb-1 text-[11px]">Expression</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-slate-400 text-[11px]">Expression</label>
+                    <DynamicContentTrigger
+                      fieldName="expression"
+                      value={config.expression || ''}
+                      onApply={(val) => updateConfig({ expression: val })}
+                    />
+                  </div>
                   <input
                     type="text"
                     placeholder="@equals(@parameters('env'), 'production')"
@@ -459,7 +509,14 @@ export const ActivityConfigDrawer: React.FC<ConfigDrawerProps> = ({
                     </select>
                   </div>
                   <div className="col-span-2">
-                    <label className="block text-slate-400 mb-1 text-[11px]">Endpoint URL</label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-slate-400 text-[11px]">Endpoint URL</label>
+                      <DynamicContentTrigger
+                        fieldName="url"
+                        value={config.url || ''}
+                        onApply={(val) => updateConfig({ url: val })}
+                      />
+                    </div>
                     <input
                       type="text"
                       placeholder="https://api.example.com/webhook"
@@ -706,7 +763,14 @@ export const ActivityConfigDrawer: React.FC<ConfigDrawerProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-slate-400 mb-1 text-[11px]">Input Items Array</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-slate-400 text-[11px]">Input Items Array</label>
+                    <DynamicContentTrigger
+                      fieldName="items"
+                      value={typeof config.items === 'string' ? config.items : JSON.stringify(config.items || [])}
+                      onApply={(val) => updateConfig({ items: val })}
+                    />
+                  </div>
                   <input
                     type="text"
                     placeholder="@activity('Lookup').output.items"
@@ -717,7 +781,14 @@ export const ActivityConfigDrawer: React.FC<ConfigDrawerProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-slate-400 mb-1 text-[11px]">Filter Condition</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-slate-400 text-[11px]">Filter Condition</label>
+                    <DynamicContentTrigger
+                      fieldName="condition"
+                      value={config.condition || ''}
+                      onApply={(val) => updateConfig({ condition: val })}
+                    />
+                  </div>
                   <input
                     type="text"
                     placeholder="@greater(@item().amount, 100)"
@@ -1319,7 +1390,14 @@ export const ActivityConfigDrawer: React.FC<ConfigDrawerProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-slate-400 mb-1 text-[11px]">Dataset / Table / File Name</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-slate-400 text-[11px]">Dataset / Table / File Name</label>
+                    <DynamicContentTrigger
+                      fieldName="dataset_name"
+                      value={config.dataset_name || ''}
+                      onApply={(val) => updateConfig({ dataset_name: val })}
+                    />
+                  </div>
                   <input
                     type="text"
                     placeholder="e.g. daily_transactions.parquet or dim_customers"
@@ -1330,7 +1408,14 @@ export const ActivityConfigDrawer: React.FC<ConfigDrawerProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-slate-400 mb-1 text-[11px]">Direct File Path (Optional)</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-slate-400 text-[11px]">Direct File Path (Optional)</label>
+                    <DynamicContentTrigger
+                      fieldName="file_path"
+                      value={config.file_path || ''}
+                      onApply={(val) => updateConfig({ file_path: val })}
+                    />
+                  </div>
                   <input
                     type="text"
                     placeholder="/data/incoming/ready.flag"
@@ -1660,6 +1745,18 @@ export const ActivityConfigDrawer: React.FC<ConfigDrawerProps> = ({
           Done
         </button>
       </div>
+
+      {/* ADF Expression Builder Modal */}
+      {exprModalOpen && exprTarget && (
+        <ExpressionBuilderModal
+          isOpen={exprModalOpen}
+          initialValue={exprTarget.value}
+          fieldName={exprTarget.fieldName}
+          onClose={() => setExprModalOpen(false)}
+          onApply={exprTarget.onApply}
+          upstreamActivities={upstreamActivities}
+        />
+      )}
     </div>
   );
 };

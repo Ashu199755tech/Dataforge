@@ -58,15 +58,24 @@ backend/tests/test_scripting_and_compute.py::test_databricks_execution_provider_
 backend/tests/test_visual_dataflow_engine.py::test_registry_contains_dataflow_activity PASSED [ 88%]
 backend/tests/test_visual_dataflow_engine.py::test_dataflow_engine_linear_transformations PASSED [ 90%]
 backend/tests/test_visual_dataflow_engine.py::test_dataflow_engine_aggregate_and_union PASSED [ 92%]
-backend/tests/test_visual_dataflow_engine.py::test_dataflow_engine_inner_join PASSED [ 94%]
-backend/tests/test_visual_dataflow_engine.py::test_dataflow_engine_window_and_surrogate_key PASSED [ 96%]
-backend/tests/test_visual_dataflow_engine.py::test_execute_dataflow_activity_in_pipeline PASSED [100%]
+backend/tests/test_visual_dataflow_engine.py::test_dataflow_engine_inner_join PASSED [ 78%]
+backend/tests/test_visual_dataflow_engine.py::test_dataflow_engine_window_and_surrogate_key PASSED [ 80%]
+backend/tests/test_visual_dataflow_engine.py::test_execute_dataflow_activity_in_pipeline PASSED [ 83%]
+backend/tests/test_enterprise_expressions.py::test_parameter_variable_and_system_metadata PASSED [ 85%]
+backend/tests/test_enterprise_expressions.py::test_activity_output_nested_indexing PASSED [ 87%]
+backend/tests/test_enterprise_expressions.py::test_string_builtins PASSED   [ 89%]
+backend/tests/test_enterprise_expressions.py::test_math_builtins PASSED     [ 91%]
+backend/tests/test_enterprise_expressions.py::test_logical_and_comparison_builtins PASSED [ 93%]
+backend/tests/test_enterprise_expressions.py::test_datetime_builtins PASSED [ 95%]
+backend/tests/test_enterprise_expressions.py::test_collection_and_null_handling PASSED [ 97%]
+backend/tests/test_enterprise_expressions.py::test_string_interpolation_and_escaped_at PASSED [ 98%]
+backend/tests/test_enterprise_expressions.py::test_expression_syntax_validation PASSED [100%]
 
-======================= 51 passed, 2 warnings in 17.48s ========================
+======================= 61 passed, 2 warnings in 17.07s ========================
 ```
 
-- **Total Tests Executed:** 51
-- **Passed:** 51 (100%)
+- **Total Tests Executed:** 61
+- **Passed:** 61 (100%)
 - **Failed:** 0 (0%)
 - **Regressions:** 0
 
@@ -74,7 +83,18 @@ backend/tests/test_visual_dataflow_engine.py::test_execute_dataflow_activity_in_
 
 ## 2. Live Database Verification History
 
-1. **Phase 6 Visual Data Flow & Transformation Scenarios (`test_visual_dataflow_engine.py`):**
+1. **Phase 7 Dynamic Expression & Parameter Scenarios (`test_enterprise_expressions.py`):**
+   - `test_parameter_variable_and_system_metadata`: Verified ADF syntax `@parameters('name')`, `@pipeline().parameters.name`, `@pipeline().globalParameters.name`, `@variables('name')`, loop `@item().prop`, and system metadata (`RunId`, `Pipeline`, `TriggerType`).
+   - `test_activity_output_nested_indexing`: Verified arbitrary depth JSON navigation `@activity('Lookup').output.first_row.tags[1]` and property traversal.
+   - `test_string_builtins`: Verified 12 string functions: `concat`, `substring`, `toUpper`, `toLower`, `trim`, `replace`, `split`, `join`, `startsWith`, `endsWith`, `contains`, `length`, `base64`, `base64ToString`, and `guid`.
+   - `test_math_builtins`: Verified numeric and arithmetic functions: `add`, `sub`, `mul`, `div`, `mod`, `min`, `max`, `abs`, and `round`.
+   - `test_logical_and_comparison_builtins`: Verified boolean logic: `equals`, `greater`, `greaterOrEquals`, `less`, `lessOrEquals`, `and`, `or`, `not`, and conditional ternary `if(condition, trueVal, falseVal)`.
+   - `test_datetime_builtins`: Verified time functions: `utcNow(format)`, `addDays`, `addHours`, `addMinutes`, `addSeconds`, `formatDateTime`, and date extraction `dayOfMonth`.
+   - `test_collection_and_null_handling`: Verified array functions: `createArray`, `first`, `last`, `take`, `skip`, `empty`, `union`, `intersection`, `coalesce` null fallbacks, and type casting `int`, `float`, `string`.
+   - `test_string_interpolation_and_escaped_at`: Verified string interpolation with explicit `@{...}` braces and escaped `@@` ADF literals.
+   - `test_expression_syntax_validation`: Verified syntax validation parser detecting unclosed parentheses, missing commas, and syntax errors without crashing runtime.
+
+2. **Phase 6 Visual Data Flow & Transformation Scenarios (`test_visual_dataflow_engine.py`):**
    - `test_registry_contains_dataflow_activity`: Verified dynamic discovery of `ExecuteDataFlow` in `ActivityRegistry` with full configuration metadata.
    - `test_dataflow_engine_linear_transformations`: Executed 5-node linear stream (`Source` -> `Filter` -> `DerivedColumn` -> `Select` -> `Sort` -> `Sink`) with Polars vectorization. Verified calculation `net_price = unit_price * 0.9` and row filtering under 12ms.
    - `test_dataflow_engine_aggregate_and_union`: Verified multi-input stream unioning (`Union`) and group-by calculations (`Aggregate`) with sum, count, and average expressions.
