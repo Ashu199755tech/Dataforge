@@ -18,7 +18,8 @@ import {
   HardDrive,
   FolderTree,
   ShieldCheck,
-  Lock
+  Lock,
+  Globe2
 } from 'lucide-react';
 
 export const ConnectionsPage: React.FC = () => {
@@ -64,6 +65,14 @@ export const ConnectionsPage: React.FC = () => {
   const [formAwsEndpointUrl, setFormAwsEndpointUrl] = useState('');
   const [formAwsEncryption, setFormAwsEncryption] = useState('none');
   const [formAwsKmsKeyId, setFormAwsKmsKeyId] = useState('');
+
+  // GCP Storage Form state
+  const [formGcpProjectId, setFormGcpProjectId] = useState('');
+  const [formGcpBucket, setFormGcpBucket] = useState('');
+  const [formGcpAuthMode, setFormGcpAuthMode] = useState('service_account_json');
+  const [formGcpServiceAccountJson, setFormGcpServiceAccountJson] = useState('');
+  const [formGcpServiceAccountPath, setFormGcpServiceAccountPath] = useState('');
+  const [formGcpCustomEndpoint, setFormGcpCustomEndpoint] = useState('');
   
   const [isSaving, setIsSaving] = useState(false);
 
@@ -111,7 +120,16 @@ export const ConnectionsPage: React.FC = () => {
     try {
       let config: Record<string, any> = {};
 
-      if (formType === 'aws_s3') {
+      if (formType === 'gcp_storage') {
+        config = {
+          project_id: formGcpProjectId || undefined,
+          bucket: formGcpBucket || undefined,
+          auth_mode: formGcpAuthMode,
+          service_account_json: formGcpAuthMode === 'service_account_json' ? formGcpServiceAccountJson : undefined,
+          service_account_path: formGcpAuthMode === 'service_account_path' ? formGcpServiceAccountPath : undefined,
+          custom_endpoint: formGcpCustomEndpoint || undefined
+        };
+      } else if (formType === 'aws_s3') {
         config = {
           bucket: formAwsBucket || undefined,
           region_name: formAwsRegion || 'us-east-1',
@@ -177,6 +195,7 @@ export const ConnectionsPage: React.FC = () => {
       setFormSasToken('');
       setFormAwsSecretAccessKey('');
       setFormAwsAccessKeyId('');
+      setFormGcpServiceAccountJson('');
       fetchConnections();
     } catch (err: any) {
       alert(`Error creating connection: ${err.response?.data?.detail || err.message}`);
@@ -187,6 +206,13 @@ export const ConnectionsPage: React.FC = () => {
 
   const renderConnectorIcon = (type: string) => {
     switch (type) {
+      case 'gcp_storage':
+      case 'gcs':
+        return (
+          <div className="p-2 rounded-lg border bg-rose-500/10 border-rose-500/30 text-rose-400">
+            <Globe2 className="h-4 w-4" />
+          </div>
+        );
       case 'aws_s3':
         return (
           <div className="p-2 rounded-lg border bg-amber-500/10 border-amber-500/30 text-amber-400">
@@ -239,7 +265,7 @@ export const ConnectionsPage: React.FC = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-white tracking-tight">Enterprise Connections</h1>
-          <p className="text-xs text-slate-400">Multi-cloud storage credentials (AWS S3, Azure ADLS/Blob) and relational databases</p>
+          <p className="text-xs text-slate-400">Multi-cloud storage credentials (AWS S3, Azure ADLS/Blob, Google Cloud Storage) and relational databases</p>
         </div>
         <button
           onClick={() => setShowAddModal(true)}
@@ -254,6 +280,7 @@ export const ConnectionsPage: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {connections.map((conn) => {
           const cfg = conn.config_masked || {};
+          const isGcp = conn.connector_type === 'gcp_storage' || conn.connector_type === 'gcs';
           const isAws = conn.connector_type === 'aws_s3' || conn.connector_type === 's3';
           const isAzure = conn.connector_type.startsWith('azure_');
           const isLocal = conn.connector_type.includes('local');
@@ -295,7 +322,14 @@ export const ConnectionsPage: React.FC = () => {
 
                 {/* Masked Endpoint Details */}
                 <div className="mt-3 p-2 rounded bg-slate-950/60 border border-slate-800/80 text-[11px] font-mono text-slate-400 space-y-0.5">
-                  {isAws ? (
+                  {isGcp ? (
+                    <>
+                      <div>Project: <span className="text-slate-300">{cfg.project_id || 'Default'}</span></div>
+                      <div>Bucket: <span className="text-slate-300">{cfg.bucket || 'All Buckets'}</span></div>
+                      <div>Auth: <span className="text-rose-400">{cfg.auth_mode || 'service_account_json'}</span></div>
+                      {cfg.custom_endpoint && <div>Endpoint: <span className="text-slate-400">{cfg.custom_endpoint}</span></div>}
+                    </>
+                  ) : isAws ? (
                     <>
                       <div>Bucket: <span className="text-slate-300">{cfg.bucket || 'All Buckets'}</span></div>
                       <div>Region: <span className="text-slate-300">{cfg.region_name || 'us-east-1'}</span></div>
@@ -414,7 +448,7 @@ export const ConnectionsPage: React.FC = () => {
                 <input
                   type="text"
                   required
-                  placeholder="e.g. AWS S3 DataLake, Production Postgres"
+                  placeholder="e.g. GCP Analytics Lake, AWS S3 Raw, Production Postgres"
                   value={formName}
                   onChange={(e) => setFormName(e.target.value)}
                   className="w-full bg-slate-950 border border-slate-800 rounded px-3 py-1.5 text-slate-200 focus:outline-none focus:border-brand-500"
@@ -438,6 +472,7 @@ export const ConnectionsPage: React.FC = () => {
                   className="w-full bg-slate-950 border border-slate-800 rounded px-3 py-1.5 text-slate-200 focus:outline-none focus:border-brand-500"
                 >
                   <optgroup label="Cloud Object Storage">
+                    <option value="gcp_storage">Google Cloud Storage (GCS)</option>
                     <option value="aws_s3">Amazon Web Services S3</option>
                     <option value="azure_adls">Azure Data Lake Storage Gen2 (ADLS)</option>
                     <option value="azure_blob">Azure Blob Storage</option>
@@ -450,6 +485,92 @@ export const ConnectionsPage: React.FC = () => {
                   </optgroup>
                 </select>
               </div>
+
+              {/* GCP Cloud Storage Configuration Fields */}
+              {formType === 'gcp_storage' && (
+                <div className="space-y-3 p-3 rounded-lg bg-slate-950/70 border border-slate-800/80">
+                  <div className="flex items-center gap-1.5 text-rose-400 font-medium">
+                    <Globe2 className="h-3.5 w-3.5" />
+                    <span>Google Cloud Storage Configuration</span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-slate-400 mb-1">GCP Project ID</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. dataforge-prod-2026"
+                        value={formGcpProjectId}
+                        onChange={(e) => setFormGcpProjectId(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-800 rounded px-3 py-1.5 text-slate-200 focus:outline-none focus:border-brand-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-slate-400 mb-1">Default GCS Bucket</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. corp-analytics-lake"
+                        value={formGcpBucket}
+                        onChange={(e) => setFormGcpBucket(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-800 rounded px-3 py-1.5 text-slate-200 focus:outline-none focus:border-brand-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-slate-400 mb-1">Authentication Mode</label>
+                    <select
+                      value={formGcpAuthMode}
+                      onChange={(e) => setFormGcpAuthMode(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-800 rounded px-3 py-1.5 text-slate-200 focus:outline-none focus:border-brand-500"
+                    >
+                      <option value="service_account_json">Service Account JSON Key (Inline)</option>
+                      <option value="service_account_path">Service Account JSON File Path</option>
+                      <option value="adc">Application Default Credentials (ADC)</option>
+                      <option value="workload_identity">Workload Identity Federation (WIF)</option>
+                    </select>
+                  </div>
+
+                  {formGcpAuthMode === 'service_account_json' && (
+                    <div>
+                      <label className="block text-slate-400 mb-1">Service Account JSON Content</label>
+                      <textarea
+                        rows={3}
+                        required
+                        placeholder='{"type": "service_account", "project_id": "...", "private_key": "..."}'
+                        value={formGcpServiceAccountJson}
+                        onChange={(e) => setFormGcpServiceAccountJson(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-800 rounded px-3 py-1.5 text-slate-200 focus:outline-none focus:border-brand-500 font-mono text-[11px]"
+                      />
+                    </div>
+                  )}
+
+                  {formGcpAuthMode === 'service_account_path' && (
+                    <div>
+                      <label className="block text-slate-400 mb-1">Service Account Key File Path</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="/etc/secrets/gcp-sa-key.json"
+                        value={formGcpServiceAccountPath}
+                        onChange={(e) => setFormGcpServiceAccountPath(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-800 rounded px-3 py-1.5 text-slate-200 focus:outline-none focus:border-brand-500 font-mono text-[11px]"
+                      />
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="block text-slate-400 mb-1">Custom API Endpoint (GCS Emulator / Testbench)</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. http://127.0.0.1:9090"
+                      value={formGcpCustomEndpoint}
+                      onChange={(e) => setFormGcpCustomEndpoint(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-800 rounded px-3 py-1.5 text-slate-200 focus:outline-none focus:border-brand-500 font-mono text-[11px]"
+                    />
+                  </div>
+                </div>
+              )}
 
               {/* AWS S3 Configuration Fields */}
               {formType === 'aws_s3' && (

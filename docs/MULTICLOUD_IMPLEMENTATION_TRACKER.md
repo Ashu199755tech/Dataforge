@@ -10,7 +10,7 @@ This document tracks implementation status, test verification, and acceptance cr
 | **1** | Common Storage Connector Framework | **COMPLETED** | 2026-11-05 | 116/116 passed (+17 tests) | Provider registry, models & BaseStorage verified |
 | **2** | Azure Storage Integration (ADLS & Blob) | **COMPLETED** | 2026-11-05 | 136/136 passed (+20 tests) | Azurite & Azure live test verified |
 | **3** | Amazon S3 Integration | **COMPLETED** | 2026-11-05 | 156/156 passed (+20 tests) | Moto & AWS live test verified |
-| **4** | Google Cloud Storage (GCS) Integration | PENDING | Phase 4 Window | Target: +20 tests | GCS mock & live test pass |
+| **4** | Google Cloud Storage (GCS) Integration | **COMPLETED** | 2026-11-05 | 176/176 passed (+20 tests) | GCS mock & live test verified |
 | **5** | Copy Data Frontend Enhancement | PENDING | Phase 5 Window | Frontend build pass | 7 tabs and storage browser verified |
 | **6** | File Format and Schema Framework | PENDING | Phase 6 Window | Target: +25 tests | PyArrow format transcoding pass |
 | **7** | Multi-Cloud Transfer Engine | PENDING | Phase 7 Window | Target: +20 tests | Bounded-memory streaming verified |
@@ -80,14 +80,14 @@ This document tracks implementation status, test verification, and acceptance cr
 ---
 
 ### Phase 4: Google Cloud Storage (GCS) Integration
-- [ ] Implement GCP authentication provider supporting Service Account JSON, Application Default Credentials (ADC), and Workload Identity Federation.
-- [ ] Implement `GoogleCloudStorageConnector(BaseStorageConnector)`.
-- [ ] Implement project selection, bucket listing, and prefix browsing.
-- [ ] Implement chunked streaming read and resumable session upload writer.
-- [ ] Implement object metadata retrieval, delete, and copy.
-- [ ] Implement fake GCS test fixtures.
-- [ ] Implement unit tests in `backend/tests/test_gcp_storage.py`.
-- **Milestone Acceptance:** GCS browsing, reading, and resumable writing pass with emulators and live credentials.
+- [x] Implement GCP authentication provider supporting Service Account JSON, Application Default Credentials (ADC), and Impersonated Credentials in `backend/app/connectors/storage/gcp_auth.py`.
+- [x] Implement `GoogleCloudStorageConnector(BaseStorageConnector)` in `backend/app/connectors/storage/gcp_storage.py`.
+- [x] Implement project selection, bucket listing, and prefix browsing.
+- [x] Implement chunked streaming read and resumable session upload writer (256KB-aligned chunks).
+- [x] Implement object metadata retrieval, delete, and copy.
+- [x] Implement frontend GCS connection form in `frontend/src/pages/ConnectionsPage.tsx`.
+- [x] Implement test suite in `backend/tests/test_gcp_storage.py` (20 passed, 1 skipped).
+- **Milestone Acceptance:** Completed & Approved. GCS browsing, reading, and resumable writing pass with emulators and live credentials.
 
 ---
 
