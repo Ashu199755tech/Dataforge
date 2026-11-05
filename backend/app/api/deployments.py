@@ -74,6 +74,34 @@ def list_deployments(
     return query.order_by(Deployment.created_at.desc()).limit(limit).all()
 
 
+@router.get("/template/github-actions")
+def get_github_actions_workflow_template(
+    project_name: str = Query("DataForge-Enterprise"),
+    repo_name: str = Query("dataforge-pipelines"),
+    target_branch: str = Query("main"),
+    current_user: User = Depends(get_current_user)
+):
+    """Generates and returns production GitHub Actions CI/CD release workflow YAML."""
+    yaml_content = CiCdService.generate_github_actions_workflow(project_name, repo_name, target_branch)
+    return Response(content=yaml_content, media_type="application/x-yaml")
+
+
+@router.get("/cicd-template")
+def get_cicd_template(
+    project_name: str = Query("DataForge-Enterprise"),
+    repo_name: str = Query("dataforge-pipelines"),
+    target_branch: str = Query("main"),
+    current_user: User = Depends(get_current_user)
+):
+    """Returns production CI/CD workflow YAML wrapped in JSON for the frontend."""
+    yaml_content = CiCdService.generate_github_actions_workflow(project_name, repo_name, target_branch)
+    return {
+        "platform": "GitHub Actions",
+        "filename": ".github/workflows/dataforge-deploy.yml",
+        "content": yaml_content
+    }
+
+
 @router.get("/{deployment_id}", response_model=DeploymentResponse)
 def get_deployment(
     deployment_id: str,
@@ -129,14 +157,3 @@ def rollback_deployment(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-
-@router.get("/template/github-actions")
-def get_github_actions_workflow_template(
-    project_name: str = Query("DataForge-Enterprise"),
-    repo_name: str = Query("dataforge-pipelines"),
-    target_branch: str = Query("main"),
-    current_user: User = Depends(get_current_user)
-):
-    """Generates and returns production GitHub Actions CI/CD release workflow YAML."""
-    yaml_content = CiCdService.generate_github_actions_workflow(project_name, repo_name, target_branch)
-    return Response(content=yaml_content, media_type="application/x-yaml")
