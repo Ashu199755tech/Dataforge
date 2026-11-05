@@ -20,10 +20,10 @@
 ## 1. Summary Statistics
 
 - **Total Activities Catalogued:** 48
-- **Production Ready / Testing Complete:** 10
-- **In Progress:** 1
-- **Not Started / Planned:** 37
-- **Current Parity Score:** **37.8%**
+- **Production Ready / Testing Complete:** 17
+- **In Progress:** 0
+- **Not Started / Planned:** 31
+- **Current Parity Score:** **52.8%**
 
 ---
 
@@ -47,14 +47,14 @@
 | **If Condition** | Complete | Complete | Complete | Complete | Complete | None | **Production Ready** |
 | **Set Variable** | Complete | Complete | Complete | Complete | Complete | None | **Production Ready** |
 | **Wait** | Complete | Complete | Complete | Complete | Complete | None | **Production Ready** |
-| **Append Variable** | Not Started | Not Started | Not Started | Not Started | None | None | **Not Started** |
-| **ForEach** | In Progress | In Progress | In Progress | In Progress | None | None | **In Progress** |
-| **Switch** | Not Started | Not Started | Not Started | Not Started | None | None | **Not Started** |
-| **Until** | Not Started | Not Started | Not Started | Not Started | None | None | **Not Started** |
-| **Filter** | Not Started | Not Started | Not Started | Not Started | None | None | **Not Started** |
-| **Fail** | Not Started | Not Started | Not Started | Not Started | None | None | **Not Started** |
+| **Append Variable** | Complete | Complete | Complete | Complete | Complete | None | **Production Ready** |
+| **ForEach** | Complete | Complete | Complete | Complete | Complete | None | **Production Ready** |
+| **Switch** | Complete | Complete | Complete | Complete | Complete | None | **Production Ready** |
+| **Until** | Complete | Complete | Complete | Complete | Complete | None | **Production Ready** |
+| **Filter** | Complete | Complete | Complete | Complete | Complete | None | **Production Ready** |
+| **Fail** | Complete | Complete | Complete | Complete | Complete | None | **Production Ready** |
 | **Validation** | Not Started | Not Started | Not Started | Not Started | None | None | **Not Started** |
-| **Execute Pipeline** | Not Started | Not Started | Not Started | Not Started | None | None | **Not Started** |
+| **Execute Pipeline** | Complete | Complete | Complete | Complete | Complete | None | **Production Ready** |
 
 ### Category: Scripting, Compute & External Workloads
 

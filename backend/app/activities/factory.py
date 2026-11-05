@@ -11,6 +11,13 @@ from backend.app.activities.if_condition import IfConditionActivity
 from backend.app.activities.rest_api import RestApiActivity
 from backend.app.activities.get_metadata import GetMetadataActivity
 from backend.app.activities.delete_data import DeleteDataActivity
+from backend.app.activities.for_each import ForEachActivity
+from backend.app.activities.execute_pipeline import ExecutePipelineActivity
+from backend.app.activities.switch_condition import SwitchActivity
+from backend.app.activities.filter_activity import FilterActivity
+from backend.app.activities.fail_activity import FailActivity
+from backend.app.activities.append_variable import AppendVariableActivity
+from backend.app.activities.until import UntilActivity
 
 
 def _register_builtin_activities():
@@ -301,6 +308,207 @@ def _register_builtin_activities():
         ),
         DeleteDataActivity,
         aliases=["delete_data", "deletedata"]
+    )
+
+    # 11. ForEach
+    activity_registry.register(
+        ActivityMetadata(
+            activity_type="ForEach",
+            display_name="ForEach",
+            category="Control Flow",
+            description="Iterates through an array of items and executes sub-activities sequentially or in parallel.",
+            version="1.0.0",
+            icon="Repeat",
+            config_schema={
+                "type": "object",
+                "required": ["items", "activities"],
+                "properties": {
+                    "items": {"type": "any"},
+                    "is_sequential": {"type": "boolean", "default": False},
+                    "batch_count": {"type": "integer", "default": 4},
+                    "activities": {"type": "array"}
+                }
+            },
+            outputs=[
+                {"name": "item_count", "type": "int"},
+                {"name": "succeeded_count", "type": "int"},
+                {"name": "failed_count", "type": "int"}
+            ],
+            supports_retry=False,
+            tags=["Iteration", "Parallel", "Loop", "Control Flow"]
+        ),
+        ForEachActivity,
+        aliases=["for_each", "foreach"]
+    )
+
+    # 12. Execute Pipeline
+    activity_registry.register(
+        ActivityMetadata(
+            activity_type="ExecutePipeline",
+            display_name="Execute Pipeline",
+            category="Control Flow",
+            description="Invokes another pipeline with parameter mapping and waits for completion.",
+            version="1.0.0",
+            icon="Workflow",
+            config_schema={
+                "type": "object",
+                "properties": {
+                    "pipeline_id": {"type": "string"},
+                    "pipeline_name": {"type": "string"},
+                    "parameters": {"type": "object"},
+                    "wait_on_completion": {"type": "boolean", "default": True}
+                }
+            },
+            outputs=[
+                {"name": "child_run_id", "type": "string"},
+                {"name": "child_status", "type": "string"},
+                {"name": "duration_seconds", "type": "int"}
+            ],
+            supports_retry=True,
+            tags=["ChildPipeline", "Hierarchy", "SubPipeline", "Control Flow"]
+        ),
+        ExecutePipelineActivity,
+        aliases=["execute_pipeline", "executepipeline"]
+    )
+
+    # 13. Switch
+    activity_registry.register(
+        ActivityMetadata(
+            activity_type="Switch",
+            display_name="Switch",
+            category="Control Flow",
+            description="Evaluates an expression and routes execution to matching case branches.",
+            version="1.0.0",
+            icon="Split",
+            config_schema={
+                "type": "object",
+                "required": ["expression"],
+                "properties": {
+                    "expression": {"type": "string"},
+                    "cases": {"type": "array"},
+                    "default_activities": {"type": "array"}
+                }
+            },
+            outputs=[
+                {"name": "matched_case", "type": "string"},
+                {"name": "evaluated_value", "type": "string"}
+            ],
+            supports_retry=False,
+            tags=["Branching", "Condition", "Switch", "Control Flow"]
+        ),
+        SwitchActivity,
+        aliases=["switch_condition", "switchactivity"]
+    )
+
+    # 14. Filter
+    activity_registry.register(
+        ActivityMetadata(
+            activity_type="Filter",
+            display_name="Filter",
+            category="Control Flow",
+            description="Filters an array of elements based on a dynamic boolean condition.",
+            version="1.0.0",
+            icon="Filter",
+            config_schema={
+                "type": "object",
+                "required": ["items", "condition"],
+                "properties": {
+                    "items": {"type": "any"},
+                    "condition": {"type": "string"}
+                }
+            },
+            outputs=[
+                {"name": "value", "type": "array"},
+                {"name": "count", "type": "int"}
+            ],
+            supports_retry=False,
+            tags=["Array", "Filter", "Transform", "Control Flow"]
+        ),
+        FilterActivity,
+        aliases=["filter_activity", "filteractivity"]
+    )
+
+    # 15. Fail
+    activity_registry.register(
+        ActivityMetadata(
+            activity_type="Fail",
+            display_name="Fail",
+            category="Control Flow",
+            description="Deliberately triggers an activity failure with custom message and code.",
+            version="1.0.0",
+            icon="AlertOctagon",
+            config_schema={
+                "type": "object",
+                "properties": {
+                    "message": {"type": "string"},
+                    "error_code": {"type": "string"}
+                }
+            },
+            outputs=[
+                {"name": "error_code", "type": "string"},
+                {"name": "message", "type": "string"}
+            ],
+            supports_retry=False,
+            tags=["Error", "Abort", "Guardrail", "Control Flow"]
+        ),
+        FailActivity,
+        aliases=["fail_activity", "failactivity"]
+    )
+
+    # 16. Append Variable
+    activity_registry.register(
+        ActivityMetadata(
+            activity_type="AppendVariable",
+            display_name="Append Variable",
+            category="Control Flow",
+            description="Appends a dynamic value or object to an existing array pipeline variable.",
+            version="1.0.0",
+            icon="ListPlus",
+            config_schema={
+                "type": "object",
+                "required": ["variable_name", "value"],
+                "properties": {
+                    "variable_name": {"type": "string"},
+                    "value": {"type": "any"}
+                }
+            },
+            outputs=[
+                {"name": "appended_value", "type": "any"}
+            ],
+            supports_retry=False,
+            tags=["Variables", "Array", "State", "Control Flow"]
+        ),
+        AppendVariableActivity,
+        aliases=["append_variable", "appendvariable"]
+    )
+
+    # 17. Until
+    activity_registry.register(
+        ActivityMetadata(
+            activity_type="Until",
+            display_name="Until",
+            category="Control Flow",
+            description="Executes sub-activities repeatedly until a boolean condition evaluates to True.",
+            version="1.0.0",
+            icon="RotateCw",
+            config_schema={
+                "type": "object",
+                "required": ["expression", "activities"],
+                "properties": {
+                    "expression": {"type": "string"},
+                    "activities": {"type": "array"},
+                    "max_iterations": {"type": "integer", "default": 10}
+                }
+            },
+            outputs=[
+                {"name": "iterations_completed", "type": "int"},
+                {"name": "condition_met", "type": "boolean"}
+            ],
+            supports_retry=False,
+            tags=["Loop", "Until", "Break", "Control Flow"]
+        ),
+        UntilActivity,
+        aliases=["until_activity", "untilactivity"]
     )
 
 

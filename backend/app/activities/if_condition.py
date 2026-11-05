@@ -29,6 +29,7 @@ class IfConditionActivity(BaseActivity):
             status="Succeeded",
             output_variables={
                 "outcome": condition_bool,
+                "evaluated_result": condition_bool,
                 "branch_taken": "True" if condition_bool else "False"
             },
             metrics={

@@ -12,7 +12,14 @@ import {
   Layers,
   Sparkles,
   FileSearch,
-  Trash2
+  Trash2,
+  Repeat,
+  Workflow,
+  Split,
+  Filter,
+  AlertOctagon,
+  ListPlus,
+  RotateCw
 } from 'lucide-react';
 import api from '../../api/client';
 
@@ -39,8 +46,15 @@ const DEFAULT_ACTIVITIES = [
     category: 'Control Flow',
     items: [
       { type: 'IfCondition', label: 'If Condition', icon: GitFork, color: 'text-orange-400', desc: 'Evaluate conditions & branch' },
-      { type: 'SetVariable', label: 'Set Variable', icon: Variable, color: 'text-cyan-400', desc: 'Dynamically assign pipeline variables' },
+      { type: 'ForEach', label: 'ForEach', icon: Repeat, color: 'text-emerald-400', desc: 'Loop over array items in seq/par' },
+      { type: 'ExecutePipeline', label: 'Execute Pipeline', icon: Workflow, color: 'text-violet-400', desc: 'Invoke child pipeline & wait' },
+      { type: 'Switch', label: 'Switch', icon: Split, color: 'text-yellow-400', desc: 'Route execution by case value' },
+      { type: 'Filter', label: 'Filter', icon: Filter, color: 'text-blue-400', desc: 'Filter array by boolean expression' },
+      { type: 'SetVariable', label: 'Set Variable', icon: Variable, color: 'text-cyan-400', desc: 'Assign pipeline variable' },
+      { type: 'AppendVariable', label: 'Append Variable', icon: ListPlus, color: 'text-teal-400', desc: 'Append item to array variable' },
       { type: 'Wait', label: 'Wait', icon: Clock, color: 'text-amber-400', desc: 'Pause execution for N seconds' },
+      { type: 'Until', label: 'Until', icon: RotateCw, color: 'text-pink-400', desc: 'Loop until condition is met' },
+      { type: 'Fail', label: 'Fail', icon: AlertOctagon, color: 'text-red-500', desc: 'Trigger deliberate pipeline error' },
     ]
   },
   {
@@ -76,6 +90,20 @@ const getIconComponent = (iconName: string) => {
       return FileSearch;
     case 'trash2':
       return Trash2;
+    case 'repeat':
+      return Repeat;
+    case 'workflow':
+      return Workflow;
+    case 'split':
+      return Split;
+    case 'filter':
+      return Filter;
+    case 'alertoctagon':
+      return AlertOctagon;
+    case 'listplus':
+      return ListPlus;
+    case 'rotatecw':
+      return RotateCw;
     default:
       return Layers;
   }
@@ -89,8 +117,15 @@ const getColorClass = (type: string) => {
     case 'deletedata': return 'text-rose-400';
     case 'dataqualitycheck': return 'text-purple-400';
     case 'ifcondition': return 'text-orange-400';
+    case 'foreach': return 'text-emerald-400';
+    case 'executepipeline': return 'text-violet-400';
+    case 'switch': return 'text-yellow-400';
+    case 'filter': return 'text-blue-400';
+    case 'fail': return 'text-red-500';
     case 'setvariable': return 'text-cyan-400';
+    case 'appendvariable': return 'text-teal-400';
     case 'wait': return 'text-amber-400';
+    case 'until': return 'text-pink-400';
     case 'sqlscript': return 'text-emerald-400';
     case 'restapi': return 'text-sky-400';
     default: return 'text-slate-400';

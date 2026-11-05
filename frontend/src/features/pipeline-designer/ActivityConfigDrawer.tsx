@@ -17,7 +17,14 @@ import {
   GitPullRequest,
   Ban,
   Trash2,
-  FileSearch
+  FileSearch,
+  Repeat,
+  Workflow,
+  Split,
+  Filter,
+  AlertOctagon,
+  ListPlus,
+  RotateCw
 } from 'lucide-react';
 
 interface ConfigDrawerProps {
@@ -39,7 +46,7 @@ export const ActivityConfigDrawer: React.FC<ConfigDrawerProps> = ({
   onDeleteNode,
   onClose
 }) => {
-  const { connections } = useAppStore();
+  const { connections, pipelines } = useAppStore();
   const [activeTab, setActiveTab] = useState<'config' | 'general' | 'dependencies'>('config');
   const [sourceTables, setSourceTables] = useState<string[]>([]);
   const [destTables, setDestTables] = useState<string[]>([]);
@@ -568,6 +575,245 @@ export const ActivityConfigDrawer: React.FC<ConfigDrawerProps> = ({
                     />
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* FOREACH */}
+            {activityType === 'ForEach' && (
+              <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-lg space-y-2.5">
+                <div className="flex items-center justify-between text-slate-300 font-semibold text-[11px] uppercase tracking-wider">
+                  <span>ForEach Loop Configuration</span>
+                  <Repeat className="h-3.5 w-3.5 text-emerald-400" />
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 mb-1 text-[11px]">Items (Array or Expression)</label>
+                  <input
+                    type="text"
+                    placeholder="@activity('GetMetadata').output.childItems"
+                    value={typeof config.items === 'string' ? config.items : JSON.stringify(config.items || [])}
+                    onChange={(e) => updateConfig({ items: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono text-[11px]"
+                  />
+                  <p className="text-[10px] text-slate-500 mt-1">Use <code className="text-emerald-400">@item()</code> in sub-activities to reference each element.</p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-slate-400 mb-1 text-[11px]">Execution Mode</label>
+                    <select
+                      value={config.is_sequential ? 'sequential' : 'parallel'}
+                      onChange={(e) => updateConfig({ is_sequential: e.target.value === 'sequential' })}
+                      className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 text-[11px]"
+                    >
+                      <option value="parallel">Parallel (Multi-threaded)</option>
+                      <option value="sequential">Sequential (One-by-one)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-slate-400 mb-1 text-[11px]">Batch Count (Concurrency)</label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={50}
+                      value={config.batch_count || 4}
+                      onChange={(e) => updateConfig({ batch_count: parseInt(e.target.value) || 4 })}
+                      className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 text-[11px] font-mono"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* EXECUTE PIPELINE */}
+            {activityType === 'ExecutePipeline' && (
+              <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-lg space-y-2.5">
+                <div className="flex items-center justify-between text-slate-300 font-semibold text-[11px] uppercase tracking-wider">
+                  <span>Child Pipeline Invocation</span>
+                  <Workflow className="h-3.5 w-3.5 text-violet-400" />
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 mb-1 text-[11px]">Target Child Pipeline</label>
+                  <select
+                    value={config.pipeline_id || ''}
+                    onChange={(e) => {
+                      const selectedPipe = pipelines.find((p) => p.id === e.target.value);
+                      updateConfig({
+                        pipeline_id: e.target.value,
+                        pipeline_name: selectedPipe?.name || ''
+                      });
+                    }}
+                    className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200"
+                  >
+                    <option value="">Select pipeline to execute...</option>
+                    {pipelines.map((p) => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex items-center gap-2 pt-1">
+                  <input
+                    type="checkbox"
+                    id="wait_comp"
+                    checked={config.wait_on_completion !== false}
+                    onChange={(e) => updateConfig({ wait_on_completion: e.target.checked })}
+                    className="rounded bg-slate-800 text-brand-500"
+                  />
+                  <label htmlFor="wait_comp" className="text-slate-300 text-[11px]">Wait on child completion</label>
+                </div>
+              </div>
+            )}
+
+            {/* SWITCH */}
+            {activityType === 'Switch' && (
+              <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-lg space-y-2.5">
+                <div className="flex items-center justify-between text-slate-300 font-semibold text-[11px] uppercase tracking-wider">
+                  <span>Switch Expression</span>
+                  <Split className="h-3.5 w-3.5 text-yellow-400" />
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 mb-1 text-[11px]">Evaluation Expression</label>
+                  <input
+                    type="text"
+                    placeholder="@activity('Lookup').output.status"
+                    value={config.expression || ''}
+                    onChange={(e) => updateConfig({ expression: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono text-[11px]"
+                  />
+                  <p className="text-[10px] text-slate-500 mt-1">Routes execution to matching branch case or default branch.</p>
+                </div>
+              </div>
+            )}
+
+            {/* FILTER */}
+            {activityType === 'Filter' && (
+              <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-lg space-y-2.5">
+                <div className="flex items-center justify-between text-slate-300 font-semibold text-[11px] uppercase tracking-wider">
+                  <span>Array Filter</span>
+                  <Filter className="h-3.5 w-3.5 text-blue-400" />
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 mb-1 text-[11px]">Input Items Array</label>
+                  <input
+                    type="text"
+                    placeholder="@activity('Lookup').output.items"
+                    value={typeof config.items === 'string' ? config.items : JSON.stringify(config.items || [])}
+                    onChange={(e) => updateConfig({ items: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono text-[11px]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 mb-1 text-[11px]">Filter Condition</label>
+                  <input
+                    type="text"
+                    placeholder="@greater(@item().amount, 100)"
+                    value={config.condition || ''}
+                    onChange={(e) => updateConfig({ condition: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono text-[11px]"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* FAIL */}
+            {activityType === 'Fail' && (
+              <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-lg space-y-2.5">
+                <div className="flex items-center justify-between text-slate-300 font-semibold text-[11px] uppercase tracking-wider">
+                  <span>Deliberate Failure</span>
+                  <AlertOctagon className="h-3.5 w-3.5 text-red-500" />
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 mb-1 text-[11px]">Error Code</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. DATA_VALIDATION_ERROR"
+                    value={config.error_code || 'UserError'}
+                    onChange={(e) => updateConfig({ error_code: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono text-[11px]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 mb-1 text-[11px]">Failure Message</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Critical validation failed on row counts"
+                    value={config.message || ''}
+                    onChange={(e) => updateConfig({ message: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono text-[11px]"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* APPEND VARIABLE */}
+            {activityType === 'AppendVariable' && (
+              <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-lg space-y-2.5">
+                <div className="flex items-center justify-between text-slate-300 font-semibold text-[11px] uppercase tracking-wider">
+                  <span>Append to Array Variable</span>
+                  <ListPlus className="h-3.5 w-3.5 text-cyan-400" />
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 mb-1 text-[11px]">Variable Name</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. processed_files"
+                    value={config.variable_name || ''}
+                    onChange={(e) => updateConfig({ variable_name: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono text-[11px]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 mb-1 text-[11px]">Value to Append</label>
+                  <input
+                    type="text"
+                    placeholder="@item().name"
+                    value={config.value || ''}
+                    onChange={(e) => updateConfig({ value: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono text-[11px]"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* UNTIL */}
+            {activityType === 'Until' && (
+              <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-lg space-y-2.5">
+                <div className="flex items-center justify-between text-slate-300 font-semibold text-[11px] uppercase tracking-wider">
+                  <span>Until Loop Condition</span>
+                  <RotateCw className="h-3.5 w-3.5 text-pink-400" />
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 mb-1 text-[11px]">Break Condition Expression</label>
+                  <input
+                    type="text"
+                    placeholder="@equals(@variables('is_done'), true)"
+                    value={config.expression || ''}
+                    onChange={(e) => updateConfig({ expression: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono text-[11px]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 mb-1 text-[11px]">Max Iterations</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={100}
+                    value={config.max_iterations || 10}
+                    onChange={(e) => updateConfig({ max_iterations: parseInt(e.target.value) || 10 })}
+                    className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono text-[11px]"
+                  />
+                </div>
               </div>
             )}
           </div>

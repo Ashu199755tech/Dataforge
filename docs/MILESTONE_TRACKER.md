@@ -12,7 +12,8 @@
 | **Phase 0** | **Existing Architecture Audit & Gap Analysis** | **Completed** | 14 Passed / 0 Failed | 17.8% | 2026-11-05 |
 | **Phase 1** | **Activity Framework & Dynamic Registry** | **Completed** | 19 Passed / 0 Failed | 25.8% | 2026-11-05 |
 | **Phase 2** | **Core Data Movement & Metadata Activities** | **Completed** | 22 Passed / 0 Failed | 37.8% | 2026-11-05 |
-| **Phase 3** | **Core Control Flow & Hierarchical Orchestration** | **In Progress** | Scheduled | +15.0% | Active |
+| **Phase 3** | **Core Control Flow & Hierarchical Orchestration** | **Completed** | 29 Passed / 0 Failed | 52.8% | 2026-11-05 |
+| **Phase 4** | **Scripting, Isolated Workers & Compute** | **In Progress** | Scheduled | +10.0% | Active |
 | **Phase 4** | **Scripting, Isolated Workers & Compute** | Scheduled | Scheduled | +10.0% | Pending |
 | **Phase 5** | **File & API Integration Activities** | Scheduled | Scheduled | +10.0% | Pending |
 | **Phase 6** | **Visual Data Flow Designer & Operators** | Scheduled | Scheduled | +12.0% | Pending |
@@ -24,12 +25,10 @@
 
 ---
 
-## Current Sprint Focus: Phase 3 — Core Control Flow & Hierarchical Orchestration
-- **Objective:** Implement advanced control flow activities including `ForEach` (sequential and parallel execution), `ExecutePipeline` (hierarchical parent-child pipeline invocation), `Switch` (multi-branch condition routing), `Filter` (predicate array filtering), `Fail` (controlled explicit termination), and `AppendVariable`.
+## Current Sprint Focus: Phase 4 — Scripting, Isolated Workers & Compute Execution
+- **Objective:** Implement enterprise scripting and compute activities including `PythonScript` (sandboxed subprocess with timeouts and resource constraints), `StoredProcedure` (with IN/OUT parameters), `SparkJob` provider interfaces, and execution log streaming.
 - **Key Deliverables:**
-  - `backend/app/activities/for_each.py`: ForEach loop executor with configurable batch size and concurrency.
-  - `backend/app/activities/execute_pipeline.py`: Child pipeline runner with parameter passing and status bubble-up.
-  - `backend/app/activities/switch_condition.py`: Case-matching branching executor.
-  - `backend/app/activities/filter_activity.py`: Dynamic array filter.
-  - `backend/app/activities/fail_activity.py`: Custom error generator.
-  - Unit and integration tests in `backend/tests/test_hierarchical_control_flow.py`.
+  - `backend/app/activities/python_script.py`: Sandboxed Python worker process with timeout and stdout/stderr capture.
+  - `backend/app/activities/stored_procedure.py`: Stored procedure execution with output parameter capture.
+  - Provider abstractions for Apache Spark and Databricks.
+  - Integration tests in `backend/tests/test_scripting_and_compute.py`.

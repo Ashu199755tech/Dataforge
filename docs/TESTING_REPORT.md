@@ -10,34 +10,41 @@
 
 ```
 ============================= test session starts ==============================
-backend/tests/test_activity_registry.py::test_builtin_activities_registered PASSED [  4%]
-backend/tests/test_activity_registry.py::test_activity_alias_resolution PASSED [  9%]
-backend/tests/test_activity_registry.py::test_dynamic_plugin_registration PASSED [ 13%]
-backend/tests/test_activity_registry.py::test_config_schema_validation PASSED [ 18%]
-backend/tests/test_activity_registry.py::test_unknown_activity_raises_error PASSED [ 22%]
-backend/tests/test_adf_dependency_conditions.py::test_adf_four_dependency_conditions PASSED [ 27%]
-backend/tests/test_auth.py::test_password_hashing PASSED                 [ 31%]
-backend/tests/test_auth.py::test_token_creation PASSED                   [ 36%]
-backend/tests/test_auth.py::test_secret_encryption_and_masking PASSED    [ 40%]
-backend/tests/test_control_flow.py::test_set_variable_activity PASSED    [ 45%]
-backend/tests/test_control_flow.py::test_wait_activity PASSED            [ 50%]
-backend/tests/test_control_flow.py::test_if_condition_activity PASSED    [ 54%]
-backend/tests/test_control_flow.py::test_local_file_connector PASSED     [ 59%]
-backend/tests/test_copy_data.py::test_sqlite_connector_copy_stream PASSED [ 63%]
-backend/tests/test_dag_engine.py::test_valid_dag_topological_sort PASSED [ 68%]
-backend/tests/test_dag_engine.py::test_cycle_detection PASSED            [ 72%]
-backend/tests/test_dag_engine.py::test_dependency_conditions PASSED      [ 77%]
-backend/tests/test_data_movement.py::test_get_metadata_activity PASSED   [ 81%]
-backend/tests/test_data_movement.py::test_delete_data_conditional_and_truncate PASSED [ 86%]
-backend/tests/test_data_movement.py::test_acceptance_scenario_mysql_to_postgres PASSED [ 90%]
-backend/tests/test_expressions.py::test_expression_evaluator PASSED      [ 95%]
+backend/tests/test_activity_registry.py::test_builtin_activities_registered PASSED [  3%]
+backend/tests/test_activity_registry.py::test_activity_alias_resolution PASSED [  6%]
+backend/tests/test_activity_registry.py::test_dynamic_plugin_registration PASSED [ 10%]
+backend/tests/test_activity_registry.py::test_config_schema_validation PASSED [ 13%]
+backend/tests/test_activity_registry.py::test_unknown_activity_raises_error PASSED [ 17%]
+backend/tests/test_adf_dependency_conditions.py::test_adf_four_dependency_conditions PASSED [ 20%]
+backend/tests/test_auth.py::test_password_hashing PASSED                 [ 24%]
+backend/tests/test_auth.py::test_token_creation PASSED                   [ 27%]
+backend/tests/test_auth.py::test_secret_encryption_and_masking PASSED    [ 31%]
+backend/tests/test_control_flow.py::test_set_variable_activity PASSED    [ 34%]
+backend/tests/test_control_flow.py::test_wait_activity PASSED            [ 37%]
+backend/tests/test_control_flow.py::test_if_condition_activity PASSED    [ 41%]
+backend/tests/test_control_flow.py::test_local_file_connector PASSED     [ 44%]
+backend/tests/test_copy_data.py::test_sqlite_connector_copy_stream PASSED [ 48%]
+backend/tests/test_dag_engine.py::test_valid_dag_topological_sort PASSED [ 51%]
+backend/tests/test_dag_engine.py::test_cycle_detection PASSED            [ 55%]
+backend/tests/test_dag_engine.py::test_dependency_conditions PASSED      [ 58%]
+backend/tests/test_data_movement.py::test_get_metadata_activity PASSED   [ 62%]
+backend/tests/test_data_movement.py::test_delete_data_conditional_and_truncate PASSED [ 65%]
+backend/tests/test_data_movement.py::test_acceptance_scenario_mysql_to_postgres PASSED [ 68%]
+backend/tests/test_expressions.py::test_expression_evaluator PASSED      [ 72%]
+backend/tests/test_hierarchical_control_flow.py::test_scenario_1_lookup_if_condition_flow PASSED [ 75%]
+backend/tests/test_hierarchical_control_flow.py::test_scenario_2_and_4_for_each_sequential_and_parallel PASSED [ 79%]
+backend/tests/test_hierarchical_control_flow.py::test_scenario_3_parent_executes_child_pipeline PASSED [ 82%]
+backend/tests/test_hierarchical_control_flow.py::test_switch_activity PASSED [ 86%]
+backend/tests/test_hierarchical_control_flow.py::test_filter_activity PASSED [ 89%]
+backend/tests/test_hierarchical_control_flow.py::test_fail_activity PASSED [ 93%]
+backend/tests/test_hierarchical_control_flow.py::test_append_variable_activity PASSED [ 96%]
 backend/tests/test_scheduler.py::test_scheduler_cron_calculation PASSED  [100%]
 
-======================== 22 passed, 2 warnings in 3.56s ========================
+======================== 29 passed, 2 warnings in 5.66s ========================
 ```
 
-- **Total Tests Executed:** 22
-- **Passed:** 22 (100%)
+- **Total Tests Executed:** 29
+- **Passed:** 29 (100%)
 - **Failed:** 0 (0%)
 - **Regressions:** 0
 
@@ -45,7 +52,13 @@ backend/tests/test_scheduler.py::test_scheduler_cron_calculation PASSED  [100%]
 
 ## 2. Live Database Verification History
 
-1. **Phase 2 Acceptance Scenario (`test_acceptance_scenario_mysql_to_postgres`):**
+1. **Phase 3 Acceptance Scenarios (`test_hierarchical_control_flow.py`):**
+   - Scenario 1 (`Lookup` -> `IfCondition`): Successfully evaluated dynamic expression against lookup output variables.
+   - Scenario 2 & 4 (`GetMetadata` -> `ForEach` in sequential and parallel): Successfully iterated over 4 files using thread pool concurrency and sequential loops with `@item()` resolution.
+   - Scenario 3 (`Parent` -> `ExecuteChildPipeline`): Parent pipeline invoked child pipeline `Child_Worker_Pipeline`, forwarded batch parameters, waited for completion, and verified state transition in PostgreSQL.
+   - Multi-branching & validation: Verified `SwitchActivity`, `FilterActivity` array predicate extraction, `FailActivity` intentional termination, and `AppendVariableActivity` array accumulation.
+
+2. **Phase 2 Acceptance Scenario (`test_acceptance_scenario_mysql_to_postgres`):**
    - Seeded 50 items in MySQL `phase2_source_inventory`.
    - Executed `GetMetadataActivity` on MySQL -> Verified source has exact 50 rows.
    - Executed `DeleteDataActivity` (truncate) on PostgreSQL `phase2_dest_inventory`.
@@ -53,13 +66,13 @@ backend/tests/test_scheduler.py::test_scheduler_cron_calculation PASSED  [100%]
    - Executed `GetMetadataActivity` on PostgreSQL -> Verified exact 50 rows arrived in target warehouse.
    - Verified row fidelity and attributes directly in PostgreSQL warehouse.
 
-2. **Milestone 1 Verification Script (`scripts/run_mvp_verification.py`):**
+3. **Milestone 1 Verification Script (`scripts/run_mvp_verification.py`):**
    - Seeded 5 initial records into MySQL `source_customers`.
    - Executed CopyData full ingestion pipeline -> Verified 5 rows in PostgreSQL `dest_customers`.
    - Injected 2 new records in MySQL with newer timestamp.
    - Executed incremental watermark ingestion pipeline -> Verified exact 7 rows in PostgreSQL.
 
-3. **Milestone 2 Verification Script (`scripts/run_milestone2_verification.py`):**
+4. **Milestone 2 Verification Script (`scripts/run_milestone2_verification.py`):**
    - Executed multi-node pipeline: `Lookup` -> `SetVariable` -> `IfCondition` -> `Wait`.
    - Verified conditional branch activation based on expression `@greater(activity('lkp_orders').output.first_row.total_orders, 0)`.
    - Verified scheduled trigger execution and trigger dispatch via background daemon.

@@ -14,7 +14,14 @@ import {
   Trash2,
   X,
   FileSearch,
-  Database
+  Database,
+  Repeat,
+  Workflow,
+  Split,
+  Filter,
+  AlertOctagon,
+  ListPlus,
+  RotateCw
 } from 'lucide-react';
 
 export const ActivityNode: React.FC<NodeProps> = ({ id, data, selected }) => {
@@ -55,6 +62,20 @@ export const ActivityNode: React.FC<NodeProps> = ({ id, data, selected }) => {
         return <FileSearch className="h-4 w-4 text-indigo-400" />;
       case 'DeleteData':
         return <Trash2 className="h-4 w-4 text-rose-400" />;
+      case 'ForEach':
+        return <Repeat className="h-4 w-4 text-emerald-400" />;
+      case 'ExecutePipeline':
+        return <Workflow className="h-4 w-4 text-violet-400" />;
+      case 'Switch':
+        return <Split className="h-4 w-4 text-yellow-400" />;
+      case 'Filter':
+        return <Filter className="h-4 w-4 text-blue-400" />;
+      case 'Fail':
+        return <AlertOctagon className="h-4 w-4 text-red-500" />;
+      case 'AppendVariable':
+        return <ListPlus className="h-4 w-4 text-cyan-400" />;
+      case 'Until':
+        return <RotateCw className="h-4 w-4 text-pink-400" />;
       default:
         return <Layers className="h-4 w-4 text-slate-400" />;
     }
@@ -180,6 +201,55 @@ export const ActivityNode: React.FC<NodeProps> = ({ id, data, selected }) => {
           <div className="truncate text-rose-400 text-[10px] flex items-center gap-1">
             <span className="text-slate-500">{activityData.config.delete_mode === 'truncate' ? 'Truncate:' : 'Delete:'}</span>
             <span className="font-semibold">{activityData.config.table_name}</span>
+          </div>
+        )}
+
+        {activityData.activityType === 'ForEach' && (
+          <div className="truncate text-emerald-400 text-[10px] flex items-center gap-1">
+            <span className="text-slate-500">Loop:</span>
+            <span className="font-semibold font-mono">{activityData.config?.is_sequential ? 'Sequential' : 'Parallel'}</span>
+          </div>
+        )}
+
+        {activityData.activityType === 'ExecutePipeline' && (
+          <div className="truncate text-violet-400 text-[10px] flex items-center gap-1">
+            <span className="text-slate-500">Child:</span>
+            <span className="font-semibold font-mono">{activityData.config?.pipeline_name || activityData.config?.pipeline_id || 'Target Pipeline'}</span>
+          </div>
+        )}
+
+        {activityData.activityType === 'Switch' && activityData.config?.expression && (
+          <div className="truncate text-yellow-400 text-[10px] flex items-center gap-1">
+            <span className="text-slate-500">Switch:</span>
+            <span className="font-mono truncate">{activityData.config.expression}</span>
+          </div>
+        )}
+
+        {activityData.activityType === 'Filter' && (
+          <div className="truncate text-blue-400 text-[10px] flex items-center gap-1">
+            <span className="text-slate-500">Filter:</span>
+            <span className="font-mono truncate">{activityData.config?.condition}</span>
+          </div>
+        )}
+
+        {activityData.activityType === 'Fail' && (
+          <div className="truncate text-red-400 text-[10px] flex items-center gap-1 font-semibold">
+            <span>Fail:</span>
+            <span className="truncate">{activityData.config?.message || 'Deliberate Error'}</span>
+          </div>
+        )}
+
+        {activityData.activityType === 'AppendVariable' && activityData.config?.variable_name && (
+          <div className="truncate text-cyan-400 text-[10px] flex items-center gap-1 font-mono">
+            <span className="text-slate-500">Append:</span>
+            <span className="truncate">{activityData.config.variable_name}</span>
+          </div>
+        )}
+
+        {activityData.activityType === 'Until' && activityData.config?.expression && (
+          <div className="truncate text-pink-400 text-[10px] flex items-center gap-1 font-mono">
+            <span className="text-slate-500">Until:</span>
+            <span className="truncate">{activityData.config.expression}</span>
           </div>
         )}
       </div>

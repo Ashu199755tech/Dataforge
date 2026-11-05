@@ -20,11 +20,15 @@ class ExpressionEvaluator:
         self,
         parameters: Optional[Dict[str, Any]] = None,
         variables: Optional[Dict[str, Any]] = None,
-        activity_outputs: Optional[Dict[str, Any]] = None
+        activity_outputs: Optional[Dict[str, Any]] = None,
+        item: Optional[Any] = None,
+        pipeline_info: Optional[Dict[str, Any]] = None
     ):
         self.parameters = parameters or {}
         self.variables = variables or {}
         self.activity_outputs = activity_outputs or {}
+        self.item = item
+        self.pipeline_info = pipeline_info or {}
 
     def evaluate(self, value: Any) -> Any:
         if isinstance(value, dict):
@@ -37,6 +41,14 @@ class ExpressionEvaluator:
 
     def _evaluate_string(self, expr_str: str) -> Any:
         expr_str = expr_str.strip()
+
+        # Support ADF nested function calls that omit the leading '@' inside outer expressions
+        if expr_str.startswith((
+            "activity(", "parameters(", "variables(", "item(", "pipeline(",
+            "equals(", "greater(", "less(", "not(", "concat("
+        )):
+            expr_str = "@" + expr_str
+
         if not expr_str.startswith("@"):
             return expr_str
 
@@ -51,6 +63,26 @@ class ExpressionEvaluator:
         if match_var:
             var_key = match_var.group(1)
             return self.variables.get(var_key)
+
+        # Loop item expression: @item() or @item().prop.nested
+        match_item = re.fullmatch(r"@item\(\)(?:\.([a-zA-Z0-9_.]+))?", expr_str)
+        if match_item:
+            field_path = match_item.group(1)
+            val = self.item
+            if field_path and isinstance(val, dict):
+                for part in field_path.split("."):
+                    if isinstance(val, dict):
+                        val = val.get(part)
+                    else:
+                        val = None
+                        break
+            return val
+
+        # Pipeline runtime metadata: @pipeline().RunId, @pipeline().Pipeline
+        match_pipe = re.fullmatch(r"@pipeline\(\)(?:\.([a-zA-Z0-9_.]+))?", expr_str)
+        if match_pipe:
+            field_path = match_pipe.group(1) or "RunId"
+            return self.pipeline_info.get(field_path)
 
         # Exact activity output expression with arbitrary nested dot notation:
         # e.g., @activity('act_lookup').output.first_row.max_date
@@ -115,5 +147,5 @@ class ExpressionEvaluator:
             res = self._evaluate_string(sub_expr)
             return str(res) if res is not None else ""
 
-        pattern = r"@(?:parameters|variables|activity)\([^)]+\)(?:\.output(?:\.[a-zA-Z0-9_.]+)?)?"
+        pattern = r"@(?:parameters|variables|activity|item|pipeline)\([^)]*\)(?:\.output(?:\.[a-zA-Z0-9_.]+)?)?(?:\.[a-zA-Z0-9_.]+)?"
         return re.sub(pattern, _replace_embedded, expr_str)
