@@ -36,15 +36,23 @@ backend/tests/test_hierarchical_control_flow.py::test_scenario_2_and_4_for_each_
 backend/tests/test_hierarchical_control_flow.py::test_scenario_3_parent_executes_child_pipeline PASSED [ 82%]
 backend/tests/test_hierarchical_control_flow.py::test_switch_activity PASSED [ 86%]
 backend/tests/test_hierarchical_control_flow.py::test_filter_activity PASSED [ 89%]
-backend/tests/test_hierarchical_control_flow.py::test_fail_activity PASSED [ 93%]
-backend/tests/test_hierarchical_control_flow.py::test_append_variable_activity PASSED [ 96%]
-backend/tests/test_scheduler.py::test_scheduler_cron_calculation PASSED  [100%]
+backend/tests/test_hierarchical_control_flow.py::test_fail_activity PASSED [ 72%]
+backend/tests/test_hierarchical_control_flow.py::test_append_variable_activity PASSED [ 75%]
+backend/tests/test_scheduler.py::test_scheduler_cron_calculation PASSED  [ 78%]
+backend/tests/test_scripting_and_compute.py::test_registry_contains_phase4_activities PASSED [ 81%]
+backend/tests/test_scripting_and_compute.py::test_python_script_execution_with_outputs PASSED [ 83%]
+backend/tests/test_scripting_and_compute.py::test_python_script_timeout_handling PASSED [ 86%]
+backend/tests/test_scripting_and_compute.py::test_python_script_syntax_or_runtime_error PASSED [ 89%]
+backend/tests/test_custom_activity_success PASSED [ 91%]
+backend/tests/test_custom_activity_failure_exit_code PASSED [ 94%]
+backend/tests/test_stored_procedure_postgresql PASSED [ 97%]
+backend/tests/test_databricks_execution_provider_flow PASSED [100%]
 
-======================== 29 passed, 2 warnings in 5.66s ========================
+======================== 37 passed, 2 warnings in 9.85s ========================
 ```
 
-- **Total Tests Executed:** 29
-- **Passed:** 29 (100%)
+- **Total Tests Executed:** 37
+- **Passed:** 37 (100%)
 - **Failed:** 0 (0%)
 - **Regressions:** 0
 
@@ -52,7 +60,15 @@ backend/tests/test_scheduler.py::test_scheduler_cron_calculation PASSED  [100%]
 
 ## 2. Live Database Verification History
 
-1. **Phase 3 Acceptance Scenarios (`test_hierarchical_control_flow.py`):**
+1. **Phase 4 Scripting & Compute Scenarios (`test_scripting_and_compute.py`):**
+   - `test_python_script_execution_with_outputs`: Verified sandboxed child process isolation, parameter injection via `context.get_param()`, output variable binding via `context.set_output()`, and live stdout streaming.
+   - `test_python_script_timeout_handling`: Verified hard timeout enforcement terminating hung processes cleanly with status `Failed`.
+   - `test_python_script_syntax_or_runtime_error`: Verified Python exception tracebacks captured without crashing parent runner.
+   - `test_custom_activity_success` & `failure`: Verified CLI command execution, exit code checking, and stdout/stderr separation.
+   - `test_stored_procedure_postgresql`: Executed live PL/pgSQL function on PostgreSQL port 5433 with dynamic IN/OUT parameter mapping returning verified calculations.
+   - `test_databricks_execution_provider_flow`: Validated clean-room Databricks Jobs REST API 2.1 state machine handling remote submission and terminal lifecycle transitions.
+
+2. **Phase 3 Acceptance Scenarios (`test_hierarchical_control_flow.py`):**
    - Scenario 1 (`Lookup` -> `IfCondition`): Successfully evaluated dynamic expression against lookup output variables.
    - Scenario 2 & 4 (`GetMetadata` -> `ForEach` in sequential and parallel): Successfully iterated over 4 files using thread pool concurrency and sequential loops with `@item()` resolution.
    - Scenario 3 (`Parent` -> `ExecuteChildPipeline`): Parent pipeline invoked child pipeline `Child_Worker_Pipeline`, forwarded batch parameters, waited for completion, and verified state transition in PostgreSQL.

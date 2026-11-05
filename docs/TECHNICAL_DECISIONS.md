@@ -27,6 +27,20 @@
 ---
 
 ## ADR 004: Decoupled Dynamic Activity Registry
-- **Status:** Accepted (Phase 1 Target)
+- **Status:** Accepted (Implemented in Phase 1)
 - **Context:** As the platform scales to 40+ activities, a hardcoded switch-statement factory creates high code churn and regression risk.
 - **Decision:** Implement a centralized `ActivityRegistry` with dynamic discovery, declarative configuration schemas, metadata introspection, and a REST discovery endpoint (`GET /api/v1/activities`).
+
+---
+
+## ADR 005: Hierarchical Scope & Variable Accumulation Engine
+- **Status:** Accepted (Implemented in Phase 3)
+- **Context:** Nested control flows (`ForEach`, `Until`, `Switch`, `ExecutePipeline`) require isolated and shared execution state without race conditions.
+- **Decision:** Implement thread-safe `ThreadPoolExecutor` batch processing with `@item()` resolution, sequential sub-runners for iterative loops, and atomic pipeline variable modification (`SetVariable`, `AppendVariable`).
+
+---
+
+## ADR 006: Sandboxed Subprocess Worker & Compute Abstraction
+- **Status:** Accepted (Implemented in Phase 4)
+- **Context:** Custom scripting (`PythonScript`, `CustomActivity`) poses safety and stability risks if executed inside the API server process. Remote big data jobs (`DatabricksNotebook`, `PySparkJob`) need vendor-independent execution abstraction.
+- **Decision:** Implement `IsolatedSubprocessWorker` providing clean temporary directories, stdin/stdout/stderr streaming, JSON context parameters, and hard timeout guards. Provide `BaseComputeProvider` interface with clean-room `DatabricksExecutionProvider` targeting public Databricks Jobs REST API 2.1 without cloud-vendor proprietary SDK dependencies.

@@ -20,10 +20,10 @@
 ## 1. Summary Statistics
 
 - **Total Activities Catalogued:** 48
-- **Production Ready / Testing Complete:** 17
+- **Production Ready / Testing Complete:** 22
 - **In Progress:** 0
-- **Not Started / Planned:** 31
-- **Current Parity Score:** **52.8%**
+- **Not Started / Planned:** 26
+- **Current Parity Score:** **62.8%**
 
 ---
 
@@ -61,16 +61,16 @@
 | Activity Name | UI | Config | Backend | Executor | Tests | Provider Req | Status |
 |---|---|---|---|---|---|---|---|
 | **SQL Script** | Complete | Complete | Complete | Complete | Complete | None | **Production Ready** |
-| **Stored Procedure** | Not Started | Not Started | Not Started | Not Started | None | Relational DB | **Not Started** |
-| **Python Script** | Not Started | Not Started | Not Started | Not Started | None | Python Runner | **Not Started** |
-| **PySpark Job** | Not Started | Not Started | Not Started | Not Started | None | Apache Spark | **Provider Required** |
-| **Spark Job** | Not Started | Not Started | Not Started | Not Started | None | Apache Spark | **Provider Required** |
-| **Databricks Notebook** | Not Started | Not Started | Not Started | Not Started | None | Databricks REST | **Provider Required** |
+| **Stored Procedure** | Complete | Complete | Complete | Complete | Complete | Relational DB | **Production Ready** |
+| **Python Script** | Complete | Complete | Complete | Complete | Complete | Python Worker | **Production Ready** |
+| **PySpark Job** | Complete | Complete | Complete | Complete | Complete | Apache Spark | **Production Ready** |
+| **Spark Job** | Complete | Complete | Complete | Complete | Complete | Apache Spark | **Production Ready** |
+| **Databricks Notebook** | Complete | Complete | Complete | Complete | Complete | Databricks REST | **Production Ready** |
 | **Databricks Python** | Not Started | Not Started | Not Started | Not Started | None | Databricks REST | **Provider Required** |
 | **Databricks JAR** | Not Started | Not Started | Not Started | Not Started | None | Databricks REST | **Provider Required** |
 | **Synapse Notebook** | Not Started | Not Started | Not Started | Not Started | None | Azure Synapse | **Provider Required** |
 | **Azure Function** | Not Started | Not Started | Not Started | Not Started | None | Azure Functions | **Provider Required** |
-| **Custom Activity** | Not Started | Not Started | Not Started | Not Started | None | Docker Worker | **Not Started** |
+| **Custom Activity** | Complete | Complete | Complete | Complete | Complete | None | **Production Ready** |
 | **Hive** | Not Started | Not Started | Not Started | Not Started | None | Hadoop Cluster | **Provider Required** |
 | **Pig** | Not Started | Not Started | Not Started | Not Started | None | Hadoop Cluster | **Provider Required** |
 | **MapReduce** | Not Started | Not Started | Not Started | Not Started | None | Hadoop Cluster | **Provider Required** |

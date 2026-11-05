@@ -21,7 +21,12 @@ import {
   Filter,
   AlertOctagon,
   ListPlus,
-  RotateCw
+  RotateCw,
+  Terminal,
+  DatabaseZap,
+  CloudLightning,
+  Flame,
+  Cpu
 } from 'lucide-react';
 
 export const ActivityNode: React.FC<NodeProps> = ({ id, data, selected }) => {
@@ -76,6 +81,16 @@ export const ActivityNode: React.FC<NodeProps> = ({ id, data, selected }) => {
         return <ListPlus className="h-4 w-4 text-cyan-400" />;
       case 'Until':
         return <RotateCw className="h-4 w-4 text-pink-400" />;
+      case 'PythonScript':
+        return <Terminal className="h-4 w-4 text-emerald-400" />;
+      case 'StoredProcedure':
+        return <DatabaseZap className="h-4 w-4 text-purple-400" />;
+      case 'CustomActivity':
+        return <Cpu className="h-4 w-4 text-amber-400" />;
+      case 'DatabricksNotebook':
+        return <CloudLightning className="h-4 w-4 text-orange-400" />;
+      case 'PySparkJob':
+        return <Flame className="h-4 w-4 text-rose-400" />;
       default:
         return <Layers className="h-4 w-4 text-slate-400" />;
     }
@@ -250,6 +265,41 @@ export const ActivityNode: React.FC<NodeProps> = ({ id, data, selected }) => {
           <div className="truncate text-pink-400 text-[10px] flex items-center gap-1 font-mono">
             <span className="text-slate-500">Until:</span>
             <span className="truncate">{activityData.config.expression}</span>
+          </div>
+        )}
+
+        {activityData.activityType === 'PythonScript' && (
+          <div className="truncate text-emerald-400 text-[10px] flex items-center gap-1 font-mono">
+            <span className="text-slate-500">Python:</span>
+            <span className="truncate">{activityData.config?.script ? activityData.config.script.slice(0, 25) + '...' : 'Inline Script'}</span>
+          </div>
+        )}
+
+        {activityData.activityType === 'StoredProcedure' && activityData.config?.procedure_name && (
+          <div className="truncate text-purple-400 text-[10px] flex items-center gap-1 font-mono">
+            <span className="text-slate-500">Proc:</span>
+            <span className="truncate">{activityData.config.procedure_name}</span>
+          </div>
+        )}
+
+        {activityData.activityType === 'CustomActivity' && activityData.config?.command && (
+          <div className="truncate text-amber-400 text-[10px] flex items-center gap-1 font-mono">
+            <span className="text-slate-500">Exec:</span>
+            <span className="truncate">{activityData.config.command}</span>
+          </div>
+        )}
+
+        {activityData.activityType === 'DatabricksNotebook' && activityData.config?.notebook_path && (
+          <div className="truncate text-orange-400 text-[10px] flex items-center gap-1 font-mono">
+            <span className="text-slate-500">Notebook:</span>
+            <span className="truncate">{activityData.config.notebook_path}</span>
+          </div>
+        )}
+
+        {activityData.activityType === 'PySparkJob' && (
+          <div className="truncate text-rose-400 text-[10px] flex items-center gap-1 font-mono">
+            <span className="text-slate-500">Spark:</span>
+            <span className="truncate">{activityData.config?.master || 'local[*]'}</span>
           </div>
         )}
       </div>

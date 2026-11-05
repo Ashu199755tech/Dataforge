@@ -19,7 +19,11 @@ import {
   Filter,
   AlertOctagon,
   ListPlus,
-  RotateCw
+  RotateCw,
+  Terminal,
+  DatabaseZap,
+  CloudLightning,
+  Flame
 } from 'lucide-react';
 import api from '../../api/client';
 
@@ -61,6 +65,11 @@ const DEFAULT_ACTIVITIES = [
     category: 'Compute & External',
     items: [
       { type: 'SqlScript', label: 'SQL Script', icon: FileCode, color: 'text-emerald-400', desc: 'Execute queries on connection' },
+      { type: 'PythonScript', label: 'Python Script', icon: Terminal, color: 'text-emerald-400', desc: 'Run sandboxed Python code' },
+      { type: 'StoredProcedure', label: 'Stored Procedure', icon: DatabaseZap, color: 'text-purple-400', desc: 'Execute database routine or function' },
+      { type: 'CustomActivity', label: 'Custom Activity', icon: Cpu, color: 'text-amber-400', desc: 'Execute custom command/binary' },
+      { type: 'DatabricksNotebook', label: 'Databricks Notebook', icon: CloudLightning, color: 'text-orange-400', desc: 'Run Databricks notebook job' },
+      { type: 'PySparkJob', label: 'PySpark Job', icon: Flame, color: 'text-rose-400', desc: 'Submit Apache Spark / PySpark job' },
       { type: 'RestApi', label: 'REST API Call', icon: Globe, color: 'text-sky-400', desc: 'Invoke external HTTP webhooks' },
     ]
   }
@@ -104,6 +113,14 @@ const getIconComponent = (iconName: string) => {
       return ListPlus;
     case 'rotatecw':
       return RotateCw;
+    case 'terminal':
+      return Terminal;
+    case 'databasezap':
+      return DatabaseZap;
+    case 'cloudlightning':
+      return CloudLightning;
+    case 'flame':
+      return Flame;
     default:
       return Layers;
   }
@@ -127,6 +144,11 @@ const getColorClass = (type: string) => {
     case 'wait': return 'text-amber-400';
     case 'until': return 'text-pink-400';
     case 'sqlscript': return 'text-emerald-400';
+    case 'pythonscript': return 'text-emerald-400';
+    case 'storedprocedure': return 'text-purple-400';
+    case 'customactivity': return 'text-amber-400';
+    case 'databricksnotebook': return 'text-orange-400';
+    case 'pysparkjob': return 'text-rose-400';
     case 'restapi': return 'text-sky-400';
     default: return 'text-slate-400';
   }

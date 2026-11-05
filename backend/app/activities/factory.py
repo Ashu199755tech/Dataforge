@@ -18,6 +18,11 @@ from backend.app.activities.filter_activity import FilterActivity
 from backend.app.activities.fail_activity import FailActivity
 from backend.app.activities.append_variable import AppendVariableActivity
 from backend.app.activities.until import UntilActivity
+from backend.app.activities.python_script import PythonScriptActivity
+from backend.app.activities.stored_procedure import StoredProcedureActivity
+from backend.app.activities.custom_activity import CustomActivity
+from backend.app.activities.databricks import DatabricksNotebookActivity
+from backend.app.activities.pyspark_job import PySparkJobActivity
 
 
 def _register_builtin_activities():
@@ -509,6 +514,152 @@ def _register_builtin_activities():
         ),
         UntilActivity,
         aliases=["until_activity", "untilactivity"]
+    )
+
+    # 18. Python Script
+    activity_registry.register(
+        ActivityMetadata(
+            activity_type="PythonScript",
+            display_name="Python Script",
+            category="Compute & External",
+            description="Executes arbitrary Python code in an isolated worker process with strict timeouts and output capture.",
+            version="1.0.0",
+            icon="Terminal",
+            config_schema={
+                "type": "object",
+                "required": ["script"],
+                "properties": {
+                    "script": {"type": "string"},
+                    "parameters": {"type": "object"},
+                    "timeout_seconds": {"type": "integer", "default": 60}
+                }
+            },
+            outputs=[
+                {"name": "output_variables", "type": "object"},
+                {"name": "duration_seconds", "type": "number"}
+            ],
+            supports_retry=True,
+            tags=["Python", "DataScience", "Worker", "Compute"]
+        ),
+        PythonScriptActivity,
+        aliases=["python_script", "python"]
+    )
+
+    # 19. Stored Procedure
+    activity_registry.register(
+        ActivityMetadata(
+            activity_type="StoredProcedure",
+            display_name="Stored Procedure",
+            category="Compute & External",
+            description="Executes a database stored procedure or function with parameter bindings.",
+            version="1.0.0",
+            icon="DatabaseZap",
+            config_schema={
+                "type": "object",
+                "required": ["connection_id", "stored_procedure_name"],
+                "properties": {
+                    "connection_id": {"type": "string"},
+                    "stored_procedure_name": {"type": "string"},
+                    "parameters": {"type": "object"},
+                    "is_function": {"type": "boolean", "default": False}
+                }
+            },
+            outputs=[
+                {"name": "row_count", "type": "int"},
+                {"name": "first_row", "type": "object"}
+            ],
+            supports_retry=True,
+            tags=["StoredProcedure", "Database", "Compute", "SQL"]
+        ),
+        StoredProcedureActivity,
+        aliases=["stored_procedure", "storedprocedure"]
+    )
+
+    # 20. Custom Activity
+    activity_registry.register(
+        ActivityMetadata(
+            activity_type="CustomActivity",
+            display_name="Custom Activity",
+            category="Compute & External",
+            description="Executes a CLI command, script binary, or batch process in an isolated environment.",
+            version="1.0.0",
+            icon="Cpu",
+            config_schema={
+                "type": "object",
+                "required": ["command"],
+                "properties": {
+                    "command": {"type": "string"},
+                    "arguments": {"type": "array"},
+                    "timeout_seconds": {"type": "integer", "default": 120}
+                }
+            },
+            outputs=[
+                {"name": "exit_code", "type": "int"},
+                {"name": "duration_seconds", "type": "number"}
+            ],
+            supports_retry=True,
+            tags=["CLI", "Command", "Custom", "Compute"]
+        ),
+        CustomActivity,
+        aliases=["custom_activity", "customactivity"]
+    )
+
+    # 21. Databricks Notebook
+    activity_registry.register(
+        ActivityMetadata(
+            activity_type="DatabricksNotebook",
+            display_name="Databricks Notebook",
+            category="Compute & External",
+            description="Submits and orchestrates remote Databricks notebooks via the official Jobs API 2.1.",
+            version="1.0.0",
+            icon="CloudLightning",
+            config_schema={
+                "type": "object",
+                "required": ["notebook_path"],
+                "properties": {
+                    "host": {"type": "string"},
+                    "token": {"type": "string"},
+                    "notebook_path": {"type": "string"},
+                    "base_parameters": {"type": "object"}
+                }
+            },
+            outputs=[
+                {"name": "run_id", "type": "string"},
+                {"name": "result_state", "type": "string"}
+            ],
+            supports_retry=True,
+            tags=["Databricks", "Notebook", "Spark", "Compute", "Cloud"]
+        ),
+        DatabricksNotebookActivity,
+        aliases=["databricks_notebook", "databricks"]
+    )
+
+    # 22. PySpark Job
+    activity_registry.register(
+        ActivityMetadata(
+            activity_type="PySparkJob",
+            display_name="PySpark Job",
+            category="Compute & External",
+            description="Submits distributed Spark applications with master cluster parameters and memory configuration.",
+            version="1.0.0",
+            icon="Flame",
+            config_schema={
+                "type": "object",
+                "required": ["script_path"],
+                "properties": {
+                    "script_path": {"type": "string"},
+                    "master": {"type": "string", "default": "local[*]"},
+                    "spark_args": {"type": "array"}
+                }
+            },
+            outputs=[
+                {"name": "exit_code", "type": "int"}
+            ],
+            supports_retry=True,
+            tags=["PySpark", "Spark", "Distributed", "BigData", "Compute"]
+        ),
+        PySparkJobActivity,
+        aliases=["pyspark_job", "pyspark", "spark_job"]
     )
 
 

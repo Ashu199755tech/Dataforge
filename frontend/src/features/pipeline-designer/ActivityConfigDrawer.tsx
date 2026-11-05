@@ -24,7 +24,12 @@ import {
   Filter,
   AlertOctagon,
   ListPlus,
-  RotateCw
+  RotateCw,
+  Terminal,
+  DatabaseZap,
+  CloudLightning,
+  Flame,
+  Cpu
 } from 'lucide-react';
 
 interface ConfigDrawerProps {
@@ -811,6 +816,316 @@ export const ActivityConfigDrawer: React.FC<ConfigDrawerProps> = ({
                     max={100}
                     value={config.max_iterations || 10}
                     onChange={(e) => updateConfig({ max_iterations: parseInt(e.target.value) || 10 })}
+                    className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono text-[11px]"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* PYTHON SCRIPT */}
+            {activityType === 'PythonScript' && (
+              <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-lg space-y-2.5">
+                <div className="flex items-center justify-between text-slate-300 font-semibold text-[11px] uppercase tracking-wider">
+                  <span>Python Script Execution</span>
+                  <Terminal className="h-3.5 w-3.5 text-emerald-400" />
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 mb-1 text-[11px]">Python Code</label>
+                  <textarea
+                    rows={7}
+                    placeholder={`# Write custom Python logic\nimport json\nresult = {"status": "success", "processed": 42}\ncontext.set_output("result", result)`}
+                    value={config.script || ''}
+                    onChange={(e) => updateConfig({ script: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1.5 text-slate-200 font-mono text-[11px]"
+                  />
+                  <p className="text-[10px] text-slate-500 mt-0.5">Use <code className="text-emerald-400">context.set_output(key, val)</code> to export outputs.</p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-slate-400 mb-1 text-[11px]">Timeout (seconds)</label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={3600}
+                      value={config.timeout_seconds || 120}
+                      onChange={(e) => updateConfig({ timeout_seconds: parseInt(e.target.value) || 120 })}
+                      className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono text-[11px]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-slate-400 mb-1 text-[11px]">Parameters (JSON)</label>
+                    <input
+                      type="text"
+                      placeholder='{"batch_id": 101}'
+                      value={typeof config.parameters === 'string' ? config.parameters : JSON.stringify(config.parameters || {})}
+                      onChange={(e) => {
+                        try {
+                          updateConfig({ parameters: JSON.parse(e.target.value) });
+                        } catch {
+                          updateConfig({ parameters: e.target.value });
+                        }
+                      }}
+                      className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono text-[11px]"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* STORED PROCEDURE */}
+            {activityType === 'StoredProcedure' && (
+              <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-lg space-y-2.5">
+                <div className="flex items-center justify-between text-slate-300 font-semibold text-[11px] uppercase tracking-wider">
+                  <span>Stored Procedure / Routine</span>
+                  <DatabaseZap className="h-3.5 w-3.5 text-purple-400" />
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 mb-1 text-[11px]">Database Connection</label>
+                  <select
+                    value={config.connection_id || ''}
+                    onChange={(e) => updateConfig({ connection_id: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 text-[11px]"
+                  >
+                    <option value="">Select connection...</option>
+                    {connections.map((c) => (
+                      <option key={c.id} value={c.id}>{c.name} ({c.connector_type})</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 mb-1 text-[11px]">Procedure / Function Name</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. recalculate_customer_metrics"
+                    value={config.procedure_name || ''}
+                    onChange={(e) => updateConfig({ procedure_name: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono text-[11px]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 mb-1 text-[11px]">Procedure Parameters (JSON map)</label>
+                  <input
+                    type="text"
+                    placeholder='{"p_customer_id": 1001, "p_date": "2026-11-05"}'
+                    value={typeof config.parameters === 'string' ? config.parameters : JSON.stringify(config.parameters || {})}
+                    onChange={(e) => {
+                      try {
+                        updateConfig({ parameters: JSON.parse(e.target.value) });
+                      } catch {
+                        updateConfig({ parameters: e.target.value });
+                      }
+                    }}
+                    className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono text-[11px]"
+                  />
+                </div>
+
+                <div className="flex items-center gap-2 pt-1">
+                  <input
+                    type="checkbox"
+                    id="is_func"
+                    checked={config.is_function !== false}
+                    onChange={(e) => updateConfig({ is_function: e.target.checked })}
+                    className="rounded bg-slate-800 text-brand-500"
+                  />
+                  <label htmlFor="is_func" className="text-slate-300 text-[11px]">Invoke as Function (SELECT func(...) vs CALL proc(...))</label>
+                </div>
+              </div>
+            )}
+
+            {/* CUSTOM ACTIVITY */}
+            {activityType === 'CustomActivity' && (
+              <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-lg space-y-2.5">
+                <div className="flex items-center justify-between text-slate-300 font-semibold text-[11px] uppercase tracking-wider">
+                  <span>Custom Command Activity</span>
+                  <Cpu className="h-3.5 w-3.5 text-amber-400" />
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 mb-1 text-[11px]">Executable Command / Binary</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. /usr/bin/python3, dbt, curl"
+                    value={config.command || ''}
+                    onChange={(e) => updateConfig({ command: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono text-[11px]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 mb-1 text-[11px]">Arguments (JSON Array or String)</label>
+                  <input
+                    type="text"
+                    placeholder='["run", "--select", "my_model"]'
+                    value={typeof config.arguments === 'string' ? config.arguments : JSON.stringify(config.arguments || [])}
+                    onChange={(e) => {
+                      try {
+                        updateConfig({ arguments: JSON.parse(e.target.value) });
+                      } catch {
+                        updateConfig({ arguments: e.target.value });
+                      }
+                    }}
+                    className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono text-[11px]"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-slate-400 mb-1 text-[11px]">Working Directory</label>
+                    <input
+                      type="text"
+                      placeholder="/tmp or custom path"
+                      value={config.working_directory || ''}
+                      onChange={(e) => updateConfig({ working_directory: e.target.value })}
+                      className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono text-[11px]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-slate-400 mb-1 text-[11px]">Timeout (seconds)</label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={7200}
+                      value={config.timeout_seconds || 120}
+                      onChange={(e) => updateConfig({ timeout_seconds: parseInt(e.target.value) || 120 })}
+                      className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono text-[11px]"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* DATABRICKS NOTEBOOK */}
+            {activityType === 'DatabricksNotebook' && (
+              <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-lg space-y-2.5">
+                <div className="flex items-center justify-between text-slate-300 font-semibold text-[11px] uppercase tracking-wider">
+                  <span>Databricks Notebook Execution</span>
+                  <CloudLightning className="h-3.5 w-3.5 text-orange-400" />
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 mb-1 text-[11px]">Workspace Host URL</label>
+                  <input
+                    type="text"
+                    placeholder="https://adb-123456789.azuredatabricks.net"
+                    value={config.host || ''}
+                    onChange={(e) => updateConfig({ host: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono text-[11px]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 mb-1 text-[11px]">Personal Access Token (PAT)</label>
+                  <input
+                    type="password"
+                    placeholder="dapi..."
+                    value={config.token || ''}
+                    onChange={(e) => updateConfig({ token: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono text-[11px]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 mb-1 text-[11px]">Notebook Workspace Path</label>
+                  <input
+                    type="text"
+                    placeholder="/Users/data-eng/etl_pipeline"
+                    value={config.notebook_path || ''}
+                    onChange={(e) => updateConfig({ notebook_path: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono text-[11px]"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-slate-400 mb-1 text-[11px]">Existing Cluster ID</label>
+                    <input
+                      type="text"
+                      placeholder="1025-112233-cluster"
+                      value={config.cluster_id || ''}
+                      onChange={(e) => updateConfig({ cluster_id: e.target.value })}
+                      className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono text-[11px]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-slate-400 mb-1 text-[11px]">Polling Interval (s)</label>
+                    <input
+                      type="number"
+                      min={2}
+                      max={60}
+                      value={config.poll_interval_seconds || 5}
+                      onChange={(e) => updateConfig({ poll_interval_seconds: parseInt(e.target.value) || 5 })}
+                      className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono text-[11px]"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 mb-1 text-[11px]">Base Parameters (JSON map)</label>
+                  <input
+                    type="text"
+                    placeholder='{"env": "prod", "date": "@pipeline().TriggerTime"}'
+                    value={typeof config.base_parameters === 'string' ? config.base_parameters : JSON.stringify(config.base_parameters || {})}
+                    onChange={(e) => {
+                      try {
+                        updateConfig({ base_parameters: JSON.parse(e.target.value) });
+                      } catch {
+                        updateConfig({ base_parameters: e.target.value });
+                      }
+                    }}
+                    className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono text-[11px]"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* PYSPARK JOB */}
+            {activityType === 'PySparkJob' && (
+              <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-lg space-y-2.5">
+                <div className="flex items-center justify-between text-slate-300 font-semibold text-[11px] uppercase tracking-wider">
+                  <span>Apache Spark / PySpark Job</span>
+                  <Flame className="h-3.5 w-3.5 text-rose-400" />
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 mb-1 text-[11px]">PySpark Script Path or Code</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. jobs/transform.py or s3://scripts/job.py"
+                    value={config.script || ''}
+                    onChange={(e) => updateConfig({ script: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono text-[11px]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 mb-1 text-[11px]">Spark Master URL</label>
+                  <input
+                    type="text"
+                    placeholder="local[*], spark://master:7077, or yarn"
+                    value={config.master || 'local[*]'}
+                    onChange={(e) => updateConfig({ master: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono text-[11px]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 mb-1 text-[11px]">Spark Submit Arguments (JSON Array)</label>
+                  <input
+                    type="text"
+                    placeholder='["--executor-memory", "4g", "--driver-memory", "2g"]'
+                    value={typeof config.spark_args === 'string' ? config.spark_args : JSON.stringify(config.spark_args || [])}
+                    onChange={(e) => {
+                      try {
+                        updateConfig({ spark_args: JSON.parse(e.target.value) });
+                      } catch {
+                        updateConfig({ spark_args: e.target.value });
+                      }
+                    }}
                     className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono text-[11px]"
                   />
                 </div>

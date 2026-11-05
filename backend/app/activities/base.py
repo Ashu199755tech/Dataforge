@@ -34,7 +34,7 @@ class BaseActivity(ABC):
     Abstract base class for all DataFlow activities.
     """
 
-    def __init__(self, context: ActivityExecutionContext, db_session: Session):
+    def __init__(self, context: ActivityExecutionContext, db_session: Optional[Session] = None):
         self.context = context
         self.db = db_session
         self.activity_run_id: Optional[str] = None
