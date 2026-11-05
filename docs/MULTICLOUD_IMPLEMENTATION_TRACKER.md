@@ -7,7 +7,7 @@ This document tracks implementation status, test verification, and acceptance cr
 | Phase | Title | Status | Completed / Target Date | Tests Passing | Sign-off Gate |
 | :---: | :--- | :---: | :---: | :---: | :---: |
 | **0** | Existing Application Audit & Architecture | **COMPLETED** | 2026-11-05 | 99/99 baseline | Audits and architecture specs verified |
-| **1** | Common Storage Connector Framework | PENDING | Phase 1 Window | Target: +15 tests | Provider registry and BaseStorage pass |
+| **1** | Common Storage Connector Framework | **COMPLETED** | 2026-11-05 | 116/116 passed (+17 tests) | Provider registry, models & BaseStorage verified |
 | **2** | Azure Storage Integration (ADLS & Blob) | PENDING | Phase 2 Window | Target: +20 tests | Azurite & Azure live test pass |
 | **3** | Amazon S3 Integration | PENDING | Phase 3 Window | Target: +20 tests | Moto/LocalStack & AWS live test pass |
 | **4** | Google Cloud Storage (GCS) Integration | PENDING | Phase 4 Window | Target: +20 tests | GCS mock & live test pass |
@@ -39,15 +39,16 @@ This document tracks implementation status, test verification, and acceptance cr
 ---
 
 ### Phase 1: Common Storage Connector Framework
-- [ ] Create `backend/app/connectors/storage/__init__.py`.
-- [ ] Implement `StorageItem` and `StorageMetadata` Pydantic models.
-- [ ] Implement `StorageCapability` enum and discovery interface.
-- [ ] Implement abstract `BaseStorageConnector(BaseConnector)`.
-- [ ] Implement `StorageProviderRegistry` with dynamic import checking and missing dependency diagnostics.
-- [ ] Implement connection configuration schemas for all cloud providers in `backend/app/schemas/storage.py`.
-- [ ] Refactor `LocalFileConnector` into `LocalStorageConnector` conforming to `BaseStorageConnector`.
-- [ ] Implement unit test suite in `backend/tests/test_storage_framework.py`.
-- **Milestone Acceptance:** Framework unit tests pass without requiring cloud provider packages.
+- [x] Create `backend/app/connectors/storage/__init__.py`.
+- [x] Implement `StorageItem` and `StorageMetadata` Pydantic models.
+- [x] Implement `StorageCapability` enum and discovery interface.
+- [x] Implement abstract `BaseStorageConnector(BaseConnector)`.
+- [x] Implement `StorageProviderRegistry` with dynamic import checking and missing dependency diagnostics.
+- [x] Implement connection configuration schemas for all cloud providers in `backend/app/schemas/storage.py`.
+- [x] Implement `LocalStorageConnector` conforming to `BaseStorageConnector`.
+- [x] Integrate storage connectors into connector factory `get_connector()`.
+- [x] Implement unit test suite in `backend/tests/test_storage_framework.py` (17 tests).
+- **Milestone Acceptance:** Completed & Approved. Framework unit tests pass without requiring cloud provider packages.
 
 ---
 
