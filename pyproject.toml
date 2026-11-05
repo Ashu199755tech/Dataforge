@@ -1,0 +1,97 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dataforge"
+version = "2.0.0"
+description = "DataForge Enterprise — Multi-Cloud Data Movement and Vectorized Orchestration Engine"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "Apache-2.0"}
+authors = [
+    {name = "DataForge Enterprise Engineering Team"}
+]
+keywords = [
+    "data-engineering", "etl", "orchestration", "multi-cloud",
+    "azure-blob", "adls-gen2", "aws-s3", "gcs", "data-movement"
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Information Technology",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Database",
+    "Topic :: Scientific/Engineering :: Information Analysis"
+]
+
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.31.0",
+    "pydantic[email]>=2.9.0",
+    "pydantic-settings>=2.5.0",
+    "sqlalchemy>=2.0.35",
+    "alembic>=1.13.0",
+    "psycopg[binary]>=3.2.0",
+    "psycopg2-binary>=2.9.9",
+    "pymysql>=1.1.1",
+    "cryptography>=43.0.0",
+    "python-jose[cryptography]>=3.3.0",
+    "passlib>=1.7.4",
+    "bcrypt>=4.0.0",
+    "python-multipart>=0.0.12",
+    "croniter>=6.0.0",
+    "websockets>=13.0",
+    "httpx>=0.27.0"
+]
+
+[project.optional-dependencies]
+azure = [
+    "azure-storage-blob>=12.23.0",
+    "azure-storage-file-datalake>=12.16.0",
+    "azure-identity>=1.18.0"
+]
+aws = [
+    "boto3>=1.35.0",
+    "botocore>=1.35.0"
+]
+gcp = [
+    "google-cloud-storage>=2.18.0",
+    "google-auth>=2.35.0"
+]
+formats = [
+    "pyarrow>=17.0.0",
+    "fastavro>=1.9.0",
+    "pyorc>=0.9.0",
+    "openpyxl>=3.1.0",
+    "crc32c>=2.4.0"
+]
+all-cloud = [
+    "azure-storage-blob>=12.23.0",
+    "azure-storage-file-datalake>=12.16.0",
+    "azure-identity>=1.18.0",
+    "boto3>=1.35.0",
+    "botocore>=1.35.0",
+    "google-cloud-storage>=2.18.0",
+    "google-auth>=2.35.0",
+    "pyarrow>=17.0.0",
+    "fastavro>=1.9.0",
+    "pyorc>=0.9.0",
+    "openpyxl>=3.1.0",
+    "crc32c>=2.4.0"
+]
+test = [
+    "pytest>=8.3.0",
+    "pytest-asyncio>=0.24.0",
+    "moto[s3]>=5.0.0"
+]
+dev = [
+    "dataforge[all-cloud]",
+    "dataforge[test]"
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["backend*"]

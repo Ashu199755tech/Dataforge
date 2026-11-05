@@ -54,11 +54,20 @@ def decrypt_secret(encrypted_token: str) -> Dict[str, Any]:
 
 
 def mask_secret_dict(data: Dict[str, Any]) -> Dict[str, Any]:
-    """Replaces sensitive keys with asterisks."""
+    """Replaces sensitive keys with asterisks, handling nested structures recursively."""
+    if not isinstance(data, dict):
+        return data
     masked = {}
-    sensitive_keys = {"password", "secret", "token", "api_key", "private_key", "access_key"}
+    sensitive_keys = {
+        "password", "secret", "token", "api_key", "private_key",
+        "access_key", "account_key", "sas_token", "credential",
+        "service_account", "private_key_id", "client_secret",
+        "connection_string", "session_token"
+    }
     for k, v in data.items():
-        if any(s in k.lower() for s in sensitive_keys) and isinstance(v, str):
+        if isinstance(v, dict):
+            masked[k] = mask_secret_dict(v)
+        elif any(s in str(k).lower() for s in sensitive_keys):
             masked[k] = "********"
         else:
             masked[k] = v
