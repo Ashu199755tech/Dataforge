@@ -22,8 +22,12 @@ from backend.app.api.dataflows import router as dataflows_router
 from backend.app.api.expressions import router as expressions_router
 from backend.app.api.data_quality import router as data_quality_router
 from backend.app.api.alerts import router as alerts_router
+from backend.app.api.environments import router as environments_router
+from backend.app.api.secrets import router as secrets_router
+from backend.app.api.audit import router as audit_router
 from backend.app.orchestration.scheduler import scheduler
 from backend.app.core.migrations import run_migrations
+from backend.app.orchestration.recovery import recover_orphaned_runs
 
 
 def seed_initial_metadata():
@@ -71,6 +75,13 @@ def seed_initial_metadata():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     seed_initial_metadata()
+    db = SessionLocal()
+    try:
+        recover_orphaned_runs(db)
+    except Exception as e:
+        print(f"[WARN] Startup orphan recovery notice: {e}")
+    finally:
+        db.close()
     scheduler.start()
     yield
     scheduler.stop()
@@ -104,6 +115,9 @@ app.include_router(dataflows_router, prefix=settings.API_V1_STR)
 app.include_router(expressions_router, prefix=settings.API_V1_STR)
 app.include_router(data_quality_router, prefix=settings.API_V1_STR)
 app.include_router(alerts_router, prefix=settings.API_V1_STR)
+app.include_router(environments_router, prefix=settings.API_V1_STR)
+app.include_router(secrets_router, prefix=settings.API_V1_STR)
+app.include_router(audit_router, prefix=settings.API_V1_STR)
 
 
 @app.get("/health")

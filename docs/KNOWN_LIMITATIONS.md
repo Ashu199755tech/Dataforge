@@ -1,11 +1,11 @@
 # DataFlow Enterprise — Known Limitations & Technical Constraints
 
-**Document Version:** 1.9.0  
+**Document Version:** 1.10.0  
 **Last Updated:** 2026-11-05  
 
 ---
 
-## 1. Resolved In Phases 1 Through 9
+## 1. Resolved In Phases 1 Through 10
 
 1. **In-Process Scripting & Process Isolation (Resolved in Phase 4):**
    - Python Script, Custom Activities, and Stored Procedures execute inside isolated sub-processes with real-time stdout streaming, timeout enforcement, and parameter injection.
@@ -28,21 +28,20 @@
 7. **Real-time Observability & Telemetry (Resolved in Phase 9):**
    - Millisecond Gantt waterfall timeline, throughput telemetry (rows/s, MB/s), standard domain error classification, attempt retry histories, downloadable executive reports (JSON, CSV, TXT), and dynamic SLA alert rule evaluation.
 
+8. **Enterprise Hardening & Security (Resolved in Phase 10):**
+   - Role-Based Access Control (RBAC) across `Admin`, `Contributor`, `Operator`, and `Viewer` roles.
+   - Enterprise AES-256 Fernet Secrets Vault with masked listings and zero-downtime key rotation.
+   - Multi-environment promotion (Dev $\to$ Test $\to$ Prod) with parameter overrides and immutable version rollback.
+   - Declarative Git JSON specification export/import with SHA-256 checksums.
+   - Concurrency limit saturation guards (HTTP 429) and sliding 15-minute idempotency deduplication.
+   - Automated dead-worker orphan recovery upon startup and on-demand via REST API.
+   - Tamper-evident centralized audit logging across all administrative and mutation operations.
+
 ---
 
-## 2. Items Slated for Phase 10 (Enterprise Hardening)
+## 2. Final Milestone Focus: Phase 11 (End-to-End Validation Scenarios)
 
-1. **Role-Based Access Control (RBAC):**
-   - Fine-grained workspace, project, and pipeline permissions (Viewer, Contributor, Operator, Administrator) enforced via declarative policies.
+1. **End-to-End Acceptance Scenarios Verification:**
+   - Execute the 8 exhaustive end-to-end integration scenarios defined in Section 16 under live multi-database and real-time streaming conditions.
+   - Validate end-to-end data fidelity, error recovery, and output verification to achieve 100% full platform validation.
 
-2. **Enterprise Secrets Management:**
-   - Migration from local AES-256 Fernet `.env` secrets to pluggable HashiCorp Vault / KMS secret providers with rotation auditing.
-
-3. **Git Integration & Version Control:**
-   - Two-way synchronization with Git repositories (GitHub, GitLab, self-hosted Git) with commit-level pipeline definitions and branch switching.
-
-4. **Environment Promotion & CI/CD:**
-   - Automated Dev -> Test -> Prod promotion pipelines with parameter overriding and validation gates.
-
-5. **Worker Resiliency & Cluster Auto-Recovery:**
-   - Distributed worker heartbeat monitoring, automated dead-worker task recovery, and idempotent retry checkpoints.

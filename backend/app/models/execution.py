@@ -11,6 +11,7 @@ class PipelineRun(Base):
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     pipeline_id = Column(String(36), ForeignKey("pipelines.id", ondelete="CASCADE"), nullable=False)
     run_type = Column(String(50), default="Manual", nullable=False)  # Manual, Scheduled, Triggered
+    idempotency_key = Column(String(64), nullable=True, index=True)
     status = Column(String(30), default="Pending", nullable=False)  # Pending, Running, Succeeded, Failed, Cancelled
     parameters = Column(JSON, default=dict, nullable=False)
     started_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)

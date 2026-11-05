@@ -103,3 +103,19 @@
   - **Gantt Waterfall Telemetry:** `build_timeline()` computes start offsets and percentage bar widths relative to total execution span for interactive Gantt rendering in frontend.
   - **Multi-Format Executive Reporting:** `generate_execution_report()` produces downloadable reports in JSON, RFC 4180 CSV, and human-readable structured ASCII TXT format.
   - **Dynamic Alert Engine:** `AlertEngine` evaluates `AlertRule` conditions (`OnFailure`, `OnSuccess`, `DurationExceeded`, `DQScoreThreshold`) against finished execution runs and dispatches notifications via Webhook, Slack payloads, and system event logs.
+
+---
+
+## ADR 013: Enterprise Hardening, Secrets Vault, RBAC, and Environment Promotion Engine
+- **Status:** Accepted (Implemented in Phase 10)
+- **Context:** Production data integration platforms require rigorous enterprise governance: multi-tenant workspace permissions (RBAC), encrypted secrets storage at rest with key rotation, multi-environment lifecycle promotion (Dev $\to$ Test $\to$ Prod) with parameter overrides, immutable version snapshots with one-click rollback, declarative Git version control, concurrency saturation protection (HTTP 429), idempotent trigger deduplication, automated orphaned worker recovery, and tamper-evident audit logging.
+- **Decision:**
+  - **Relational Models:** Implemented `WorkspaceMember`, `Environment` (`Dev`, `Test`, `Prod`), and `SecretVaultEntry` in `backend/app/models/security.py`. Added `concurrency_limit` and `environment_id` to `Pipeline`; added `idempotency_key` to `PipelineRun`; added `git_commit_hash` and `environment_name` to `PipelineVersion`.
+  - **Fine-Grained RBAC:** Implemented `backend/app/core/rbac.py` defining role hierarchies (`Admin`, `Contributor`, `DataEngineer`, `Operator`, `Viewer`) with workspace permission checks guarding mutation endpoints against unauthorized actors.
+  - **Fernet Secrets Vault:** Implemented `FernetSecretVault` in `backend/app/security/vault.py` using AES-256 Fernet encryption derived from SHA-256 32-byte urlsafe keys. Guarantees values are never returned to client UIs in plaintext (masked display) and enables zero-downtime key rotation across all stored secrets.
+  - **Environment Promotion & Version Rollback:** Implemented `backend/app/orchestration/promotion.py` providing `promote_pipeline` (validates DAG, snapshots current version, overrides environment-specific parameters), `rollback_pipeline` (restores definition from historical snapshot and increments version counter), and declarative Git JSON specification export/import with SHA-256 checksums.
+  - **Concurrency Control & Idempotency:** Implemented `backend/app/orchestration/recovery.py` with `enforce_concurrency_and_idempotency` enforcing active execution limits against `pipeline.concurrency_limit` (yielding HTTP 429 when saturated) and deduplicating identical `idempotency_key` submissions within a 15-minute sliding window.
+  - **Automated Worker Recovery:** Implemented `recover_orphaned_runs` checking POSIX PID liveness via `os.kill(pid, 0)` for tasks marked `Running`. Dead worker runs are cleanly failed on application boot and on-demand via `POST /api/v1/runs/recover`.
+  - **Centralized Audit Logging:** Implemented `backend/app/core/audit.py` recording structured events for all security, pipeline mutation, rollback, promotion, and secret actions into `audit_logs`.
+  - **Hardened UI Views:** Implemented version history drawer with one-click rollback, environment promotion modal with JSON parameter overrides, declarative Git export button, and concurrency limit badges in `frontend/src/pages/PipelinesListPage.tsx`.
+

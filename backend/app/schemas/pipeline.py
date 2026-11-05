@@ -7,6 +7,7 @@ class PipelineBase(BaseModel):
     name: str
     description: Optional[str] = None
     definition_json: Dict[str, Any] = {}
+    concurrency_limit: Optional[int] = 5
 
 
 class PipelineCreate(PipelineBase):
@@ -18,6 +19,7 @@ class PipelineUpdate(BaseModel):
     description: Optional[str] = None
     definition_json: Optional[Dict[str, Any]] = None
     status: Optional[str] = None
+    concurrency_limit: Optional[int] = None
 
 
 class PipelineResponse(PipelineBase):
@@ -25,6 +27,7 @@ class PipelineResponse(PipelineBase):
     project_id: str
     status: str
     current_version: int
+    concurrency_limit: int = 5
     created_at: datetime
     updated_at: datetime
 
@@ -34,3 +37,18 @@ class PipelineResponse(PipelineBase):
 
 class PipelineRunRequest(BaseModel):
     parameters: Optional[Dict[str, Any]] = {}
+    idempotency_key: Optional[str] = None
+
+
+class PipelineVersionResponse(BaseModel):
+    id: str
+    pipeline_id: str
+    version_number: int
+    definition_json: Dict[str, Any]
+    changelog: Optional[str] = None
+    environment_name: str = "Dev"
+    git_commit_hash: Optional[str] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True

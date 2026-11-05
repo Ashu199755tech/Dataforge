@@ -98,8 +98,51 @@ export interface Pipeline {
   status: 'Draft' | 'Published' | 'Archived';
   definition_json: PipelineDefinition;
   current_version: number;
+  concurrency_limit?: number;
+  environment_id?: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface PipelineVersion {
+  id: string;
+  pipeline_id: string;
+  version_number: number;
+  definition_json: PipelineDefinition;
+  changelog?: string;
+  environment_name: string;
+  git_commit_hash?: string;
+  created_at: string;
+}
+
+export interface Environment {
+  id: string;
+  name: string;
+  description?: string;
+  is_default: boolean;
+  variables: Record<string, any>;
+  created_at: string;
+}
+
+export interface SecretVaultEntry {
+  id: string;
+  name: string;
+  description?: string;
+  vault_provider: string;
+  is_masked: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface AuditLog {
+  id: number;
+  workspace_id?: string;
+  user_id?: string;
+  action: string;
+  resource_type: string;
+  resource_id?: string;
+  details: Record<string, any>;
+  created_at: string;
 }
 
 export interface ActivityRun {

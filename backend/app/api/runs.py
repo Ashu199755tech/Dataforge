@@ -16,6 +16,7 @@ from backend.app.monitoring.metrics import (
     generate_execution_report
 )
 from backend.app.execution.runner import PipelineRunner
+from backend.app.orchestration.recovery import recover_orphaned_runs
 
 router = APIRouter(prefix="/runs", tags=["Pipeline Runs & Monitoring"])
 
@@ -186,3 +187,10 @@ def rerun_pipeline(
     runner = PipelineRunner(new_run.id)
     background_tasks.add_task(runner.execute_sync)
     return new_run
+
+
+@router.post("/recover")
+def recover_orphans(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """Scans and recovers orphaned running executions whose worker has terminated."""
+    recovered = recover_orphaned_runs(db)
+    return {"message": f"Orphan recovery cycle executed. {recovered} runs recovered.", "recovered_count": recovered}

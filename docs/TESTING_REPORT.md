@@ -10,13 +10,23 @@
 
 ```
 ============================= test session starts ==============================
-81 passed, 14 warnings in 21.26s
+89 passed, 18 warnings in 21.31s
 ============================= 100% PASS RATE ===================================
 ```
 
 ---
 
 ## 2. Milestone Test Ledgers
+
+### Phase 10 Enterprise Hardening & Security Scenarios (`test_enterprise_hardening.py`):
+1. `test_secret_vault_encryption_masking_and_rotation`: Verified AES-256 Fernet encryption at rest, masked listings hiding secret values, internal decryption capability, and zero-downtime key rotation re-encrypting all secrets under a new primary key.
+2. `test_rbac_permissions_enforcement`: Verified fine-grained RBAC policies enforcing `Admin`, `Contributor`, `Operator`, and `Viewer` roles, rejecting unauthorized mutation attempts with HTTP 403 Forbidden.
+3. `test_environment_crud_and_promotion`: Verified multi-environment isolation (`Dev`, `Test`, `Prod`), dynamic variable overrides per environment, and promotion pipeline cloning definitions with parameter overwrites.
+4. `test_pipeline_versioning_and_rollback`: Verified snapshot generation upon pipeline updates and one-click rollback restoring definition to historical version while auto-incrementing the version number.
+5. `test_declarative_git_export_and_import`: Verified clean-room Git specification export containing canonical metadata, activities, parameters, and SHA-256 content hash, followed by pristine project import.
+6. `test_concurrency_limit_enforcement`: Verified atomic active execution counting against `pipeline.concurrency_limit`, rejecting excessive concurrent executions with HTTP 429 Too Many Requests.
+7. `test_idempotency_key_deduplication`: Verified 15-minute sliding deduplication window detecting duplicate execution submissions and returning the existing running run ID rather than double-triggering.
+8. `test_worker_recovery_for_orphaned_runs`: Verified automated worker health check scanning for `Running` runs with dead process IDs and safely transitioning orphaned records to `Failed` with reason `[ORPHAN_RECOVERY]`.
 
 ### Phase 9 Monitoring & Observability Scenarios (`test_monitoring_and_observability.py`):
 1. `test_diagnostics_error_classification`: Verified standard domain classification classifying `OperationalError` as `ConnectionError`, `TimeoutError` as `TimeoutError`, assertion violations as `DataQualityError`, missing arguments as `UserError`, and unhandled runtime crashes as `SystemError`.

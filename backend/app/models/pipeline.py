@@ -15,6 +15,8 @@ class Pipeline(Base):
     status = Column(String(30), default="Draft", nullable=False)  # Draft, Published, Archived
     definition_json = Column(JSON, nullable=False, default=dict)
     current_version = Column(Integer, default=1, nullable=False)
+    concurrency_limit = Column(Integer, default=5, nullable=False)
+    environment_id = Column(String(36), nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
 
@@ -32,6 +34,9 @@ class PipelineVersion(Base):
     version_number = Column(Integer, nullable=False)
     definition_json = Column(JSON, nullable=False)
     changelog = Column(Text, nullable=True)
+    created_by_id = Column(String(36), nullable=True)
+    git_commit_hash = Column(String(40), nullable=True)
+    environment_name = Column(String(50), default="Dev", nullable=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
 
     pipeline = relationship("Pipeline", back_populates="versions")

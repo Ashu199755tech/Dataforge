@@ -13,6 +13,7 @@ from backend.app.models.data_quality import (
     AuditLog
 )
 from backend.app.models.alert import AlertRule, AlertEvent
+from backend.app.models.security import WorkspaceMember, Environment, SecretVaultEntry
 
 __all__ = [
     "Base",
@@ -33,5 +34,8 @@ __all__ = [
     "ReconciliationResult",
     "AuditLog",
     "AlertRule",
-    "AlertEvent"
+    "AlertEvent",
+    "WorkspaceMember",
+    "Environment",
+    "SecretVaultEntry"
 ]

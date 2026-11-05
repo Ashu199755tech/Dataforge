@@ -24,6 +24,14 @@ def run_migrations():
                 conn.execute(text("ALTER TABLE activity_runs ADD COLUMN IF NOT EXISTS error_stack_trace TEXT;"))
                 conn.execute(text("ALTER TABLE activity_runs ADD COLUMN IF NOT EXISTS retry_history JSON DEFAULT '[]'::json NOT NULL;"))
                 conn.execute(text("ALTER TABLE activity_runs ADD COLUMN IF NOT EXISTS output_variables JSON DEFAULT '{}'::json NOT NULL;"))
+
+                # Phase 10 additions: pipelines, pipeline_runs, pipeline_versions
+                conn.execute(text("ALTER TABLE pipelines ADD COLUMN IF NOT EXISTS concurrency_limit INTEGER DEFAULT 5 NOT NULL;"))
+                conn.execute(text("ALTER TABLE pipelines ADD COLUMN IF NOT EXISTS environment_id VARCHAR(36);"))
+                conn.execute(text("ALTER TABLE pipeline_runs ADD COLUMN IF NOT EXISTS idempotency_key VARCHAR(64);"))
+                conn.execute(text("ALTER TABLE pipeline_versions ADD COLUMN IF NOT EXISTS created_by_id VARCHAR(36);"))
+                conn.execute(text("ALTER TABLE pipeline_versions ADD COLUMN IF NOT EXISTS git_commit_hash VARCHAR(40);"))
+                conn.execute(text("ALTER TABLE pipeline_versions ADD COLUMN IF NOT EXISTS environment_name VARCHAR(50) DEFAULT 'Dev' NOT NULL;"))
                 conn.commit()
     except Exception as e:
         print(f"[WARN] Schema migration encountered notice/exception (non-fatal): {e}")
