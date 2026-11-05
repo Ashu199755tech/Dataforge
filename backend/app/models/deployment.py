@@ -15,13 +15,13 @@ class Deployment(Base):
     __tablename__ = "deployments"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    project_id = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
+    project_id = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
     source_environment = Column(String(50), default="Dev", nullable=False)
     target_environment = Column(String(50), default="Test", nullable=False)
     bundle_version = Column(String(50), nullable=False)  # e.g., v1.0.0
     
     # Status: PendingApproval, Approved, Rejected, Deployed, Failed, RolledBack
-    status = Column(String(50), default="PendingApproval", nullable=False)
+    status = Column(String(50), default="PendingApproval", nullable=False, index=True)
 
     # Asset Manifests & Substitutions
     pipeline_ids = Column(JSON, default=list, nullable=False)

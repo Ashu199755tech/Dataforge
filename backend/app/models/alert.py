@@ -12,14 +12,14 @@ class AlertRule(Base):
     name = Column(String(150), nullable=False)
     description = Column(Text, nullable=True)
     target_type = Column(String(50), default="Pipeline", nullable=False)  # Pipeline, Global, DataQuality
-    pipeline_id = Column(String(36), ForeignKey("pipelines.id", ondelete="CASCADE"), nullable=True)
+    pipeline_id = Column(String(36), ForeignKey("pipelines.id", ondelete="CASCADE"), nullable=True, index=True)
     condition_type = Column(String(50), nullable=False)  # OnFailure, OnSuccess, DurationExceeded, SLAThreshold, DQScoreThreshold
     threshold_value = Column(Float, nullable=True)  # SLA duration in seconds or DQ score threshold (0.0 - 100.0)
     action_type = Column(String(50), default="Log", nullable=False)  # Log, Webhook, Email, Slack, Teams
     action_config = Column(JSON, default=dict, nullable=False)  # webhook_url, recipients, channel, headers, smtp_config
     cooldown_minutes = Column(Integer, default=5, nullable=False)  # Cooldown suppression window
     last_triggered_at = Column(DateTime, nullable=True)  # Deduplication tracking
-    is_enabled = Column(Boolean, default=True, nullable=False)
+    is_enabled = Column(Boolean, default=True, nullable=False, index=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
 
@@ -31,14 +31,14 @@ class AlertEvent(Base):
     __tablename__ = "alert_events"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    alert_rule_id = Column(String(36), ForeignKey("alert_rules.id", ondelete="CASCADE"), nullable=False)
-    pipeline_run_id = Column(String(36), ForeignKey("pipeline_runs.id", ondelete="CASCADE"), nullable=True)
-    activity_run_id = Column(String(36), ForeignKey("activity_runs.id", ondelete="SET NULL"), nullable=True)
+    alert_rule_id = Column(String(36), ForeignKey("alert_rules.id", ondelete="CASCADE"), nullable=False, index=True)
+    pipeline_run_id = Column(String(36), ForeignKey("pipeline_runs.id", ondelete="CASCADE"), nullable=True, index=True)
+    activity_run_id = Column(String(36), ForeignKey("activity_runs.id", ondelete="SET NULL"), nullable=True, index=True)
     title = Column(String(200), nullable=False)
     severity = Column(String(20), default="Warning", nullable=False)  # Info, Warning, Critical
     message = Column(Text, nullable=False)
     payload = Column(JSON, default=dict, nullable=False)
-    status = Column(String(30), default="Triggered", nullable=False)  # Triggered, Delivered, Failed
+    status = Column(String(30), default="Triggered", nullable=False, index=True)  # Triggered, Delivered, Failed
     delivered_at = Column(DateTime, nullable=True)
     error_message = Column(Text, nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)

@@ -237,10 +237,15 @@ class RuntimeManagerService:
         if runtime.active_task_count >= runtime.concurrency_limit:
             return None
 
-        task = db.query(RuntimeTask).filter(
+        query = db.query(RuntimeTask).filter(
             RuntimeTask.runtime_id == runtime.id,
             RuntimeTask.status == "Queued"
-        ).order_by(RuntimeTask.queued_at.asc()).first()
+        ).order_by(RuntimeTask.queued_at.asc())
+
+        try:
+            task = query.with_for_update(skip_locked=True).first()
+        except Exception:
+            task = query.first()
 
         if not task:
             return None

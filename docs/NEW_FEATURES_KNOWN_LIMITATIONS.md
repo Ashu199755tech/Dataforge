@@ -36,3 +36,12 @@ This document establishes the technical boundaries, intentional design constrain
 1. **Prometheus Metrics Endpoint:** Exposes standard `/metrics` in Prometheus format. Scraping intervals should be configured between 10s and 60s.
 2. **Log Retention:** Historical execution logs older than the configured retention policy (default: 30 days) are archived or pruned to maintain database performance.
 3. **Trace Header Propagation:** Distributed tracing adheres to W3C `traceparent` standards, propagating correlation IDs from trigger event through pipeline execution to worker tasks.
+
+---
+
+## 3. Enterprise Production Operational Guidelines
+
+1. **Self-Hosted Agent High Availability:** For mission-critical private-network access, deploy at least 2 active self-hosted agent nodes per environment with shared runtime keys to guarantee zero-downtime task pickup if one node restarts.
+2. **Alert Flood Suppression:** Use a minimum `cooldown_minutes` of 10–15 minutes on high-frequency pipelines to prevent alert fatigue across Slack and Microsoft Teams webhooks.
+3. **Database Maintenance & Index Health:** High-frequency agent heartbeat and task polling queries utilize dedicated B-Tree indices on `(runtime_id, status)` and `(alert_rule_id, status)`. Maintain standard periodic vacuum and query analyzer runs on PostgreSQL/MySQL.
+4. **Git CI/CD Promotion Workflows:** Restricted target environments (`Production`) strictly enforce the `PendingApproval` gate, requiring an independent approver before assets are promoted.

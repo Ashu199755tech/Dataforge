@@ -47,12 +47,12 @@ class RuntimeTask(Base):
     __tablename__ = "runtime_tasks"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    runtime_id = Column(String(36), ForeignKey("integration_runtimes.id", ondelete="CASCADE"), nullable=False)
-    pipeline_run_id = Column(String(36), ForeignKey("pipeline_runs.id", ondelete="SET NULL"), nullable=True)
-    activity_run_id = Column(String(36), ForeignKey("activity_runs.id", ondelete="SET NULL"), nullable=True)
+    runtime_id = Column(String(36), ForeignKey("integration_runtimes.id", ondelete="CASCADE"), nullable=False, index=True)
+    pipeline_run_id = Column(String(36), ForeignKey("pipeline_runs.id", ondelete="SET NULL"), nullable=True, index=True)
+    activity_run_id = Column(String(36), ForeignKey("activity_runs.id", ondelete="SET NULL"), nullable=True, index=True)
     
     task_type = Column(String(50), nullable=False)  # CopyData, DataFlow, Script, Web
-    status = Column(String(50), default="Queued", nullable=False) # Queued, Dispatched, Running, Completed, Failed, Cancelled
+    status = Column(String(50), default="Queued", nullable=False, index=True) # Queued, Dispatched, Running, Completed, Failed, Cancelled
     
     # Payload contains activity config & necessary credentials encrypted
     task_payload_encrypted = Column(Text, nullable=True)

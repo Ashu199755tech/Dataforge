@@ -23,10 +23,10 @@ class Trigger(Base):
     trigger_type = Column(String(50), default="cron", nullable=False)  # manual, schedule, cron, tumbling_window, storage_event, pipeline_dependency
     
     # Target pipeline(s)
-    pipeline_id = Column(String(36), ForeignKey("pipelines.id", ondelete="CASCADE"), nullable=True)
+    pipeline_id = Column(String(36), ForeignKey("pipelines.id", ondelete="CASCADE"), nullable=True, index=True)
     pipelines_to_run = Column(JSON, default=list, nullable=False)  # [{"pipeline_id": "...", "pipeline_name": "...", "parameters": {...}}]
 
-    is_active = Column(Boolean, default=True, nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False, index=True)
     cron_expression = Column(String(100), nullable=True)
 
     # Type-specific configurations
