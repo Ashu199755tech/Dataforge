@@ -5,6 +5,8 @@ from datetime import datetime
 from backend.app.activities.base import BaseActivity, ActivityExecutionResult
 from backend.app.models.connection import Connection
 from backend.app.connectors.factory import get_connector
+from backend.app.connectors.storage.base import BaseStorageConnector
+from backend.app.transfer.engine import TransferEngine
 from backend.app.core.security import decrypt_secret
 
 
@@ -37,6 +39,53 @@ class CopyDataActivity(BaseActivity):
 
         src_connector = self._resolve_connector(src_conn_id)
         dst_connector = self._resolve_connector(dst_conn_id)
+
+        # Multi-Cloud Storage-to-Storage Transfer
+        is_src_storage = isinstance(src_connector, BaseStorageConnector)
+        is_dst_storage = isinstance(dst_connector, BaseStorageConnector)
+
+        if is_src_storage and is_dst_storage:
+            src_container = source_cfg.get("container") or source_cfg.get("bucket")
+            src_path = source_cfg.get("path") or source_cfg.get("file_path") or source_cfg.get("object_key")
+            dst_container = dest_cfg.get("container") or dest_cfg.get("bucket")
+            dst_path = dest_cfg.get("path") or dest_cfg.get("file_path") or dest_cfg.get("object_key")
+
+            if not src_container or not src_path or not dst_container or not dst_path:
+                raise ValueError("Cloud storage transfers require container/bucket and path for both source and destination.")
+
+            self.log("INFO", f"Executing Multi-Cloud Storage Transfer: {src_container}/{src_path} -> {dst_container}/{dst_path}")
+
+            def on_progress(p):
+                self.log("INFO", f"Transferred {p.bytes_written} bytes ({round(p.speed_bytes_per_sec / 1024 / 1024, 2)} MB/s)")
+
+            res = TransferEngine.execute_storage_to_storage(
+                src_connector=src_connector,
+                dst_connector=dst_connector,
+                src_container=src_container,
+                src_path=src_path,
+                dst_container=dst_container,
+                dst_path=dst_path,
+                config=config,
+                progress_callback=on_progress
+            )
+
+            if not res.success:
+                raise RuntimeError(f"Storage transfer failed: {res.error_message}")
+
+            self.log("INFO", f"Storage transfer completed successfully: {res.bytes_transferred} bytes in {res.duration_seconds}s (checksum: {res.destination_checksum})")
+            return ActivityExecutionResult(
+                status="Succeeded",
+                rows_read=res.records_transferred,
+                rows_written=res.records_transferred,
+                bytes_processed=res.bytes_transferred,
+                metrics={
+                    "duration_seconds": res.duration_seconds,
+                    "bytes_transferred": res.bytes_transferred,
+                    "records_transferred": res.records_transferred,
+                    "checksum": res.destination_checksum,
+                    "checksum_algorithm": res.checksum_algorithm
+                }
+            )
 
         src_table = source_cfg.get("table_name")
         dst_table = dest_cfg.get("table_name")

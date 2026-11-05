@@ -13,7 +13,7 @@ This document tracks implementation status, test verification, and acceptance cr
 | **4** | Google Cloud Storage (GCS) Integration | **COMPLETED** | 2026-11-05 | 176/176 passed (+20 tests) | GCS mock & live test verified |
 | **5** | Copy Data Frontend Enhancement | **COMPLETED** | 2026-11-05 | 179/179 passed (+3 tests) | Frontend build passed; 7 tabs & storage browser verified |
 | **6** | File Format and Schema Framework | **COMPLETED** | 2026-11-05 | 202/202 passed (+23 tests) | All 8 formats verified; low-memory preview tested |
-| **7** | Multi-Cloud Transfer Engine | PENDING | Phase 7 Window | Target: +20 tests | Bounded-memory streaming verified |
+| **7** | Multi-Cloud Transfer Engine | **COMPLETED** | 2026-11-05 | 211/211 passed (+9 tests) | Bounded memory, checksums & cancellation verified |
 | **8** | Cross-Cloud & Hybrid Transfers | PENDING | Phase 8 Window | Target: +20 tests | S3<->ADLS<->GCS<->DB transfers pass |
 | **9** | Verification, Emulators & Scenarios | PENDING | Phase 9 Window | Target: +15 tests | Complete end-to-end integration pass |
 | **10**| Production Readiness & Hardening | PENDING | Phase 10 Window | Full Suite Pass | Security, zero-leakage, packaging done |
@@ -128,13 +128,13 @@ This document tracks implementation status, test verification, and acceptance cr
 ---
 
 ### Phase 7: Multi-Cloud Transfer Engine
-- [ ] Implement `TransferEngine` orchestrator decoupled from provider-specific SDKs.
-- [ ] Implement memory-bounded queue buffer with backpressure (`StreamingTransferBuffer`).
-- [ ] Implement on-the-fly checksum verification (MD5, SHA-256, CRC32C).
-- [ ] Implement real-time transfer progress reporter and cancellation token listener.
-- [ ] Refactor `CopyDataActivity` to delegate to `TransferEngine`.
-- [ ] Implement unit tests in `backend/tests/test_transfer_engine.py`.
-- **Milestone Acceptance:** Transfers execute with bounded RAM footprint regardless of file size.
+- [x] Implement `TransferEngine` orchestrator decoupled from provider-specific SDKs in `backend/app/transfer/engine.py`.
+- [x] Implement memory-bounded queue buffer with backpressure (`BoundedTransferBuffer` in `backend/app/transfer/buffer.py`).
+- [x] Implement on-the-fly streaming checksum verification (MD5, SHA-256, CRC32C via `StreamChecksumCalculator`).
+- [x] Implement real-time transfer progress reporter and cooperative `CancellationToken`.
+- [x] Refactor `CopyDataActivity` (`backend/app/activities/copy_data.py`) to delegate storage-to-storage transfers to `TransferEngine`.
+- [x] Implement unit tests in `backend/tests/test_transfer_engine.py` (9 tests passed).
+- **Milestone Acceptance:** Completed & Approved. Transfers execute with bounded RAM footprint, checksums match, direct & transcoding copy work, and cancellation stops transfers cleanly.
 
 ---
 
