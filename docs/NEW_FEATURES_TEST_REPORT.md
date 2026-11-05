@@ -167,3 +167,49 @@ Executed on: 2026-11-05
   7. `test_observability_rest_api_endpoints`: Verified FastAPI endpoints (`GET /api/v1/observability/overview`, `GET /api/v1/observability/copy-performance`, `GET /api/v1/observability/fleet-health`, `GET /api/v1/observability/failure-diagnostics`, `GET /api/v1/observability/traces/{run_id}`).
 - **Full Regression Suite:** **276 passed, 3 skipped, 0 failed in 50.71s** (100% pass rate).
 - **Frontend Build Status:** **2,110 modules transformed, 0 errors** (`tsc && vite build`).
+
+---
+
+## 10. Phase 7 Test Execution Results (Full Cross-Feature Integration Testing)
+
+Executed on: 2026-11-05
+
+- **Test Suite:** `backend/tests/test_new_features_e2e.py`
+- **Result:** **4 passed in 12.78s**
+- **Scenario Details:**
+  1. `test_e2e_complete_enterprise_lifecycle`:
+     - **Cross-feature Flow:** Self-Hosted Runtime $\to$ Dataset creation & schema inference $\to$ Trigger dispatch $\to$ Agent execution $\to$ Lineage extraction & column tracing $\to$ Observability & OTel $\to$ Git canonical JSON export with secret masking $\to$ CI/CD dry run & promotion.
+     - **Verification:**
+       - Registered SelfHosted Integration Runtime and exchanged security key for SHA-256 session token.
+       - Discovered and inferred relational dataset schema (`raw_orders`) via connector introspection.
+       - Configured pipeline with Copy Data activity referencing reusable source and sink datasets.
+       - Bound schedule trigger and fired execution via `TriggerService.fire_trigger_now`.
+       - Polled agent queue, dispatched task, executed pipeline, and verified `PipelineRun` transition to `Succeeded`.
+       - Extracted automated data lineage and validated exact column-level mappings (`order_id` $\to$ `order_id`, `amount` $\to$ `amount`).
+       - Checked observability distributed tracing, confirming root `SERVER` span and activity `INTERNAL` spans with semantic telemetry (`dataforge.activity.rows_written = 100`).
+       - Serialized project workspace into deterministic canonical JSON format, confirming password credentials masked with `${vault:...}` placeholders.
+       - Executed CI/CD promotion dry-run prevalidation (`can_deploy = True`), submitted release request, approved deployment gate, and executed promotion to `Production`.
+  2. `test_e2e_cross_module_failure_clustering_and_multichannel_alerting`:
+     - **Cross-feature Flow:** Execution Failure $\to$ Root Cause Failure Diagnostics Clustering $\to$ Multi-Channel Alert Engine $\to$ Deduplication / Cooldown Suppression.
+     - **Verification:**
+       - Simulated pipeline execution failure with connection timeout error.
+       - Observability service clustered the error into `Network/Connection Timeout` with actionable remediation guidance (`Check network security groups, firewalls, and proxy settings`).
+       - Multi-channel alert engine dispatched notification payload across Microsoft Teams webhook adapter.
+       - Verified cooldown deduplication suppresses identical alerts within the configured cooldown window (`cooldown_minutes = 15`).
+  3. `test_e2e_schema_drift_lineage_impact_and_cicd_guardrails`:
+     - **Cross-feature Flow:** Schema Drift Discovery $\to$ Downstream Lineage Impact Traversal $\to$ CI/CD Guardrail Prevalidation Blocking Broken Deployments.
+     - **Verification:**
+       - Altered physical table schema (dropped column `discount`, added column `loyalty_tier`).
+       - Dataset drift detection flagged schema drift (`status = DriftDetected`, removed column `discount`).
+       - Lineage impact analysis identified dependent pipelines and downstream gold dataset entities with blast radius severity score (`High`).
+       - CI/CD dry-run prevalidation inspected the project with drift, raising blocking validation errors preventing deployment of un-synchronized assets to production.
+  4. `test_e2e_multi_pipeline_dependency_cascade_and_multitier_lineage`:
+     - **Cross-feature Flow:** Bronze $\to$ Silver $\to$ Gold Multi-Pipeline Orchestration $\to$ Pipeline Dependency Triggering $\to$ Multi-Tier Lineage Graph Extraction & Transitive Column Ancestry.
+     - **Verification:**
+       - Created three-tier medallion architecture pipelines (Bronze ingestion $\to$ Silver normalization $\to$ Gold aggregation).
+       - Attached `PipelineDependency` trigger configuring Silver to execute upon Bronze `Succeeded`, and Gold upon Silver `Succeeded`.
+       - Simulated execution cascade across all three tiers.
+       - Extracted full lineage graph, verifying 6 nodes and 5 directed edges across storage tiers.
+       - Executed deep column-level back-tracing, tracing Gold metric `total_revenue` through Silver `clean_revenue` back to raw Bronze `raw_amount` with full transformation expression audit trail.
+- **Full Regression Suite:** **280 passed, 3 skipped, 0 failed in 97.96s** (100% pass rate).
+- **Frontend Build Status:** **2,110 modules transformed, 0 errors** (`tsc && vite build` built in 15.22s).
