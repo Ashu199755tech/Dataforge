@@ -80,3 +80,14 @@
   - The `ExpressionParser` executes AST evaluation against `ExpressionContext` containing `parameters`, `global_parameters`, `variables`, `activity_outputs`, `item`, and `pipeline_info`.
   - Over 35 built-in functions covering String, Math, Logical, Date/Time, Collection, and Type Conversion are supported natively without external language eval (`eval` / `exec`) risks.
   - The frontend `ExpressionBuilderModal` interfaces with discovery (`GET /api/v1/expressions/functions`), syntax validation (`POST /api/v1/expressions/validate`), and preview simulation (`POST /api/v1/expressions/evaluate`).
+
+---
+
+## ADR 011: Vectorized Data Quality, Profiling & Reconciliation Architecture
+- **Status:** Accepted (Implemented in Phase 8)
+- **Context:** Enterprise data ingestion requires stringent data governance and quality assurance (Mandatory fields, null constraints, primary key uniqueness, referential integrity, range/date validations, schema drift, PII detection, masking, and source-to-target reconciliation). Iterating row-by-row in Python is computationally prohibitive for enterprise datasets (>100K rows).
+- **Decision:** Implement a SIMD-vectorized `DataQualityEngine` utilizing Polars and PyArrow.
+  - 13 distinct validation rule evaluators operate directly on in-memory vectorized Series/DataFrames.
+  - Computes composite DQ Scores (0-100%) and extracts isolated quarantine records for bad rows without stopping valid pipeline downstream ingestion unless threshold gates fail.
+  - Integrated `DataProfilingActivity`, `ReconciliationActivity`, and `DataMaskingActivity` (redact, hash, partial mask) natively into `ActivityRegistry` and pipeline execution engine.
+  - Persists historical rule executions and statistical summaries to PostgreSQL (`data_quality_results`, `data_profile_results`, `reconciliation_results`).

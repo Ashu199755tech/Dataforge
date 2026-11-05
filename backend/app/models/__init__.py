@@ -5,7 +5,13 @@ from backend.app.models.connection import Connection
 from backend.app.models.pipeline import Pipeline, PipelineVersion, Trigger
 from backend.app.models.dataflow import DataFlow
 from backend.app.models.execution import PipelineRun, ActivityRun, ExecutionLog
-from backend.app.models.data_quality import DataQualityRule, DataQualityResult, AuditLog
+from backend.app.models.data_quality import (
+    DataQualityRule,
+    DataQualityResult,
+    DataProfileResult,
+    ReconciliationResult,
+    AuditLog
+)
 
 __all__ = [
     "Base",
@@ -22,5 +28,7 @@ __all__ = [
     "ExecutionLog",
     "DataQualityRule",
     "DataQualityResult",
+    "DataProfileResult",
+    "ReconciliationResult",
     "AuditLog"
 ]

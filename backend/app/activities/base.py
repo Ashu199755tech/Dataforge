@@ -28,6 +28,10 @@ class ActivityExecutionResult(BaseModel):
     output_variables: Dict[str, Any] = {}
     metrics: Dict[str, Any] = {}
 
+    @property
+    def outputs(self) -> Dict[str, Any]:
+        return self.output_variables
+
 
 class BaseActivity(ABC):
     """

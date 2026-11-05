@@ -30,7 +30,10 @@ import {
   Send,
   CheckCheck,
   FolderCog,
-  Archive
+  Archive,
+  BarChart3,
+  Scale,
+  ShieldAlert
 } from 'lucide-react';
 
 export const ActivityNode: React.FC<NodeProps> = ({ id, data, selected }) => {
@@ -105,6 +108,16 @@ export const ActivityNode: React.FC<NodeProps> = ({ id, data, selected }) => {
         return <FolderCog className="h-4 w-4 text-amber-400" />;
       case 'Archive':
         return <Archive className="h-4 w-4 text-indigo-400" />;
+      case 'DataQuality':
+        return <ShieldCheck className="h-4 w-4 text-purple-400" />;
+      case 'DataProfiling':
+        return <BarChart3 className="h-4 w-4 text-cyan-400" />;
+      case 'Reconciliation':
+        return <Scale className="h-4 w-4 text-emerald-400" />;
+      case 'DataMasking':
+        return <ShieldAlert className="h-4 w-4 text-rose-400" />;
+      case 'ExecuteDataFlow':
+        return <Workflow className="h-4 w-4 text-brand-400" />;
       default:
         return <Layers className="h-4 w-4 text-slate-400" />;
     }

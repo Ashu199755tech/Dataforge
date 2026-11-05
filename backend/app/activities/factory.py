@@ -3,7 +3,10 @@ from backend.app.activities.base import BaseActivity, ActivityExecutionContext
 from backend.app.activities.registry import activity_registry, ActivityMetadata
 from backend.app.activities.copy_data import CopyDataActivity
 from backend.app.activities.sql_script import SqlScriptActivity
-from backend.app.activities.dq_check import DataQualityCheckActivity
+from backend.app.activities.data_quality import DataQualityActivity
+from backend.app.activities.data_profiling import DataProfilingActivity
+from backend.app.activities.reconciliation import ReconciliationActivity
+from backend.app.activities.data_masking import DataMaskingActivity
 from backend.app.activities.lookup import LookupActivity
 from backend.app.activities.set_variable import SetVariableActivity
 from backend.app.activities.wait import WaitActivity
@@ -99,28 +102,36 @@ def _register_builtin_activities():
         ActivityMetadata(
             activity_type="DataQualityCheck",
             display_name="Data Quality",
-            category="Move & Transform",
-            description="Enforces data integrity, null constraints, row count minimums, and SLA thresholds.",
-            version="1.0.0",
+            category="Data Quality & Governance",
+            description="Enforces data integrity, mandatory fields, null limits, uniqueness, ranges, dates, PII, and SLA score thresholds.",
+            version="2.0.0",
             icon="ShieldCheck",
             config_schema={
                 "type": "object",
-                "required": ["connection_id", "table_name"],
+                "required": [],
                 "properties": {
                     "connection_id": {"type": "string"},
                     "table_name": {"type": "string"},
-                    "rules": {"type": "array"}
+                    "file_path": {"type": "string"},
+                    "rules": {"type": "array"},
+                    "min_score_threshold": {"type": "number", "default": 100.0},
+                    "quarantine_path": {"type": "string"},
+                    "fail_pipeline_on_error": {"type": "boolean", "default": True}
                 }
             },
             outputs=[
+                {"name": "dq_score", "type": "number"},
+                {"name": "overall_status", "type": "string"},
                 {"name": "rules_passed", "type": "int"},
-                {"name": "rules_failed", "type": "int"}
+                {"name": "rules_failed", "type": "int"},
+                {"name": "quarantine_count", "type": "int"},
+                {"name": "rule_results", "type": "array"}
             ],
             supports_retry=False,
-            tags=["DataQuality", "Governance", "SLA"]
+            tags=["DataQuality", "Governance", "SLA", "Validation", "PII"]
         ),
-        DataQualityCheckActivity,
-        aliases=["dq_check", "data_quality"]
+        DataQualityActivity,
+        aliases=["dq_check", "data_quality", "DataQuality"]
     )
 
     # 4. If Condition
@@ -848,6 +859,104 @@ def _register_builtin_activities():
         ),
         ExecuteDataFlowActivity,
         aliases=["execute_dataflow", "data_flow", "mapping_data_flow"]
+    )
+
+    # 29. Data Profiling
+    activity_registry.register(
+        ActivityMetadata(
+            activity_type="DataProfiling",
+            display_name="Data Profiling",
+            category="Data Quality & Governance",
+            description="Generates exhaustive column statistics, null distributions, distinct counts, and frequent value histograms.",
+            version="1.0.0",
+            icon="BarChart3",
+            config_schema={
+                "type": "object",
+                "required": [],
+                "properties": {
+                    "connection_id": {"type": "string"},
+                    "table_name": {"type": "string"},
+                    "file_path": {"type": "string"}
+                }
+            },
+            outputs=[
+                {"name": "total_rows", "type": "int"},
+                {"name": "total_columns", "type": "int"},
+                {"name": "columns", "type": "array"}
+            ],
+            supports_retry=True,
+            tags=["Profiling", "Statistics", "DataQuality", "Metadata"]
+        ),
+        DataProfilingActivity,
+        aliases=["data_profiling", "profile_dataset"]
+    )
+
+    # 30. Reconciliation
+    activity_registry.register(
+        ActivityMetadata(
+            activity_type="Reconciliation",
+            display_name="Reconciliation",
+            category="Data Quality & Governance",
+            description="Source-to-Target automated reconciliation validating row parity, key discrepancies, and numeric sum checksums.",
+            version="1.0.0",
+            icon="Scale",
+            config_schema={
+                "type": "object",
+                "required": [],
+                "properties": {
+                    "source_connection_id": {"type": "string"},
+                    "source_table_name": {"type": "string"},
+                    "source_file_path": {"type": "string"},
+                    "target_connection_id": {"type": "string"},
+                    "target_table_name": {"type": "string"},
+                    "target_file_path": {"type": "string"},
+                    "key_columns": {"type": "array"},
+                    "numeric_sum_columns": {"type": "array"},
+                    "fail_on_discrepancy": {"type": "boolean", "default": True}
+                }
+            },
+            outputs=[
+                {"name": "source_records", "type": "int"},
+                {"name": "target_records", "type": "int"},
+                {"name": "row_variance", "type": "int"},
+                {"name": "reconciliation_status", "type": "string"}
+            ],
+            supports_retry=True,
+            tags=["Reconciliation", "Audit", "Parity", "DataQuality"]
+        ),
+        ReconciliationActivity,
+        aliases=["reconciliation", "data_reconciliation", "compare_datasets"]
+    )
+
+    # 31. Data Masking
+    activity_registry.register(
+        ActivityMetadata(
+            activity_type="DataMasking",
+            display_name="Data Masking",
+            category="Data Quality & Governance",
+            description="Applies obfuscation, redaction, hashing, and partial masking to sensitive PII and confidential fields.",
+            version="1.0.0",
+            icon="ShieldAlert",
+            config_schema={
+                "type": "object",
+                "required": ["masking_rules"],
+                "properties": {
+                    "source_connection_id": {"type": "string"},
+                    "source_table_name": {"type": "string"},
+                    "source_file_path": {"type": "string"},
+                    "destination_file_path": {"type": "string"},
+                    "masking_rules": {"type": "array"}
+                }
+            },
+            outputs=[
+                {"name": "masked_records_count", "type": "int"},
+                {"name": "destination_file_path", "type": "string"}
+            ],
+            supports_retry=True,
+            tags=["Security", "Masking", "PII", "Redaction", "Governance"]
+        ),
+        DataMaskingActivity,
+        aliases=["data_masking", "mask_pii", "anonymize"]
     )
 
 

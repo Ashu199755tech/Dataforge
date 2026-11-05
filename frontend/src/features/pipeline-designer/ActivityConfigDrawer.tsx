@@ -34,7 +34,11 @@ import {
   CheckCheck,
   FolderCog,
   Archive,
-  Sparkles
+  Sparkles,
+  BarChart3,
+  Scale,
+  ShieldAlert,
+  Plus
 } from 'lucide-react';
 import { ExpressionBuilderModal } from '../../components/common/ExpressionBuilderModal';
 
@@ -1594,11 +1598,415 @@ export const ActivityConfigDrawer: React.FC<ConfigDrawerProps> = ({
                   <input
                     type="checkbox"
                     id="rem_src"
-                    checked={config.remove_source || false}
+                    checked={config.remove_source === true}
                     onChange={(e) => updateConfig({ remove_source: e.target.checked })}
                     className="rounded bg-slate-800 text-brand-500"
                   />
                   <label htmlFor="rem_src" className="text-slate-300 text-[11px]">Remove source file/folder after process</label>
+                </div>
+              </div>
+            )}
+
+            {/* DATA QUALITY CHECK */}
+            {(activityType === 'DataQualityCheck' || activityType === 'DataQuality') && (
+              <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-lg space-y-3">
+                <div className="flex items-center justify-between text-slate-300 font-semibold text-[11px] uppercase tracking-wider">
+                  <span>Data Quality & Integrity Suite</span>
+                  <ShieldCheck className="h-3.5 w-3.5 text-purple-400" />
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 mb-1 text-[11px]">Target Connection (Optional)</label>
+                  <select
+                    value={config.connection_id || ''}
+                    onChange={(e) => updateConfig({ connection_id: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 text-[11px]"
+                  >
+                    <option value="">None (Local / File Path)</option>
+                    {connections.map((c) => (
+                      <option key={c.id} value={c.id}>{c.name} ({c.connector_type})</option>
+                    ))}
+                  </select>
+                </div>
+
+                {config.connection_id ? (
+                  <div>
+                    <label className="block text-slate-400 mb-1 text-[11px]">Table Name</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. fact_orders"
+                      value={config.table_name || ''}
+                      onChange={(e) => updateConfig({ table_name: e.target.value })}
+                      className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono text-[11px]"
+                    />
+                  </div>
+                ) : (
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-slate-400 text-[11px]">Dataset File Path (CSV / JSON / Parquet)</label>
+                      <DynamicContentTrigger
+                        fieldName="file_path"
+                        value={config.file_path || ''}
+                        onApply={(val) => updateConfig({ file_path: val })}
+                      />
+                    </div>
+                    <input
+                      type="text"
+                      placeholder="/data/warehouse/orders.parquet"
+                      value={config.file_path || ''}
+                      onChange={(e) => updateConfig({ file_path: e.target.value })}
+                      className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono text-[11px]"
+                    />
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-slate-400 mb-1 text-[11px]">Min DQ Score (%)</label>
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={config.min_score_threshold ?? 100}
+                      onChange={(e) => updateConfig({ min_score_threshold: parseFloat(e.target.value) || 100 })}
+                      className="w-full bg-slate-900 border border-slate-700/80 rounded px-2 py-1 text-slate-200 text-[11px]"
+                    />
+                  </div>
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-slate-400 text-[11px]">Quarantine Path</label>
+                      <DynamicContentTrigger
+                        fieldName="quarantine_path"
+                        value={config.quarantine_path || ''}
+                        onApply={(val) => updateConfig({ quarantine_path: val })}
+                      />
+                    </div>
+                    <input
+                      type="text"
+                      placeholder="/data/quarantine/bad_rows.csv"
+                      value={config.quarantine_path || ''}
+                      onChange={(e) => updateConfig({ quarantine_path: e.target.value })}
+                      className="w-full bg-slate-900 border border-slate-700/80 rounded px-2 py-1 text-slate-200 font-mono text-[11px]"
+                    />
+                  </div>
+                </div>
+
+                {/* Rules List */}
+                <div className="pt-2 border-t border-slate-800">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[11px] font-semibold text-slate-300">
+                      Validation Rules ({(config.rules || []).length})
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const currentRules = config.rules || [];
+                        updateConfig({
+                          rules: [
+                            ...currentRules,
+                            {
+                              rule_type: 'NotNull',
+                              column: '',
+                              threshold_percent: 100.0,
+                              severity: 'Error'
+                            }
+                          ]
+                        });
+                      }}
+                      className="text-[10px] px-2 py-0.5 bg-purple-600/30 hover:bg-purple-600/50 text-purple-300 border border-purple-500/40 rounded flex items-center gap-1 transition"
+                    >
+                      <Plus className="w-3 h-3" /> Add Rule
+                    </button>
+                  </div>
+
+                  <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                    {(config.rules || []).map((r: any, rIdx: number) => (
+                      <div key={rIdx} className="p-2 bg-slate-900/90 border border-slate-800 rounded text-[11px] space-y-1.5">
+                        <div className="flex items-center justify-between gap-1">
+                          <select
+                            value={r.rule_type}
+                            onChange={(e) => {
+                              const updated = [...(config.rules || [])];
+                              updated[rIdx] = { ...updated[rIdx], rule_type: e.target.value };
+                              updateConfig({ rules: updated });
+                            }}
+                            className="bg-slate-950 border border-slate-700 rounded px-1.5 py-0.5 text-indigo-300 text-[10px] font-mono flex-1"
+                          >
+                            <option value="MandatoryFieldCheck">Mandatory Field Check</option>
+                            <option value="NonBlankCheck">Non-Blank Check</option>
+                            <option value="NullValidation">Null Validation</option>
+                            <option value="DuplicateCheck">Duplicate Check</option>
+                            <option value="PrimaryKeyUniqueness">Primary Key Uniqueness</option>
+                            <option value="ReferentialIntegrity">Referential Integrity</option>
+                            <option value="RangeValidation">Range Validation</option>
+                            <option value="DateValidation">Date Validation</option>
+                            <option value="ControlledListValidation">Controlled List</option>
+                            <option value="SchemaValidation">Schema Validation</option>
+                            <option value="SchemaDriftDetection">Schema Drift Detection</option>
+                            <option value="RowCountValidation">Row Count Check</option>
+                            <option value="PIIDetection">PII Detection</option>
+                          </select>
+                          <select
+                            value={r.severity || 'Error'}
+                            onChange={(e) => {
+                              const updated = [...(config.rules || [])];
+                              updated[rIdx] = { ...updated[rIdx], severity: e.target.value };
+                              updateConfig({ rules: updated });
+                            }}
+                            className="bg-slate-950 border border-slate-700 rounded px-1.5 py-0.5 text-[10px]"
+                          >
+                            <option value="Error">Error</option>
+                            <option value="Warning">Warning</option>
+                          </select>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const updated = (config.rules || []).filter((_: any, i: number) => i !== rIdx);
+                              updateConfig({ rules: updated });
+                            }}
+                            className="p-1 text-slate-500 hover:text-rose-400 transition"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                        <div className="grid grid-cols-2 gap-1.5">
+                          <input
+                            type="text"
+                            placeholder="Column name"
+                            value={r.column || ''}
+                            onChange={(e) => {
+                              const updated = [...(config.rules || [])];
+                              updated[rIdx] = { ...updated[rIdx], column: e.target.value };
+                              updateConfig({ rules: updated });
+                            }}
+                            className="bg-slate-950 border border-slate-700 rounded px-1.5 py-0.5 text-slate-200 text-[10px] font-mono"
+                          />
+                          <input
+                            type="number"
+                            min={0}
+                            max={100}
+                            placeholder="Threshold %"
+                            value={r.threshold_percent ?? 100}
+                            onChange={(e) => {
+                              const updated = [...(config.rules || [])];
+                              updated[rIdx] = { ...updated[rIdx], threshold_percent: parseFloat(e.target.value) || 100 };
+                              updateConfig({ rules: updated });
+                            }}
+                            className="bg-slate-950 border border-slate-700 rounded px-1.5 py-0.5 text-slate-200 text-[10px]"
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 pt-1">
+                  <input
+                    type="checkbox"
+                    id="fail_dq"
+                    checked={config.fail_pipeline_on_error !== false}
+                    onChange={(e) => updateConfig({ fail_pipeline_on_error: e.target.checked })}
+                    className="rounded bg-slate-800 text-brand-500"
+                  />
+                  <label htmlFor="fail_dq" className="text-slate-300 text-[11px]">Fail activity if score is below threshold</label>
+                </div>
+              </div>
+            )}
+
+            {/* DATA PROFILING */}
+            {activityType === 'DataProfiling' && (
+              <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-lg space-y-2.5">
+                <div className="flex items-center justify-between text-slate-300 font-semibold text-[11px] uppercase tracking-wider">
+                  <span>Statistical Data Profiler</span>
+                  <BarChart3 className="h-3.5 w-3.5 text-cyan-400" />
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-slate-400 text-[11px]">Target File / Dataset Path</label>
+                    <DynamicContentTrigger
+                      fieldName="file_path"
+                      value={config.file_path || ''}
+                      onApply={(val) => updateConfig({ file_path: val })}
+                    />
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="/data/incoming/transactions.parquet"
+                    value={config.file_path || ''}
+                    onChange={(e) => updateConfig({ file_path: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono text-[11px]"
+                  />
+                </div>
+                <div className="p-2 bg-slate-900 border border-slate-800 rounded text-[11px] text-slate-400 leading-relaxed">
+                  Computes column types, null counts, null distributions, distinct counts, uniqueness percentages, min, max, mean, stddev, and frequent value histograms.
+                </div>
+              </div>
+            )}
+
+            {/* RECONCILIATION */}
+            {activityType === 'Reconciliation' && (
+              <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-lg space-y-2.5">
+                <div className="flex items-center justify-between text-slate-300 font-semibold text-[11px] uppercase tracking-wider">
+                  <span>Source-to-Target Reconciliation</span>
+                  <Scale className="h-3.5 w-3.5 text-emerald-400" />
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 mb-1 text-[11px]">Source Dataset Path</label>
+                  <input
+                    type="text"
+                    placeholder="/data/source/extract.csv"
+                    value={config.source_file_path || ''}
+                    onChange={(e) => updateConfig({ source_file_path: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono text-[11px]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 mb-1 text-[11px]">Target Dataset Path</label>
+                  <input
+                    type="text"
+                    placeholder="/data/warehouse/loaded.parquet"
+                    value={config.target_file_path || ''}
+                    onChange={(e) => updateConfig({ target_file_path: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono text-[11px]"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-slate-400 mb-1 text-[11px]">Key Columns (csv)</label>
+                    <input
+                      type="text"
+                      placeholder="id, order_num"
+                      value={Array.isArray(config.key_columns) ? config.key_columns.join(', ') : (config.key_columns || '')}
+                      onChange={(e) => updateConfig({ key_columns: e.target.value.split(',').map((s) => s.trim()).filter(Boolean) })}
+                      className="w-full bg-slate-900 border border-slate-700/80 rounded px-2 py-1 text-slate-200 font-mono text-[11px]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-slate-400 mb-1 text-[11px]">Sum Columns (csv)</label>
+                    <input
+                      type="text"
+                      placeholder="amount, tax"
+                      value={Array.isArray(config.numeric_sum_columns) ? config.numeric_sum_columns.join(', ') : (config.numeric_sum_columns || '')}
+                      onChange={(e) => updateConfig({ numeric_sum_columns: e.target.value.split(',').map((s) => s.trim()).filter(Boolean) })}
+                      className="w-full bg-slate-900 border border-slate-700/80 rounded px-2 py-1 text-slate-200 font-mono text-[11px]"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 pt-1">
+                  <input
+                    type="checkbox"
+                    id="fail_recon"
+                    checked={config.fail_on_discrepancy !== false}
+                    onChange={(e) => updateConfig({ fail_on_discrepancy: e.target.checked })}
+                    className="rounded bg-slate-800 text-brand-500"
+                  />
+                  <label htmlFor="fail_recon" className="text-slate-300 text-[11px]">Fail pipeline on reconciliation discrepancy</label>
+                </div>
+              </div>
+            )}
+
+            {/* DATA MASKING */}
+            {activityType === 'DataMasking' && (
+              <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-lg space-y-2.5">
+                <div className="flex items-center justify-between text-slate-300 font-semibold text-[11px] uppercase tracking-wider">
+                  <span>Data Masking & Redaction</span>
+                  <ShieldAlert className="h-3.5 w-3.5 text-rose-400" />
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 mb-1 text-[11px]">Source File Path</label>
+                  <input
+                    type="text"
+                    placeholder="/data/raw/customers.csv"
+                    value={config.source_file_path || ''}
+                    onChange={(e) => updateConfig({ source_file_path: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono text-[11px]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 mb-1 text-[11px]">Masked Output Destination</label>
+                  <input
+                    type="text"
+                    placeholder="/data/sanitized/customers.parquet"
+                    value={config.destination_file_path || ''}
+                    onChange={(e) => updateConfig({ destination_file_path: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono text-[11px]"
+                  />
+                </div>
+
+                {/* Masking Rules List */}
+                <div className="pt-2 border-t border-slate-800">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[11px] font-semibold text-slate-300">
+                      Masking Rules ({(config.masking_rules || []).length})
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const currentRules = config.masking_rules || [];
+                        updateConfig({
+                          masking_rules: [
+                            ...currentRules,
+                            {
+                              column: '',
+                              strategy: 'redact'
+                            }
+                          ]
+                        });
+                      }}
+                      className="text-[10px] px-2 py-0.5 bg-rose-600/30 hover:bg-rose-600/50 text-rose-300 border border-rose-500/40 rounded flex items-center gap-1 transition"
+                    >
+                      <Plus className="w-3 h-3" /> Add Column
+                    </button>
+                  </div>
+
+                  <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                    {(config.masking_rules || []).map((mr: any, mIdx: number) => (
+                      <div key={mIdx} className="flex items-center gap-1.5 p-1.5 bg-slate-900 border border-slate-800 rounded text-[11px]">
+                        <input
+                          type="text"
+                          placeholder="Column name"
+                          value={mr.column || ''}
+                          onChange={(e) => {
+                            const updated = [...(config.masking_rules || [])];
+                            updated[mIdx] = { ...updated[mIdx], column: e.target.value };
+                            updateConfig({ masking_rules: updated });
+                          }}
+                          className="bg-slate-950 border border-slate-700 rounded px-1.5 py-0.5 text-slate-200 text-[10px] font-mono flex-1"
+                        />
+                        <select
+                          value={mr.strategy || 'redact'}
+                          onChange={(e) => {
+                            const updated = [...(config.masking_rules || [])];
+                            updated[mIdx] = { ...updated[mIdx], strategy: e.target.value };
+                            updateConfig({ masking_rules: updated });
+                          }}
+                          className="bg-slate-950 border border-slate-700 rounded px-1.5 py-0.5 text-[10px]"
+                        >
+                          <option value="redact">Redact ([REDACTED])</option>
+                          <option value="hash">SHA-256 Hash</option>
+                          <option value="partial_mask">Partial Mask (****1234)</option>
+                          <option value="nullify">Nullify (null)</option>
+                        </select>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const updated = (config.masking_rules || []).filter((_: any, i: number) => i !== mIdx);
+                            updateConfig({ masking_rules: updated });
+                          }}
+                          className="p-1 text-slate-500 hover:text-rose-400 transition"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             )}

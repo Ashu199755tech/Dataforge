@@ -20,6 +20,7 @@ from backend.app.api.activities import router as activities_router
 from backend.app.api.callbacks import router as callbacks_router
 from backend.app.api.dataflows import router as dataflows_router
 from backend.app.api.expressions import router as expressions_router
+from backend.app.api.data_quality import router as data_quality_router
 from backend.app.orchestration.scheduler import scheduler
 
 
@@ -99,6 +100,7 @@ app.include_router(activities_router, prefix=settings.API_V1_STR)
 app.include_router(callbacks_router, prefix=settings.API_V1_STR)
 app.include_router(dataflows_router, prefix=settings.API_V1_STR)
 app.include_router(expressions_router, prefix=settings.API_V1_STR)
+app.include_router(data_quality_router, prefix=settings.API_V1_STR)
 
 
 @app.get("/health")

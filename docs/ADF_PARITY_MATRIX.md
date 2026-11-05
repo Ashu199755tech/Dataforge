@@ -139,3 +139,27 @@
 | **Collection & Conversion** | `createArray, first, last, take, skip, empty, coalesce, json` | Full Built-in Library | Searchable Catalog | Verified (10/10) | **Production Ready** |
 | **String Interpolation** | `text_@{pipeline().RunId}.csv`, `@@` escaped | Full Regex & AST Sub-eval | Dynamic Content Modal | Verified (10/10) | **Production Ready** |
 | **Expression Modal & Preview** | `/api/v1/expressions/validate`, `/evaluate` | REST API Endpoints | Monaco/Textarea Modal | Verified (10/10) | **Production Ready** |
+
+---
+
+## 5. Enterprise Data Quality & Profiling (Phase 8)
+
+| Capability / Rule | Execution Engine | Pipeline Activity | Quarantine Support | Automated Tests | Parity Status |
+|---|---|---|---|---|---|
+| **Mandatory Field Check** | Vectorized Polars | `DataQualityCheck` | Yes | Verified (11/11) | **Production Ready** |
+| **Non-Blank Check** | Vectorized Polars | `DataQualityCheck` | Yes | Verified (11/11) | **Production Ready** |
+| **Null Validation** | Vectorized Polars | `DataQualityCheck` | Yes | Verified (11/11) | **Production Ready** |
+| **Duplicate Check** | Vectorized Polars | `DataQualityCheck` | Yes | Verified (11/11) | **Production Ready** |
+| **Primary Key Uniqueness** | Vectorized Polars | `DataQualityCheck` | Yes | Verified (11/11) | **Production Ready** |
+| **Referential Integrity** | Vectorized Polars | `DataQualityCheck` | Yes | Verified (11/11) | **Production Ready** |
+| **Range Validation** | Vectorized Polars | `DataQualityCheck` | Yes | Verified (11/11) | **Production Ready** |
+| **Date Validation** | Vectorized Polars | `DataQualityCheck` | Yes | Verified (11/11) | **Production Ready** |
+| **Controlled List Validation** | Vectorized Polars | `DataQualityCheck` | Yes | Verified (11/11) | **Production Ready** |
+| **Schema Validation** | Vectorized Polars | `DataQualityCheck` | Yes | Verified (11/11) | **Production Ready** |
+| **Schema Drift Detection** | Vectorized Polars | `DataQualityCheck` | Yes | Verified (11/11) | **Production Ready** |
+| **Row Count Validation** | Vectorized Polars | `DataQualityCheck` | Yes | Verified (11/11) | **Production Ready** |
+| **PII Detection** | Vectorized Polars & Regex | `DataQualityCheck` | Yes | Verified (11/11) | **Production Ready** |
+| **Data Masking & Redaction** | Vectorized Polars | `DataMasking` | Destination Output | Verified (11/11) | **Production Ready** |
+| **Statistical Data Profiling** | Vectorized Polars | `DataProfiling` | Stored in DB | Verified (11/11) | **Production Ready** |
+| **Source-to-Target Reconciliation**| Vectorized Polars | `Reconciliation` | Parity Variance | Verified (11/11) | **Production Ready** |
+| **Composite DQ Score Calculation** | Weighted Rule Engine | `DataQualityCheck` | Threshold Failure | Verified (11/11) | **Production Ready** |

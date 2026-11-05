@@ -27,7 +27,10 @@ import {
   Send,
   CheckCheck,
   FolderCog,
-  Archive
+  Archive,
+  BarChart3,
+  Scale,
+  ShieldAlert
 } from 'lucide-react';
 import api from '../../api/client';
 
@@ -44,10 +47,19 @@ const DEFAULT_ACTIVITIES = [
     category: 'Move & Transform',
     items: [
       { type: 'CopyData', label: 'Copy Data', icon: ArrowRightLeft, color: 'text-brand-400', desc: 'Stream from source to destination' },
+      { type: 'ExecuteDataFlow', label: 'Data Flow', icon: Workflow, color: 'text-brand-400', desc: 'Vectorized mapping transformation graph' },
       { type: 'Lookup', label: 'Lookup', icon: Search, color: 'text-teal-400', desc: 'Read dataset or single record' },
       { type: 'GetMetadata', label: 'Get Metadata', icon: FileSearch, color: 'text-indigo-400', desc: 'Inspect table/file structure & rows' },
       { type: 'DeleteData', label: 'Delete Data', icon: Trash2, color: 'text-rose-400', desc: 'Cleanup records or truncate tables' },
-      { type: 'DataQualityCheck', label: 'Data Quality', icon: ShieldCheck, color: 'text-purple-400', desc: 'Enforce SLAs and data integrity' },
+    ]
+  },
+  {
+    category: 'Data Quality & Governance',
+    items: [
+      { type: 'DataQualityCheck', label: 'Data Quality', icon: ShieldCheck, color: 'text-purple-400', desc: 'Enforce SLAs, rules & quarantine' },
+      { type: 'DataProfiling', label: 'Data Profiling', icon: BarChart3, color: 'text-cyan-400', desc: 'Exhaustive column metrics & stats' },
+      { type: 'Reconciliation', label: 'Reconciliation', icon: Scale, color: 'text-emerald-400', desc: 'Source-to-target parity & checksums' },
+      { type: 'DataMasking', label: 'Data Masking', icon: ShieldAlert, color: 'text-rose-400', desc: 'Redact & mask sensitive PII columns' },
     ]
   },
   {
@@ -143,6 +155,12 @@ const getIconComponent = (iconName: string) => {
       return FolderCog;
     case 'archive':
       return Archive;
+    case 'barchart3':
+      return BarChart3;
+    case 'scale':
+      return Scale;
+    case 'shieldalert':
+      return ShieldAlert;
     default:
       return Layers;
   }
@@ -155,6 +173,11 @@ const getColorClass = (type: string) => {
     case 'getmetadata': return 'text-indigo-400';
     case 'deletedata': return 'text-rose-400';
     case 'dataqualitycheck': return 'text-purple-400';
+    case 'dataquality': return 'text-purple-400';
+    case 'dataprofiling': return 'text-cyan-400';
+    case 'reconciliation': return 'text-emerald-400';
+    case 'datamasking': return 'text-rose-400';
+    case 'executedataflow': return 'text-brand-400';
     case 'ifcondition': return 'text-orange-400';
     case 'foreach': return 'text-emerald-400';
     case 'executepipeline': return 'text-violet-400';
