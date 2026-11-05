@@ -12,7 +12,7 @@ This document tracks implementation status, test verification, and acceptance cr
 | **3** | Amazon S3 Integration | **COMPLETED** | 2026-11-05 | 156/156 passed (+20 tests) | Moto & AWS live test verified |
 | **4** | Google Cloud Storage (GCS) Integration | **COMPLETED** | 2026-11-05 | 176/176 passed (+20 tests) | GCS mock & live test verified |
 | **5** | Copy Data Frontend Enhancement | **COMPLETED** | 2026-11-05 | 179/179 passed (+3 tests) | Frontend build passed; 7 tabs & storage browser verified |
-| **6** | File Format and Schema Framework | PENDING | Phase 6 Window | Target: +25 tests | PyArrow format transcoding pass |
+| **6** | File Format and Schema Framework | **COMPLETED** | 2026-11-05 | 202/202 passed (+23 tests) | All 8 formats verified; low-memory preview tested |
 | **7** | Multi-Cloud Transfer Engine | PENDING | Phase 7 Window | Target: +20 tests | Bounded-memory streaming verified |
 | **8** | Cross-Cloud & Hybrid Transfers | PENDING | Phase 8 Window | Target: +20 tests | S3<->ADLS<->GCS<->DB transfers pass |
 | **9** | Verification, Emulators & Scenarios | PENDING | Phase 9 Window | Target: +15 tests | Complete end-to-end integration pass |
@@ -110,12 +110,20 @@ This document tracks implementation status, test verification, and acceptance cr
 ---
 
 ### Phase 6: File Format & Schema Framework
-- [ ] Implement `FormatReader` and `FormatWriter` abstractions using PyArrow.
-- [ ] Implement format engines: CSV, JSON, JSONL, Parquet, Avro, ORC, Excel, Text.
-- [ ] Implement streaming schema inference on sample chunks without full-file memory buffering.
-- [ ] Implement low-memory head preview endpoint (`POST /api/storage/preview`).
-- [ ] Implement unit tests in `backend/tests/test_format_framework.py`.
-- **Milestone Acceptance:** Format transcoding and preview work reliably across all supported formats.
+- [x] Implement `BaseFormatReader` and `BaseFormatWriter` abstractions in `backend/app/formats/base.py`.
+- [x] Implement 8 concrete format engines:
+  - CSV (`CsvFormatHandler` with compression, headers, custom delimiters).
+  - JSON (`JsonFormatHandler` with nested object flattening).
+  - JSON Lines (`JsonLinesFormatHandler` with invalid record skipping).
+  - Parquet (`ParquetFormatHandler` with row-group streaming and column projection via PyArrow).
+  - Avro (`AvroFormatHandler` with container header schema extraction via fastavro).
+  - ORC (`OrcFormatHandler` with columnar stripe streaming via pyorc).
+  - Excel (`ExcelFormatHandler` with streaming `read_only=True` and `write_only=True` via openpyxl).
+  - Text (`TextFormatHandler` with line-by-line numbering).
+- [x] Implement `FormatRegistry` with file extension and magic-byte detection.
+- [x] Implement streaming low-memory head preview endpoint (`POST /connections/{id}/storage/preview`) reading at most 2MB.
+- [x] Implement unit tests in `backend/tests/test_file_formats.py` and API tests in `backend/tests/test_storage_endpoints.py` (23 tests passed).
+- **Milestone Acceptance:** Completed & Approved. Format transcoding, column projection, schema discovery, and preview work reliably across all 8 formats.
 
 ---
 

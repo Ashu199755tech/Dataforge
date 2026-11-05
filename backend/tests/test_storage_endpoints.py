@@ -112,3 +112,58 @@ def test_get_storage_metadata(auth_header_and_conn):
     assert data["metadata"]["size_in_bytes"] > 0
 
 
+def test_preview_storage_csv(auth_header_and_conn):
+    headers, conn_id, _ = auth_header_and_conn
+    payload = {
+        "container": "raw-data",
+        "path": "sample.csv",
+        "format": "csv",
+        "limit": 10
+    }
+    res = client.post(f"{api_prefix}/connections/{conn_id}/storage/preview", json=payload, headers=headers)
+    assert res.status_code == 200, res.text
+    data = res.json()
+    assert data["sample_row_count"] == 2
+    assert len(data["rows"]) == 2
+    assert data["rows"][0]["name"] == "Alice"
+    assert len(data["columns"]) == 2
+
+
+def test_preview_storage_parquet(auth_header_and_conn):
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+
+    headers, conn_id, temp_dir = auth_header_and_conn
+    parquet_path = os.path.join(temp_dir, "raw-data", "users.parquet")
+    table = pa.Table.from_pydict({
+        "user_id": [101, 102, 103],
+        "username": ["admin", "analyst", "guest"],
+        "is_active": [True, True, False]
+    })
+    pq.write_table(table, parquet_path)
+
+    payload = {
+        "container": "raw-data",
+        "path": "users.parquet",
+        "limit": 2
+    }
+    res = client.post(f"{api_prefix}/connections/{conn_id}/storage/preview", json=payload, headers=headers)
+    assert res.status_code == 200, res.text
+    data = res.json()
+    assert data["sample_row_count"] == 2
+    assert data["format_detected"] == "parquet"
+    assert len(data["columns"]) == 3
+    assert data["rows"][0]["username"] == "admin"
+
+
+def test_preview_storage_missing_file(auth_header_and_conn):
+    headers, conn_id, _ = auth_header_and_conn
+    payload = {
+        "container": "raw-data",
+        "path": "nonexistent.csv"
+    }
+    res = client.post(f"{api_prefix}/connections/{conn_id}/storage/preview", json=payload, headers=headers)
+    assert res.status_code == 400
+
+
+

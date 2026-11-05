@@ -1,6 +1,7 @@
+import io
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from datetime import datetime, timezone
 from backend.app.core.database import get_db
 from backend.app.models.connection import Connection
@@ -10,6 +11,7 @@ from backend.app.schemas.connection import (
 from backend.app.core.security import encrypt_secret, decrypt_secret, mask_secret_dict
 from backend.app.connectors.factory import get_connector
 from backend.app.connectors.storage.base import BaseStorageConnector
+from backend.app.formats.registry import FormatRegistry
 from backend.app.api.deps import get_current_user
 from backend.app.models.user import User
 
@@ -226,4 +228,54 @@ def get_storage_metadata(
         raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/{connection_id}/storage/preview")
+def preview_storage_file(
+    connection_id: str,
+    payload: Dict[str, Any],
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    conn = db.query(Connection).filter(Connection.id == connection_id).first()
+    if not conn:
+        raise HTTPException(status_code=404, detail="Connection not found")
+    decrypted = decrypt_secret(conn.config_encrypted)
+    try:
+        connector = get_connector(conn.connector_type, decrypted)
+        if not isinstance(connector, BaseStorageConnector):
+            raise HTTPException(status_code=400, detail="Connection is not an object storage provider")
+
+        container = payload.get("container")
+        path = payload.get("path")
+        if not container or not path:
+            raise HTTPException(status_code=400, detail="Both 'container' and 'path' are required")
+
+        limit = int(payload.get("limit", 50))
+        fmt_name = payload.get("format")
+        if not fmt_name:
+            fmt_name = FormatRegistry.detect_format_from_filename(path)
+
+        options = payload.get("options") or {}
+        reader = FormatRegistry.get_reader(fmt_name, options)
+
+        # Stream bounded initial chunks for low-memory preview (max 2MB)
+        stream_chunks = []
+        bytes_collected = 0
+        max_preview_bytes = 2 * 1024 * 1024
+
+        for chunk in connector.read_stream(container, path, chunk_size=64 * 1024):
+            stream_chunks.append(chunk)
+            bytes_collected += len(chunk)
+            if bytes_collected >= max_preview_bytes:
+                break
+
+        buffered_sample = io.BytesIO(b"".join(stream_chunks))
+        result = reader.preview(buffered_sample, limit=limit)
+        return result.model_dump()
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
 
