@@ -13,6 +13,7 @@ import { DataFlowsListPage } from './features/dataflow-designer/DataFlowsListPag
 import { RuntimesPage } from './pages/RuntimesPage';
 import { DatasetsPage } from './pages/DatasetsPage';
 import { DeploymentsPage } from './pages/DeploymentsPage';
+import { LineagePage } from './pages/LineagePage';
 
 export const App: React.FC = () => {
   const { currentTab, fetchInitialData } = useAppStore();
@@ -39,6 +40,8 @@ export const App: React.FC = () => {
         return <RuntimesPage />;
       case 'triggers':
         return <TriggersPage />;
+      case 'lineage':
+        return <LineagePage />;
       case 'deployments':
         return <DeploymentsPage />;
       case 'runs':

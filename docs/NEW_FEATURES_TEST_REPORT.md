@@ -127,5 +127,24 @@ Executed on: 2026-11-05
 - **Full Regression Suite:** **263 passed, 3 skipped, 0 failed in 74.87s** (100% pass rate).
 - **Frontend Build Status:** **2,105 modules transformed, 0 errors** (`tsc && vite build`).
 
+---
+
+## 8. Phase 5 Test Execution Results (Data Lineage and Impact Analysis)
+
+Executed on: 2026-11-05
+
+- **Test Suite:** `backend/tests/test_data_lineage.py`
+- **Result:** **6 passed in 6.75s**
+- **Test Details:**
+  1. `test_lineage_extraction_from_copy_data`: Verified automatic extraction of source table/storage nodes, target storage/table nodes, directed `FlowsTo` edge, and exact 1-to-1 column mappings (`order_id` $\to$ `id`, `customer_id` $\to$ `cust_id`, `order_total` $\to$ `amount`) with `exact` confidence tier.
+  2. `test_lineage_extraction_with_reusable_datasets`: Verified automatic lineage linking when Copy Data activities reference reusable datasets by ID (`Customer_Bronze_DS` $\to$ `Customer_Silver_DS`), linking foreign keys to dataset entities.
+  3. `test_lineage_extraction_from_dataflow_transformations`: Verified multi-operator lineage across visual DataFlow DAGs (Source $\to$ Derived Column $\to$ Sink), capturing transformation expressions (e.g. `CONCAT(first_name, ' ', last_name)` $\to$ `full_name`) with `derived` confidence.
+  4. `test_lineage_graph_traversal_upstream_and_downstream`: Verified BFS multi-hop graph traversal respecting direction filters (`upstream`, `downstream`, `both`) and depth ceilings across Bronze $\to$ Silver $\to$ Gold pipelines.
+  5. `test_column_lineage_tracing_and_impact_analysis`: Verified column-level ancestor back-tracing from Gold facts to raw ERP columns and downstream blast radius impact simulation with automatic severity risk calculation (`High`, `Medium`, `Low`).
+  6. `test_lineage_rest_api_endpoints`: Verified FastAPI endpoints (`POST /api/v1/lineage/extract`, `GET /api/v1/lineage/graph`, `GET /api/v1/lineage/nodes`, `GET /api/v1/lineage/column-trace`, `POST /api/v1/lineage/impact-analysis`, `GET /api/v1/lineage/export`).
+- **Full Regression Suite:** **269 passed, 3 skipped, 0 failed in 49.41s** (100% pass rate).
+- **Frontend Build Status:** **2,109 modules transformed, 0 errors** (`tsc && vite build`).
+
+
 
 

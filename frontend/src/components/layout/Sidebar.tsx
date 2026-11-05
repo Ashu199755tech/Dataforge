@@ -12,7 +12,8 @@ import {
   Workflow,
   Cpu,
   Layers,
-  Rocket
+  Rocket,
+  Network
 } from 'lucide-react';
 
 export const Sidebar: React.FC = () => {
@@ -26,6 +27,7 @@ export const Sidebar: React.FC = () => {
     { id: 'datasets', label: 'Reusable Datasets', icon: Layers },
     { id: 'runtimes', label: 'Integration Runtimes', icon: Cpu },
     { id: 'triggers', label: 'Triggers & Schedules', icon: Clock },
+    { id: 'lineage', label: 'Data Lineage & Impact', icon: Network },
     { id: 'deployments', label: 'Deployments & CI/CD', icon: Rocket },
     { id: 'runs', label: 'Runs & Monitor', icon: PlayCircle },
     { id: 'dq', label: 'Data Quality', icon: ShieldCheck },

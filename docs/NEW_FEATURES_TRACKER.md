@@ -9,7 +9,7 @@
 | **2** | **Reusable Dataset Management** | **COMPLETED** | 2026-11-05 | 250/250 (+7 tests) | Datasets, schema discovery, preview, & Copy Data |
 | **3** | **Advanced Trigger Management** | **COMPLETED** | 2026-11-05 | 257/257 (+7 tests) | Schedules, events, windows, dependencies, & UI |
 | **4** | **Git Integration & CI/CD** | **COMPLETED** | 2026-11-05 | 263/263 (+6 tests) | Git sync, diff inspection, approvals, rollback & UI |
-| **5** | **Data Lineage and Impact Analysis** | Not Started | Phase 5 Window | Target: +15 tests | Auto lineage extraction, column drilldown & explorer |
+| **5** | **Data Lineage and Impact Analysis** | **COMPLETED** | 2026-11-05 | 269/269 (+6 tests) | Auto extraction, column drilldown, impact analysis & UI |
 | **6** | **Advanced Monitoring & Observability** | Not Started | Phase 6 Window | Target: +15 tests | Prometheus, OTel, multi-channel alerts & dashboards |
 | **7** | **Full Integration Testing** | Not Started | Phase 7 Window | Target: +10 tests | Cross-feature end-to-end verification |
 | **8** | **Production Hardening & Final Documentation** | Not Started | Phase 8 Window | Full Suite Pass | Security audit, performance & final sign-off |
@@ -88,14 +88,15 @@
 ---
 
 ### Phase 5: Data Lineage and Impact Analysis
-- [ ] Implement Lineage Extractor for pipeline activities, Copy Data, and DataFlows.
-- [ ] Implement Column-Level Lineage Analyzer with exact vs partial/unknown labeling.
-- [ ] Implement Impact Analysis engine traversing downstream dependency graphs.
-- [ ] Implement REST API (`/api/v1/lineage`).
-- [ ] Build Lineage Explorer page (`/lineage`) using React Flow.
-- [ ] Implement column-level drilldown drawer and impact analysis preview modal.
-- [ ] Implement unit and integration tests in `backend/tests/test_data_lineage.py`.
-- **Status:** Not Started
+- [x] Implement database models: `LineageNode`, `LineageEdge`, `ColumnLineage`.
+- [x] Implement Lineage Extractor for pipeline activities, Copy Data, SQL queries, and DataFlows.
+- [x] Implement Column-Level Lineage Analyzer with exact vs derived vs partial/unknown confidence labeling.
+- [x] Implement Impact Analysis engine traversing downstream dependency graphs with blast radius risk scoring.
+- [x] Implement REST API (`/api/v1/lineage/graph`, `nodes`, `column-trace`, `impact-analysis`, `extract`, `export`).
+- [x] Build Lineage Explorer page (`/lineage`) using React Flow with zoom, pan, minimap, and search.
+- [x] Implement column-level drilldown drawer and impact analysis preview modal.
+- [x] Implement unit and integration tests in `backend/tests/test_data_lineage.py`.
+- **Status:** COMPLETED (100% Tests Passing, Production Build Verified)
 
 ---
 

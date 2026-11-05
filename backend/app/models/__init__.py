@@ -19,6 +19,7 @@ from backend.app.models.runtime import IntegrationRuntime, RuntimeTask
 from backend.app.models.dataset import Dataset, DatasetVersion
 from backend.app.models.git import GitRepository
 from backend.app.models.deployment import Deployment
+from backend.app.models.lineage import LineageNode, LineageEdge, ColumnLineage
 
 __all__ = [
     "Base",
@@ -49,5 +50,8 @@ __all__ = [
     "Dataset",
     "DatasetVersion",
     "GitRepository",
-    "Deployment"
+    "Deployment",
+    "LineageNode",
+    "LineageEdge",
+    "ColumnLineage"
 ]
