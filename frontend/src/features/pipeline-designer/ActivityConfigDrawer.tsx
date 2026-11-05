@@ -38,9 +38,12 @@ import {
   BarChart3,
   Scale,
   ShieldAlert,
-  Plus
+  Plus,
+  Maximize2,
+  Minimize2
 } from 'lucide-react';
 import { ExpressionBuilderModal } from '../../components/common/ExpressionBuilderModal';
+import { CopyDataConfigTabs } from './CopyDataConfigTabs';
 
 interface ConfigDrawerProps {
   selectedNode: Node | null;
@@ -74,6 +77,7 @@ export const ActivityConfigDrawer: React.FC<ConfigDrawerProps> = ({
   const activityType = data.activityType || 'CopyData';
   const state = data.state || 'Active';
   const retryPolicy = data.retry_policy || { max_retries: 0, retry_interval_seconds: 2 };
+  const [isExpanded, setIsExpanded] = useState(activityType === 'CopyData');
 
   // Incoming edges (dependencies for this activity)
   const incomingEdges = allEdges.filter((e) => e.target === id);
@@ -154,15 +158,29 @@ export const ActivityConfigDrawer: React.FC<ConfigDrawerProps> = ({
   };
 
   return (
-    <div className="w-[400px] bg-slate-900 border-l border-slate-800 p-5 space-y-4 overflow-y-auto shrink-0 flex flex-col justify-between select-none">
+    <div
+      className={`${
+        isExpanded || activityType === 'CopyData' ? 'w-[640px] xl:w-[740px]' : 'w-[400px]'
+      } bg-slate-900 border-l border-slate-800 p-5 space-y-4 overflow-y-auto shrink-0 flex flex-col justify-between select-none transition-all duration-150`}
+    >
       <div className="space-y-4">
         {/* Header */}
         <div className="flex items-center justify-between pb-3 border-b border-slate-800">
           <div className="flex items-center gap-2">
             <Settings2 className="h-4 w-4 text-brand-400" />
-            <h3 className="text-sm font-semibold text-white">Activity Properties</h3>
+            <h3 className="text-sm font-semibold text-white">
+              {activityType === 'CopyData' ? 'Copy Data Activity (Multi-Cloud)' : 'Activity Properties'}
+            </h3>
           </div>
           <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setIsExpanded(!isExpanded)}
+              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"
+              title={isExpanded ? 'Collapse Drawer Width' : 'Expand Drawer Width'}
+            >
+              {isExpanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+            </button>
             <button
               onClick={() => onDeleteNode(id)}
               className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition"
@@ -217,144 +235,38 @@ export const ActivityConfigDrawer: React.FC<ConfigDrawerProps> = ({
         {/* TAB 1: ACTIVITY CONFIGURATION */}
         {activeTab === 'config' && (
           <div className="space-y-4 text-xs">
-            {/* COPY DATA */}
+            {/* COPY DATA (MULTI-CLOUD ENGINE) */}
             {activityType === 'CopyData' && (
-              <div className="space-y-3">
-                <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-lg space-y-2.5">
-                  <div className="flex items-center justify-between text-slate-300 font-semibold text-[11px] uppercase tracking-wider">
-                    <span>Source Connection</span>
-                    <Database className="h-3.5 w-3.5 text-amber-400" />
-                  </div>
-
-                  <div>
-                    <label className="block text-slate-400 mb-1 text-[11px]">Connection</label>
-                    <select
-                      value={config.source?.connection_id || ''}
-                      onChange={(e) => handleSourceConnChange(e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200"
-                    >
-                      <option value="">Select connection...</option>
-                      {connections.map((c) => (
-                        <option key={c.id} value={c.id}>{c.name} ({c.connector_type})</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-slate-400 mb-1 text-[11px]">Source Table</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. source_orders"
-                      value={config.source?.table_name || ''}
-                      onChange={(e) => updateConfig({ source: { ...(config.source || {}), table_name: e.target.value } })}
-                      className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200"
-                    />
-                  </div>
-
-                  <div className="pt-2 border-t border-slate-800/80 space-y-2">
-                    <div className="text-[11px] font-medium text-slate-400">Incremental Watermark</div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <input
-                        type="text"
-                        placeholder="Column (updated_at)"
-                        value={config.source?.incremental?.column || ''}
-                        onChange={(e) => updateConfig({
-                          source: {
-                            ...(config.source || {}),
-                            incremental: { ...(config.source?.incremental || {}), mode: 'watermark', column: e.target.value }
-                          }
-                        })}
-                        className="bg-slate-900 border border-slate-700/80 rounded px-2 py-1 text-slate-200 text-[11px]"
-                      />
-                      <input
-                        type="text"
-                        placeholder="Watermark Value"
-                        value={config.source?.incremental?.watermark_value || ''}
-                        onChange={(e) => updateConfig({
-                          source: {
-                            ...(config.source || {}),
-                            incremental: { ...(config.source?.incremental || {}), watermark_value: e.target.value }
-                          }
-                        })}
-                        className="bg-slate-900 border border-slate-700/80 rounded px-2 py-1 text-slate-200 text-[11px]"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-lg space-y-2.5">
-                  <div className="flex items-center justify-between text-slate-300 font-semibold text-[11px] uppercase tracking-wider">
-                    <span>Destination Target</span>
-                    <Database className="h-3.5 w-3.5 text-blue-400" />
-                  </div>
-
-                  <div>
-                    <label className="block text-slate-400 mb-1 text-[11px]">Connection</label>
-                    <select
-                      value={config.destination?.connection_id || ''}
-                      onChange={(e) => handleDestConnChange(e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200"
-                    >
-                      <option value="">Select connection...</option>
-                      {connections.map((c) => (
-                        <option key={c.id} value={c.id}>{c.name} ({c.connector_type})</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-slate-400 mb-1 text-[11px]">Target Table</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. target_orders"
-                      value={config.destination?.table_name || ''}
-                      onChange={(e) => updateConfig({ destination: { ...(config.destination || {}), table_name: e.target.value } })}
-                      className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="block text-slate-400 mb-1 text-[11px]">Write Mode</label>
-                      <select
-                        value={config.destination?.write_mode || 'append'}
-                        onChange={(e) => updateConfig({ destination: { ...(config.destination || {}), write_mode: e.target.value } })}
-                        className="w-full bg-slate-900 border border-slate-700/80 rounded px-2 py-1 text-slate-200 text-[11px]"
-                      >
-                        <option value="append">Append</option>
-                        <option value="overwrite">Overwrite</option>
-                        <option value="upsert">Upsert / Merge</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-slate-400 mb-1 text-[11px]">Key Column</label>
-                      <input
-                        type="text"
-                        placeholder="order_id"
-                        value={(config.destination?.key_columns || []).join(', ')}
-                        onChange={(e) => updateConfig({
-                          destination: {
-                            ...(config.destination || {}),
-                            key_columns: e.target.value.split(',').map((s) => s.trim()).filter(Boolean)
-                          }
-                        })}
-                        className="w-full bg-slate-900 border border-slate-700/80 rounded px-2 py-1 text-slate-200 text-[11px]"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-slate-400 mb-1 text-[11px]">Pre-Copy Script (Optional)</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. TRUNCATE TABLE target_orders"
-                      value={config.destination?.pre_copy_script || ''}
-                      onChange={(e) => updateConfig({ destination: { ...(config.destination || {}), pre_copy_script: e.target.value } })}
-                      className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono text-[11px]"
-                    />
-                  </div>
-                </div>
-              </div>
+              <CopyDataConfigTabs
+                activityId={id}
+                activityLabel={data.label || ''}
+                activityDescription={data.description || ''}
+                activityState={state}
+                retryPolicy={retryPolicy}
+                config={config}
+                connections={connections}
+                onUpdateGeneral={(updates) => {
+                  const updated = {
+                    ...data,
+                    ...(updates.label !== undefined ? { label: updates.label } : {}),
+                    ...(updates.description !== undefined ? { description: updates.description } : {}),
+                    ...(updates.state !== undefined ? { state: updates.state } : {}),
+                    ...(updates.retry_policy !== undefined ? { retry_policy: updates.retry_policy } : {})
+                  };
+                  if (updates.timeout_seconds !== undefined) {
+                    updated.config = {
+                      ...(updated.config || {}),
+                      advanced: {
+                        ...((updated.config || {}).advanced || {}),
+                        timeout_seconds: updates.timeout_seconds
+                      }
+                    };
+                  }
+                  onUpdateNode(id, updated);
+                }}
+                onUpdateConfig={updateConfig}
+                onOpenExpressionBuilder={openExpressionBuilder}
+              />
             )}
 
             {/* LOOKUP */}

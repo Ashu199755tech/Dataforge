@@ -9,6 +9,7 @@ from backend.app.schemas.connection import (
 )
 from backend.app.core.security import encrypt_secret, decrypt_secret, mask_secret_dict
 from backend.app.connectors.factory import get_connector
+from backend.app.connectors.storage.base import BaseStorageConnector
 from backend.app.api.deps import get_current_user
 from backend.app.models.user import User
 
@@ -147,3 +148,82 @@ def preview_table_data(connection_id: str, table_name: str, limit: int = 50, db:
         if len(rows) >= limit:
             break
     return {"rows": rows[:limit]}
+
+
+@router.get("/{connection_id}/storage/containers")
+def list_storage_containers(
+    connection_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    conn = db.query(Connection).filter(Connection.id == connection_id).first()
+    if not conn:
+        raise HTTPException(status_code=404, detail="Connection not found")
+    decrypted = decrypt_secret(conn.config_encrypted)
+    try:
+        connector = get_connector(conn.connector_type, decrypted)
+        if not isinstance(connector, BaseStorageConnector):
+            return {"containers": [], "is_storage": False}
+        containers = connector.list_containers()
+        return {"containers": containers, "is_storage": True}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/{connection_id}/storage/items")
+def list_storage_items(
+    connection_id: str,
+    container: str,
+    prefix: str = "",
+    recursive: bool = False,
+    limit: int = 200,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    conn = db.query(Connection).filter(Connection.id == connection_id).first()
+    if not conn:
+        raise HTTPException(status_code=404, detail="Connection not found")
+    decrypted = decrypt_secret(conn.config_encrypted)
+    try:
+        connector = get_connector(conn.connector_type, decrypted)
+        if not isinstance(connector, BaseStorageConnector):
+            raise HTTPException(status_code=400, detail="Connection is not an object storage provider")
+        directories = connector.list_directories(container=container, prefix=prefix)
+        files_iter = connector.list_files(container=container, prefix=prefix, recursive=recursive, limit=limit)
+        files = [f.model_dump() for f in files_iter]
+        return {
+            "container": container,
+            "prefix": prefix,
+            "directories": directories,
+            "files": files,
+            "total_items": len(directories) + len(files)
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/{connection_id}/storage/metadata")
+def get_storage_metadata(
+    connection_id: str,
+    container: str,
+    path: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    conn = db.query(Connection).filter(Connection.id == connection_id).first()
+    if not conn:
+        raise HTTPException(status_code=404, detail="Connection not found")
+    decrypted = decrypt_secret(conn.config_encrypted)
+    try:
+        connector = get_connector(conn.connector_type, decrypted)
+        if not isinstance(connector, BaseStorageConnector):
+            raise HTTPException(status_code=400, detail="Connection is not an object storage provider")
+        meta = connector.get_object_metadata(container=container, object_key=path)
+        return {"metadata": meta.model_dump()}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+

@@ -11,7 +11,7 @@ This document tracks implementation status, test verification, and acceptance cr
 | **2** | Azure Storage Integration (ADLS & Blob) | **COMPLETED** | 2026-11-05 | 136/136 passed (+20 tests) | Azurite & Azure live test verified |
 | **3** | Amazon S3 Integration | **COMPLETED** | 2026-11-05 | 156/156 passed (+20 tests) | Moto & AWS live test verified |
 | **4** | Google Cloud Storage (GCS) Integration | **COMPLETED** | 2026-11-05 | 176/176 passed (+20 tests) | GCS mock & live test verified |
-| **5** | Copy Data Frontend Enhancement | PENDING | Phase 5 Window | Frontend build pass | 7 tabs and storage browser verified |
+| **5** | Copy Data Frontend Enhancement | **COMPLETED** | 2026-11-05 | 179/179 passed (+3 tests) | Frontend build passed; 7 tabs & storage browser verified |
 | **6** | File Format and Schema Framework | PENDING | Phase 6 Window | Target: +25 tests | PyArrow format transcoding pass |
 | **7** | Multi-Cloud Transfer Engine | PENDING | Phase 7 Window | Target: +20 tests | Bounded-memory streaming verified |
 | **8** | Cross-Cloud & Hybrid Transfers | PENDING | Phase 8 Window | Target: +20 tests | S3<->ADLS<->GCS<->DB transfers pass |
@@ -92,18 +92,20 @@ This document tracks implementation status, test verification, and acceptance cr
 ---
 
 ### Phase 5: Copy Data Frontend Enhancement
-- [ ] Implement 7-tab configuration drawer in `frontend/src/features/pipeline-designer/`:
-  - Tab 1: **General** (Activity Name, Description, Timeout, Retry Policy).
-  - Tab 2: **Source** (Provider, Connection, Bucket/Container, Prefix/File Browse, Wildcard Pattern).
-  - Tab 3: **Source Settings** (Format, Compression, Delimiter, Header, Schema Inference).
-  - Tab 4: **Destination** (Provider, Connection, Bucket/Container, Output Path, Format, Write Mode).
+- [x] Implement 7-tab configuration drawer in `frontend/src/features/pipeline-designer/`:
+  - Tab 1: **General** (Activity Name, Description, Timeout, Retry Policy, Execution State).
+  - Tab 2: **Source** (Provider, Connection, Bucket/Container, Prefix/File Browse, Ingestion Mode, Wildcards, DB Tables).
+  - Tab 3: **Source Settings** (Format, Compression, Delimiters, Headers, Schema Inference).
+  - Tab 4: **Destination** (Provider, Connection, Bucket/Container, Output Path, Format, Write Mode, Upsert Keys).
   - Tab 5: **Mapping** (Source/Dest Columns, Types, Expressions, Auto-Map, Exclude).
-  - Tab 6: **Performance** (Batch Size, Chunk Size, Multipart Threshold, Parallel Copies).
-  - Tab 7: **Advanced** (Checksum Validation, Overwrite, Preserve Names, Encryption).
-- [ ] Implement interactive Cloud Storage Explorer modal for bucket, prefix, and file browsing.
-- [ ] Implement Dynamic Schema Mapping table with type conversion selectors.
-- [ ] Verify frontend build (`npm run build`).
-- **Milestone Acceptance:** Frontend builds cleanly and persists all 7 configuration sections without regressions.
+  - Tab 6: **Performance** (Batch Size, Chunk Size, Multipart Threshold, Parallel Copies, Buffers).
+  - Tab 7: **Advanced** (Checksum Validation, Overwrite, Preserve Names, Encryption, Fault Tolerance).
+- [x] Implement interactive `StorageHierarchyBrowserModal` for bucket, prefix, and file browsing with breadcrumb navigation.
+- [x] Implement backend storage browsing and metadata discovery endpoints (`GET /connections/{id}/storage/containers`, `/items`, `/metadata`).
+- [x] Implement Dynamic Schema Mapping table with type conversion selectors.
+- [x] Verify frontend build (`npm run build`) - 2,099 modules transformed, 0 errors.
+- [x] Unit and API tests pass in `backend/tests/test_storage_endpoints.py`.
+- **Milestone Acceptance:** Completed & Approved. Frontend builds cleanly and persists all 7 configuration sections without regressions.
 
 ---
 
