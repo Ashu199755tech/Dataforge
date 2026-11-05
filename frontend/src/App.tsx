@@ -12,6 +12,7 @@ import { DataQualityPage } from './pages/DataQualityPage';
 import { DataFlowsListPage } from './features/dataflow-designer/DataFlowsListPage';
 import { RuntimesPage } from './pages/RuntimesPage';
 import { DatasetsPage } from './pages/DatasetsPage';
+import { DeploymentsPage } from './pages/DeploymentsPage';
 
 export const App: React.FC = () => {
   const { currentTab, fetchInitialData } = useAppStore();
@@ -38,6 +39,8 @@ export const App: React.FC = () => {
         return <RuntimesPage />;
       case 'triggers':
         return <TriggersPage />;
+      case 'deployments':
+        return <DeploymentsPage />;
       case 'runs':
         return <RunsMonitorPage />;
       case 'dq':

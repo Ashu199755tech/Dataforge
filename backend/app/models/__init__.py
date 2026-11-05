@@ -17,6 +17,8 @@ from backend.app.models.alert import AlertRule, AlertEvent
 from backend.app.models.security import WorkspaceMember, Environment, SecretVaultEntry
 from backend.app.models.runtime import IntegrationRuntime, RuntimeTask
 from backend.app.models.dataset import Dataset, DatasetVersion
+from backend.app.models.git import GitRepository
+from backend.app.models.deployment import Deployment
 
 __all__ = [
     "Base",
@@ -45,5 +47,7 @@ __all__ = [
     "IntegrationRuntime",
     "RuntimeTask",
     "Dataset",
-    "DatasetVersion"
+    "DatasetVersion",
+    "GitRepository",
+    "Deployment"
 ]

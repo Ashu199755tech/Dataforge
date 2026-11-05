@@ -28,6 +28,8 @@ from backend.app.api.audit import router as audit_router
 from backend.app.api.scenarios import router as scenarios_router
 from backend.app.api.runtimes import router as runtimes_router
 from backend.app.api.datasets import router as datasets_router
+from backend.app.api.git import router as git_router
+from backend.app.api.deployments import router as deployments_router
 from backend.app.models.runtime import IntegrationRuntime
 from datetime import datetime, timezone
 from backend.app.orchestration.scheduler import scheduler
@@ -145,6 +147,8 @@ app.include_router(audit_router, prefix=settings.API_V1_STR)
 app.include_router(scenarios_router, prefix=settings.API_V1_STR)
 app.include_router(runtimes_router, prefix=settings.API_V1_STR)
 app.include_router(datasets_router, prefix=settings.API_V1_STR)
+app.include_router(git_router, prefix=settings.API_V1_STR)
+app.include_router(deployments_router, prefix=settings.API_V1_STR)
 
 
 @app.get("/health")
