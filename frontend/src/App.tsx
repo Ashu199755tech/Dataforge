@@ -6,6 +6,7 @@ import { DashboardPage } from './pages/DashboardPage';
 import { PipelinesListPage } from './pages/PipelinesListPage';
 import { PipelineDesignerPage } from './features/pipeline-designer/PipelineDesignerPage';
 import { ConnectionsPage } from './pages/ConnectionsPage';
+import { TriggersPage } from './pages/TriggersPage';
 import { RunsMonitorPage } from './pages/RunsMonitorPage';
 import { DataQualityPage } from './pages/DataQualityPage';
 
@@ -26,6 +27,8 @@ export const App: React.FC = () => {
         return <PipelineDesignerPage />;
       case 'connections':
         return <ConnectionsPage />;
+      case 'triggers':
+        return <TriggersPage />;
       case 'runs':
         return <RunsMonitorPage />;
       case 'dq':

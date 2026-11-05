@@ -7,6 +7,7 @@ import {
   Activity, 
   ShieldCheck, 
   PlayCircle,
+  Clock,
   FileText
 } from 'lucide-react';
 
@@ -17,6 +18,7 @@ export const Sidebar: React.FC = () => {
     { id: 'dashboard', label: 'Overview', icon: LayoutDashboard },
     { id: 'pipelines', label: 'Pipelines', icon: GitBranch },
     { id: 'connections', label: 'Connections', icon: Database },
+    { id: 'triggers', label: 'Triggers & Schedules', icon: Clock },
     { id: 'runs', label: 'Runs & Monitor', icon: PlayCircle },
     { id: 'dq', label: 'Data Quality', icon: ShieldCheck },
   ];

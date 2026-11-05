@@ -1,11 +1,21 @@
 import React from 'react';
 import { Handle, Position, NodeProps } from '@xyflow/react';
-import { ArrowRightLeft, FileCode, ShieldCheck, Layers } from 'lucide-react';
+import { 
+  ArrowRightLeft, 
+  FileCode, 
+  ShieldCheck, 
+  Layers, 
+  Search, 
+  Variable, 
+  Clock, 
+  GitFork, 
+  Globe 
+} from 'lucide-react';
 
 export const ActivityNode: React.FC<NodeProps> = ({ data, selected }) => {
   const activityData = data as {
     label: string;
-    activityType: 'CopyData' | 'SqlScript' | 'DataQualityCheck' | string;
+    activityType: string;
     status?: string;
     config?: any;
   };
@@ -18,8 +28,18 @@ export const ActivityNode: React.FC<NodeProps> = ({ data, selected }) => {
         return <FileCode className="h-4 w-4 text-emerald-400" />;
       case 'DataQualityCheck':
         return <ShieldCheck className="h-4 w-4 text-purple-400" />;
+      case 'Lookup':
+        return <Search className="h-4 w-4 text-teal-400" />;
+      case 'SetVariable':
+        return <Variable className="h-4 w-4 text-cyan-400" />;
+      case 'Wait':
+        return <Clock className="h-4 w-4 text-amber-400" />;
+      case 'IfCondition':
+        return <GitFork className="h-4 w-4 text-orange-400" />;
+      case 'RestApi':
+        return <Globe className="h-4 w-4 text-sky-400" />;
       default:
-        return <Layers className="h-4 w-4 text-amber-400" />;
+        return <Layers className="h-4 w-4 text-slate-400" />;
     }
   };
 
@@ -51,6 +71,18 @@ export const ActivityNode: React.FC<NodeProps> = ({ data, selected }) => {
           <span className="text-slate-300">{activityData.config.source.table_name}</span>
           <span className="text-brand-400">→</span>
           <span className="text-slate-300">{activityData.config.destination.table_name}</span>
+        </div>
+      )}
+
+      {activityData.config?.expression && (
+        <div className="mt-2 pt-2 border-t border-slate-800/80 text-[10px] font-mono text-amber-400 truncate">
+          {activityData.config.expression}
+        </div>
+      )}
+
+      {activityData.config?.variable_name && (
+        <div className="mt-2 pt-2 border-t border-slate-800/80 text-[10px] font-mono text-cyan-400 truncate">
+          {activityData.config.variable_name} = {activityData.config.value}
         </div>
       )}
 

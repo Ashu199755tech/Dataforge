@@ -10,6 +10,7 @@ from backend.app.execution.dag_engine import PipelineDAG, DAGValidationError
 from backend.app.activities.base import ActivityExecutionContext
 from backend.app.activities.factory import get_activity_instance
 from backend.app.execution.event_bus import event_bus
+from backend.app.execution.expressions import ExpressionEvaluator
 
 
 class PipelineRunner:
@@ -69,6 +70,7 @@ class PipelineRunner:
             succeeded_count = 0
             failed_count = 0
             pipeline_vars = pipeline_def.get("variables", {}).copy()
+            activity_outputs: Dict[str, Any] = {}
 
             # Create initial ActivityRun records in DB
             for act_id, act_cfg in dag.activity_map.items():
@@ -134,12 +136,20 @@ class PipelineRunner:
                         act_run.retry_attempt = attempt
                         db.commit()
                         try:
+                            # Dynamically evaluate expressions inside activity config
+                            evaluator = ExpressionEvaluator(
+                                parameters=pipeline_run.parameters or {},
+                                variables=pipeline_vars,
+                                activity_outputs=activity_outputs
+                            )
+                            resolved_config = evaluator.evaluate(act_cfg.get("config", {}))
+
                             context = ActivityExecutionContext(
                                 pipeline_run_id=self.run_id,
                                 activity_id=act_id,
                                 activity_name=act_cfg.get("name", act_id),
                                 activity_type=act_cfg.get("type", "CopyData"),
-                                config=act_cfg.get("config", {}),
+                                config=resolved_config,
                                 pipeline_parameters=pipeline_run.parameters or {},
                                 pipeline_variables=pipeline_vars
                             )
@@ -176,6 +186,7 @@ class PipelineRunner:
                         succeeded_count += 1
                         completed_activities[act_id] = "Succeeded"
                         pipeline_vars.update(res.output_variables)
+                        activity_outputs[act_id] = res.output_variables
                     else:
                         act_run.status = "Failed"
                         act_run.error_message = last_error

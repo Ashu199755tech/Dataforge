@@ -1,5 +1,14 @@
 import React from 'react';
-import { ArrowRightLeft, FileCode, ShieldCheck, Filter, Clock, GitMerge } from 'lucide-react';
+import { 
+  ArrowRightLeft, 
+  FileCode, 
+  ShieldCheck, 
+  Search, 
+  Clock, 
+  Variable, 
+  GitFork, 
+  Globe 
+} from 'lucide-react';
 
 export const ActivityToolbox: React.FC = () => {
   const onDragStart = (event: React.DragEvent, nodeType: string, label: string) => {
@@ -13,19 +22,29 @@ export const ActivityToolbox: React.FC = () => {
       category: 'Move & Transform',
       items: [
         { type: 'CopyData', label: 'Copy Data', icon: ArrowRightLeft, color: 'text-brand-400', desc: 'Stream from source to destination' },
+        { type: 'Lookup', label: 'Lookup', icon: Search, color: 'text-teal-400', desc: 'Read dataset or single record' },
         { type: 'DataQualityCheck', label: 'Data Quality', icon: ShieldCheck, color: 'text-purple-400', desc: 'Enforce SLAs and data integrity' },
       ]
     },
     {
-      category: 'Compute & Scripts',
+      category: 'Control Flow',
+      items: [
+        { type: 'IfCondition', label: 'If Condition', icon: GitFork, color: 'text-orange-400', desc: 'Evaluate conditions & branch' },
+        { type: 'SetVariable', label: 'Set Variable', icon: Variable, color: 'text-cyan-400', desc: 'Dynamically assign pipeline variables' },
+        { type: 'Wait', label: 'Wait', icon: Clock, color: 'text-amber-400', desc: 'Pause execution for N seconds' },
+      ]
+    },
+    {
+      category: 'Compute & External',
       items: [
         { type: 'SqlScript', label: 'SQL Script', icon: FileCode, color: 'text-emerald-400', desc: 'Execute queries on connection' },
+        { type: 'RestApi', label: 'REST API Call', icon: Globe, color: 'text-sky-400', desc: 'Invoke external HTTP webhooks' },
       ]
     }
   ];
 
   return (
-    <div className="w-64 bg-slate-900 border-r border-slate-800 p-4 space-y-4 shrink-0 flex flex-col justify-between select-none">
+    <div className="w-64 bg-slate-900 border-r border-slate-800 p-4 space-y-4 shrink-0 flex flex-col justify-between select-none overflow-y-auto">
       <div className="space-y-4">
         <div>
           <h3 className="text-xs font-bold text-white uppercase tracking-wider">Activity Toolbox</h3>
@@ -61,7 +80,7 @@ export const ActivityToolbox: React.FC = () => {
       </div>
 
       <div className="p-3 rounded-lg bg-slate-950/60 border border-slate-800/80 text-[11px] text-slate-400">
-        <span className="font-semibold text-slate-300">Canvas Tip:</span> Drag handle points between activities to establish topological DAG dependencies.
+        <span className="font-semibold text-slate-300">Canvas Tip:</span> Connect handles to build conditional dependency DAGs.
       </div>
     </div>
   );

@@ -25,6 +25,19 @@ export interface Connection {
   created_at: string;
 }
 
+export interface Trigger {
+  id: string;
+  pipeline_id: string;
+  name: string;
+  trigger_type: string;
+  cron_expression?: string;
+  is_active: boolean;
+  parameters: Record<string, any>;
+  last_fired_at?: string;
+  next_fire_time?: string;
+  created_at: string;
+}
+
 export interface ActivityNodeConfig {
   source?: {
     connection_id?: string;
