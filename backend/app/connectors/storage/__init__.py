@@ -11,6 +11,8 @@ from backend.app.connectors.storage.registry import (
     StorageProviderInfo
 )
 from backend.app.connectors.storage.local import LocalStorageConnector
+from backend.app.connectors.storage.azure_blob import AzureBlobStorageConnector
+from backend.app.connectors.storage.azure_adls import AzureDataLakeStorageConnector
 from backend.app.schemas.storage import (
     LocalStorageConfig,
     AzureBlobStorageConfig,
@@ -30,6 +32,8 @@ __all__ = [
     "StorageProviderRegistry",
     "StorageProviderInfo",
     "LocalStorageConnector",
+    "AzureBlobStorageConnector",
+    "AzureDataLakeStorageConnector",
     "LocalStorageConfig",
     "AzureBlobStorageConfig",
     "AzureADLSGen2Config",
