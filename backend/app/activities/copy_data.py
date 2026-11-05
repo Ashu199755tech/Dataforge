@@ -44,6 +44,13 @@ class CopyDataActivity(BaseActivity):
         write_mode = dest_cfg.get("write_mode", "append")
         key_columns = dest_cfg.get("key_columns", [])
         column_mappings = config.get("column_mappings", [])
+        pre_copy_script = dest_cfg.get("pre_copy_script")
+        post_copy_script = dest_cfg.get("post_copy_script")
+
+        # Execute optional pre-copy script on destination
+        if pre_copy_script and hasattr(dst_connector, "execute_query"):
+            self.log("INFO", f"Executing pre-copy script on destination: {pre_copy_script}")
+            dst_connector.execute_query(pre_copy_script)
 
         # Incremental watermark configuration
         incremental_cfg = source_cfg.get("incremental", {})
@@ -111,6 +118,11 @@ class CopyDataActivity(BaseActivity):
 
         duration = round(time.time() - start_time, 2)
         self.log("INFO", f"Copy Data completed successfully: {total_rows_read} rows read, {total_rows_written} rows written ({total_bytes} bytes in {duration}s)")
+
+        # Execute optional post-copy script on destination
+        if post_copy_script and hasattr(dst_connector, "execute_query"):
+            self.log("INFO", f"Executing post-copy script on destination: {post_copy_script}")
+            dst_connector.execute_query(post_copy_script)
 
         output_vars = {}
         if watermark_col and highest_watermark is not None:

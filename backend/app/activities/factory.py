@@ -9,6 +9,8 @@ from backend.app.activities.set_variable import SetVariableActivity
 from backend.app.activities.wait import WaitActivity
 from backend.app.activities.if_condition import IfConditionActivity
 from backend.app.activities.rest_api import RestApiActivity
+from backend.app.activities.get_metadata import GetMetadataActivity
+from backend.app.activities.delete_data import DeleteDataActivity
 
 
 def _register_builtin_activities():
@@ -236,6 +238,69 @@ def _register_builtin_activities():
         ),
         RestApiActivity,
         aliases=["rest_api", "web", "http"]
+    )
+
+    # 9. Get Metadata
+    activity_registry.register(
+        ActivityMetadata(
+            activity_type="GetMetadata",
+            display_name="Get Metadata",
+            category="Move & Transform",
+            description="Inspects datasets to discover existence, row counts, column counts, structure, and byte size.",
+            version="1.0.0",
+            icon="FileSearch",
+            config_schema={
+                "type": "object",
+                "required": ["connection_id", "table_name"],
+                "properties": {
+                    "connection_id": {"type": "string"},
+                    "table_name": {"type": "string"},
+                    "schema_name": {"type": "string"},
+                    "field_list": {"type": "array"}
+                }
+            },
+            outputs=[
+                {"name": "exists", "type": "boolean"},
+                {"name": "rowCount", "type": "int"},
+                {"name": "columnCount", "type": "int"},
+                {"name": "sizeInBytes", "type": "int"},
+                {"name": "structure", "type": "array"}
+            ],
+            supports_retry=True,
+            tags=["Metadata", "Discovery", "Move & Transform", "Schema"]
+        ),
+        GetMetadataActivity,
+        aliases=["get_metadata", "getmetadata"]
+    )
+
+    # 10. Delete Data
+    activity_registry.register(
+        ActivityMetadata(
+            activity_type="DeleteData",
+            display_name="Delete Data",
+            category="Move & Transform",
+            description="Safely removes records conditionally or truncates tables to prepare staging environments.",
+            version="1.0.0",
+            icon="Trash2",
+            config_schema={
+                "type": "object",
+                "required": ["connection_id", "table_name"],
+                "properties": {
+                    "connection_id": {"type": "string"},
+                    "table_name": {"type": "string"},
+                    "schema_name": {"type": "string"},
+                    "delete_mode": {"type": "string", "enum": ["conditional", "truncate"]},
+                    "filter_expr": {"type": "string"}
+                }
+            },
+            outputs=[
+                {"name": "rows_deleted", "type": "int"}
+            ],
+            supports_retry=False,
+            tags=["Cleanup", "Delete", "Staging", "Move & Transform"]
+        ),
+        DeleteDataActivity,
+        aliases=["delete_data", "deletedata"]
     )
 
 

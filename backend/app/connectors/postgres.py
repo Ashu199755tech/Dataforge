@@ -247,3 +247,65 @@ class PostgresConnector(BaseConnector):
                     return [dict(r) for r in cur.fetchall()]
                 conn.commit()
                 return []
+
+    def get_metadata(
+        self,
+        object_name: str,
+        schema_name: Optional[str] = None
+    ) -> Dict[str, Any]:
+        schema = schema_name or "public"
+        cols = self.discover_columns(object_name, schema)
+        if not cols:
+            return {
+                "exists": False,
+                "rowCount": 0,
+                "columnCount": 0,
+                "structure": [],
+                "sizeInBytes": 0,
+                "childItems": []
+            }
+
+        full_table = f'"{schema}"."{object_name}"'
+        with self._get_connection() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(f"SELECT COUNT(*) as cnt FROM {full_table};")
+                row_cnt = int(cur.fetchone()["cnt"])
+
+                try:
+                    cur.execute(f"SELECT pg_total_relation_size('{full_table}') as sz;")
+                    size_bytes = int(cur.fetchone()["sz"])
+                except Exception:
+                    size_bytes = 0
+
+        structure = [{"name": c.name, "type": c.data_type, "nullable": c.is_nullable} for c in cols]
+        return {
+            "exists": True,
+            "rowCount": row_cnt,
+            "columnCount": len(cols),
+            "structure": structure,
+            "sizeInBytes": size_bytes,
+            "childItems": [c.name for c in cols]
+        }
+
+    def delete_data(
+        self,
+        object_name: str,
+        filter_expr: Optional[str] = None,
+        truncate: bool = False,
+        schema_name: Optional[str] = None
+    ) -> int:
+        schema = schema_name or "public"
+        full_table = f'"{schema}"."{object_name}"'
+
+        with self._get_connection() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                if truncate:
+                    cur.execute(f"TRUNCATE TABLE {full_table} CASCADE;")
+                    conn.commit()
+                    return 0
+
+                where_clause = f" WHERE {filter_expr}" if filter_expr and filter_expr.strip() else ""
+                cur.execute(f"DELETE FROM {full_table}{where_clause};")
+                deleted = cur.rowcount
+                conn.commit()
+                return deleted

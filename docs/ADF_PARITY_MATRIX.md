@@ -20,10 +20,10 @@
 ## 1. Summary Statistics
 
 - **Total Activities Catalogued:** 48
-- **Production Ready / Testing Complete:** 8
-- **In Progress:** 2
-- **Not Started / Planned:** 38
-- **Current Parity Score:** **17.8%**
+- **Production Ready / Testing Complete:** 10
+- **In Progress:** 1
+- **Not Started / Planned:** 37
+- **Current Parity Score:** **37.8%**
 
 ---
 
@@ -35,8 +35,8 @@
 |---|---|---|---|---|---|---|---|
 | **Copy Data** | Complete | Complete | Complete | Complete | Complete | None | **Production Ready** |
 | **Lookup** | Complete | Complete | Complete | Complete | Complete | None | **Production Ready** |
-| **Get Metadata** | In Progress | In Progress | In Progress | In Progress | None | None | **In Progress** |
-| **Delete Data** | Not Started | Not Started | Not Started | Not Started | None | None | **Not Started** |
+| **Get Metadata** | Complete | Complete | Complete | Complete | Complete | None | **Production Ready** |
+| **Delete Data** | Complete | Complete | Complete | Complete | Complete | None | **Production Ready** |
 | **File Transfer / SFTP** | Not Started | Not Started | Not Started | Not Started | None | SFTP Server | **Not Started** |
 | **Data Quality Check** | Complete | Complete | Complete | Complete | Complete | None | **Production Ready** |
 

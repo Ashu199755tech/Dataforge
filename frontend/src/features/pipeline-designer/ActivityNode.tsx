@@ -12,7 +12,9 @@ import {
   Globe,
   Ban,
   Trash2,
-  X
+  X,
+  FileSearch,
+  Database
 } from 'lucide-react';
 
 export const ActivityNode: React.FC<NodeProps> = ({ id, data, selected }) => {
@@ -49,6 +51,10 @@ export const ActivityNode: React.FC<NodeProps> = ({ id, data, selected }) => {
         return <GitFork className="h-4 w-4 text-orange-400" />;
       case 'RestApi':
         return <Globe className="h-4 w-4 text-sky-400" />;
+      case 'GetMetadata':
+        return <FileSearch className="h-4 w-4 text-indigo-400" />;
+      case 'DeleteData':
+        return <Trash2 className="h-4 w-4 text-rose-400" />;
       default:
         return <Layers className="h-4 w-4 text-slate-400" />;
     }
@@ -160,6 +166,20 @@ export const ActivityNode: React.FC<NodeProps> = ({ id, data, selected }) => {
         {activityData.config?.wait_time_in_seconds && (
           <div className="text-amber-300 text-[10px]">
             Wait: {activityData.config.wait_time_in_seconds}s
+          </div>
+        )}
+
+        {activityData.activityType === 'GetMetadata' && activityData.config?.table_name && (
+          <div className="truncate text-indigo-400 text-[10px] flex items-center gap-1">
+            <span className="text-slate-500">Inspect:</span>
+            <span className="font-semibold">{activityData.config.table_name}</span>
+          </div>
+        )}
+
+        {activityData.activityType === 'DeleteData' && activityData.config?.table_name && (
+          <div className="truncate text-rose-400 text-[10px] flex items-center gap-1">
+            <span className="text-slate-500">{activityData.config.delete_mode === 'truncate' ? 'Truncate:' : 'Delete:'}</span>
+            <span className="font-semibold">{activityData.config.table_name}</span>
           </div>
         )}
       </div>

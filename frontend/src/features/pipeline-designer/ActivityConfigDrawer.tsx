@@ -16,7 +16,8 @@ import {
   Sliders,
   GitPullRequest,
   Ban,
-  Trash2
+  Trash2,
+  FileSearch
 } from 'lucide-react';
 
 interface ConfigDrawerProps {
@@ -285,6 +286,17 @@ export const ActivityConfigDrawer: React.FC<ConfigDrawerProps> = ({
                       />
                     </div>
                   </div>
+
+                  <div>
+                    <label className="block text-slate-400 mb-1 text-[11px]">Pre-Copy Script (Optional)</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. TRUNCATE TABLE target_orders"
+                      value={config.destination?.pre_copy_script || ''}
+                      onChange={(e) => updateConfig({ destination: { ...(config.destination || {}), pre_copy_script: e.target.value } })}
+                      className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono text-[11px]"
+                    />
+                  </div>
                 </div>
               </div>
             )}
@@ -441,6 +453,121 @@ export const ActivityConfigDrawer: React.FC<ConfigDrawerProps> = ({
                     />
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* GET METADATA */}
+            {activityType === 'GetMetadata' && (
+              <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-lg space-y-2.5">
+                <div className="flex items-center justify-between text-slate-300 font-semibold text-[11px] uppercase tracking-wider">
+                  <span>Metadata Inspection</span>
+                  <FileSearch className="h-3.5 w-3.5 text-indigo-400" />
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 mb-1 text-[11px]">Connection</label>
+                  <select
+                    value={config.connection_id || ''}
+                    onChange={(e) => updateConfig({ connection_id: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200"
+                  >
+                    <option value="">Select connection...</option>
+                    {connections.map((c) => (
+                      <option key={c.id} value={c.id}>{c.name} ({c.connector_type})</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 mb-1 text-[11px]">Dataset / Table Name</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. source_orders or orders.csv"
+                    value={config.table_name || ''}
+                    onChange={(e) => updateConfig({ table_name: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono text-[11px]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 mb-1 text-[11px]">Schema / Database (Optional)</label>
+                  <input
+                    type="text"
+                    placeholder="public or db_name"
+                    value={config.schema_name || ''}
+                    onChange={(e) => updateConfig({ schema_name: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono text-[11px]"
+                  />
+                </div>
+
+                <div className="p-2.5 bg-slate-900/60 border border-slate-800 rounded text-[10px] text-slate-400 space-y-1">
+                  <span className="font-semibold text-slate-300">Retrieved Output Attributes:</span>
+                  <div>• <code className="text-indigo-300">exists</code>: Boolean check if object exists</div>
+                  <div>• <code className="text-indigo-300">rowCount</code>: Exact row count</div>
+                  <div>• <code className="text-indigo-300">columnCount</code>: Number of columns</div>
+                  <div>• <code className="text-indigo-300">structure</code>: List of columns with datatypes</div>
+                  <div>• <code className="text-indigo-300">sizeInBytes</code>: Total storage size in bytes</div>
+                </div>
+              </div>
+            )}
+
+            {/* DELETE DATA */}
+            {activityType === 'DeleteData' && (
+              <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-lg space-y-2.5">
+                <div className="flex items-center justify-between text-slate-300 font-semibold text-[11px] uppercase tracking-wider">
+                  <span>Delete & Cleanup</span>
+                  <Trash2 className="h-3.5 w-3.5 text-rose-400" />
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 mb-1 text-[11px]">Connection</label>
+                  <select
+                    value={config.connection_id || ''}
+                    onChange={(e) => updateConfig({ connection_id: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200"
+                  >
+                    <option value="">Select connection...</option>
+                    {connections.map((c) => (
+                      <option key={c.id} value={c.id}>{c.name} ({c.connector_type})</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 mb-1 text-[11px]">Dataset / Table Name</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. staging_orders"
+                    value={config.table_name || ''}
+                    onChange={(e) => updateConfig({ table_name: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono text-[11px]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 mb-1 text-[11px]">Delete Mode</label>
+                  <select
+                    value={config.delete_mode || 'conditional'}
+                    onChange={(e) => updateConfig({ delete_mode: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 text-[11px]"
+                  >
+                    <option value="conditional">Conditional Filter (DELETE WHERE)</option>
+                    <option value="truncate">Fast Table Truncation (TRUNCATE TABLE)</option>
+                  </select>
+                </div>
+
+                {config.delete_mode !== 'truncate' && (
+                  <div>
+                    <label className="block text-slate-400 mb-1 text-[11px]">Filter Expression (WHERE Clause)</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. status = 'OBSOLETE' or created_at < '2024-01-01'"
+                      value={config.filter_expr || ''}
+                      onChange={(e) => updateConfig({ filter_expr: e.target.value })}
+                      className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono text-[11px]"
+                    />
+                  </div>
+                )}
               </div>
             )}
           </div>

@@ -10,7 +10,9 @@ import {
   Globe,
   Cpu,
   Layers,
-  Sparkles
+  Sparkles,
+  FileSearch,
+  Trash2
 } from 'lucide-react';
 import api from '../../api/client';
 
@@ -28,6 +30,8 @@ const DEFAULT_ACTIVITIES = [
     items: [
       { type: 'CopyData', label: 'Copy Data', icon: ArrowRightLeft, color: 'text-brand-400', desc: 'Stream from source to destination' },
       { type: 'Lookup', label: 'Lookup', icon: Search, color: 'text-teal-400', desc: 'Read dataset or single record' },
+      { type: 'GetMetadata', label: 'Get Metadata', icon: FileSearch, color: 'text-indigo-400', desc: 'Inspect table/file structure & rows' },
+      { type: 'DeleteData', label: 'Delete Data', icon: Trash2, color: 'text-rose-400', desc: 'Cleanup records or truncate tables' },
       { type: 'DataQualityCheck', label: 'Data Quality', icon: ShieldCheck, color: 'text-purple-400', desc: 'Enforce SLAs and data integrity' },
     ]
   },
@@ -68,6 +72,10 @@ const getIconComponent = (iconName: string) => {
       return Globe;
     case 'cpu':
       return Cpu;
+    case 'filesearch':
+      return FileSearch;
+    case 'trash2':
+      return Trash2;
     default:
       return Layers;
   }
@@ -77,6 +85,8 @@ const getColorClass = (type: string) => {
   switch (type.toLowerCase()) {
     case 'copydata': return 'text-brand-400';
     case 'lookup': return 'text-teal-400';
+    case 'getmetadata': return 'text-indigo-400';
+    case 'deletedata': return 'text-rose-400';
     case 'dataqualitycheck': return 'text-purple-400';
     case 'ifcondition': return 'text-orange-400';
     case 'setvariable': return 'text-cyan-400';

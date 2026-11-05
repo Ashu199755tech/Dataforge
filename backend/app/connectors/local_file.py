@@ -172,3 +172,60 @@ class LocalFileConnector(BaseConnector):
 
     def execute_query(self, query: str, params: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
         return []
+
+    def get_metadata(
+        self,
+        object_name: str,
+        schema_name: Optional[str] = None
+    ) -> Dict[str, Any]:
+        file_path = os.path.join(self.base_dir, object_name)
+        if not os.path.exists(file_path):
+            return {
+                "exists": False,
+                "rowCount": 0,
+                "columnCount": 0,
+                "structure": [],
+                "sizeInBytes": 0,
+                "childItems": []
+            }
+
+        size_bytes = os.path.getsize(file_path)
+        cols = self.discover_columns(object_name)
+        row_cnt = 0
+
+        try:
+            if object_name.endswith(".csv"):
+                with open(file_path, "r", encoding="utf-8") as f:
+                    reader = csv.reader(f)
+                    # header count
+                    next(reader, None)
+                    row_cnt = sum(1 for _ in reader)
+            elif object_name.endswith(".json"):
+                with open(file_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    row_cnt = len(data) if isinstance(data, list) else 1
+        except Exception:
+            row_cnt = 0
+
+        structure = [{"name": c.name, "type": c.data_type, "nullable": c.is_nullable} for c in cols]
+        return {
+            "exists": True,
+            "rowCount": row_cnt,
+            "columnCount": len(cols),
+            "structure": structure,
+            "sizeInBytes": size_bytes,
+            "childItems": [c.name for c in cols]
+        }
+
+    def delete_data(
+        self,
+        object_name: str,
+        filter_expr: Optional[str] = None,
+        truncate: bool = False,
+        schema_name: Optional[str] = None
+    ) -> int:
+        file_path = os.path.join(self.base_dir, object_name)
+        if os.path.exists(file_path):
+            os.remove(file_path)
+            return 1
+        return 0

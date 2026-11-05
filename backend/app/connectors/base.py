@@ -93,3 +93,68 @@ class BaseConnector(ABC):
     def execute_query(self, query: str, params: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
         """Executes arbitrary SQL and returns rows as dicts."""
         pass
+
+    def get_metadata(
+        self,
+        object_name: str,
+        schema_name: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Discovers metadata for a dataset/table: existence, row count, column count, structure, size.
+        """
+        try:
+            cols = self.discover_columns(object_name, schema_name=schema_name)
+            if not cols:
+                return {
+                    "exists": False,
+                    "rowCount": 0,
+                    "columnCount": 0,
+                    "structure": [],
+                    "sizeInBytes": 0,
+                    "childItems": []
+                }
+
+            full_table = f'"{schema_name}"."{object_name}"' if schema_name else f'"{object_name}"'
+            count_rows = self.execute_query(f"SELECT COUNT(*) as cnt FROM {full_table}")
+            row_count = int(count_rows[0].get("cnt", 0)) if count_rows else 0
+
+            structure = [{"name": c.name, "type": c.data_type, "nullable": c.is_nullable} for c in cols]
+            return {
+                "exists": True,
+                "rowCount": row_count,
+                "columnCount": len(cols),
+                "structure": structure,
+                "sizeInBytes": 0,
+                "childItems": [c.name for c in cols]
+            }
+        except Exception:
+            return {
+                "exists": False,
+                "rowCount": 0,
+                "columnCount": 0,
+                "structure": [],
+                "sizeInBytes": 0,
+                "childItems": []
+            }
+
+    def delete_data(
+        self,
+        object_name: str,
+        filter_expr: Optional[str] = None,
+        truncate: bool = False,
+        schema_name: Optional[str] = None
+    ) -> int:
+        """
+        Deletes rows from an object conditionally or truncates table.
+        Returns the number of rows deleted.
+        """
+        full_table = f'"{schema_name}"."{object_name}"' if schema_name else f'"{object_name}"'
+        if truncate:
+            self.execute_query(f"TRUNCATE TABLE {full_table}")
+            return 0
+
+        where_clause = f" WHERE {filter_expr}" if filter_expr and filter_expr.strip() else ""
+        cnt_rows = self.execute_query(f"SELECT COUNT(*) as cnt FROM {full_table}{where_clause}")
+        cnt_to_delete = int(cnt_rows[0].get("cnt", 0)) if cnt_rows else 0
+        self.execute_query(f"DELETE FROM {full_table}{where_clause}")
+        return cnt_to_delete
