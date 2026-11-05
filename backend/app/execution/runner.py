@@ -93,7 +93,27 @@ class PipelineRunner:
 
             # Main execution loop
             while pending_activities:
-                # Find runnable activities whose dependencies are satisfied
+                # 1. Detect dead activities whose conditions cannot be satisfied and mark them Skipped
+                dead_activities = [
+                    act_id for act_id in pending_activities
+                    if dag.is_activity_dead(act_id, completed_activities)
+                ]
+                if dead_activities:
+                    for act_id in dead_activities:
+                        completed_activities[act_id] = "Skipped"
+                        pending_activities.remove(act_id)
+                        act_run = db.query(ActivityRun).filter(
+                            ActivityRun.pipeline_run_id == self.run_id,
+                            ActivityRun.activity_id == act_id
+                        ).first()
+                        if act_run:
+                            act_run.status = "Skipped"
+                            act_run.ended_at = datetime.now(timezone.utc)
+                            print(f"[INFO] Activity '{act_id}' skipped due to upstream conditions.")
+                    db.commit()
+                    continue
+
+                # 2. Find runnable activities whose dependencies are satisfied
                 runnable = [
                     act_id for act_id in pending_activities 
                     if dag.is_activity_ready(act_id, completed_activities)
@@ -109,6 +129,7 @@ class PipelineRunner:
                         ).first()
                         if act_run:
                             act_run.status = "Skipped"
+                            act_run.ended_at = datetime.now(timezone.utc)
                     break
 
                 for act_id in runnable:
@@ -117,6 +138,16 @@ class PipelineRunner:
                         ActivityRun.pipeline_run_id == self.run_id,
                         ActivityRun.activity_id == act_id
                     ).first()
+
+                    # Check if activity itself is deactivated
+                    if act_cfg.get("state") in ("Inactive", "Deactivated", "Disabled"):
+                        act_run.status = "Skipped"
+                        act_run.ended_at = datetime.now(timezone.utc)
+                        completed_activities[act_id] = "Skipped"
+                        pending_activities.remove(act_id)
+                        db.commit()
+                        print(f"[INFO] Activity '{act_id}' skipped because it is deactivated.")
+                        continue
 
                     act_start_clock = time.time()
                     act_run.status = "Running"
@@ -204,9 +235,20 @@ class PipelineRunner:
             pipeline_run.succeeded_activities = succeeded_count
             pipeline_run.failed_activities = failed_count
 
-            if failed_count > 0:
+            # Determine if any failures were unhandled
+            unhandled_failures = []
+            for failed_act_id in [a for a, s in completed_activities.items() if s == "Failed"]:
+                downstream_edges = dag.graph.get(failed_act_id, [])
+                failure_handlers = [e["activity_id"] for e in downstream_edges if e.get("condition") == "Failed"]
+                if not failure_handlers or not any(completed_activities.get(h) == "Succeeded" for h in failure_handlers):
+                    unhandled_failures.append(failed_act_id)
+
+            if unhandled_failures:
                 pipeline_run.status = "Failed"
-                pipeline_run.error_summary = f"{failed_count} activities failed during execution."
+                pipeline_run.error_summary = f"{len(unhandled_failures)} unhandled activity failure(s): {', '.join(unhandled_failures)}"
+            elif failed_count > 0:
+                pipeline_run.status = "Succeeded"
+                pipeline_run.error_summary = f"{failed_count} activity failure(s) handled by On Failure branch."
             else:
                 pipeline_run.status = "Succeeded"
 

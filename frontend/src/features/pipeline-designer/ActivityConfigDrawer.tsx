@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useAppStore } from '../../store/useAppStore';
+import { Node, Edge } from '@xyflow/react';
 import api from '../../api/client';
 import { 
   X, 
@@ -11,30 +12,45 @@ import {
   Variable, 
   Clock, 
   GitFork, 
-  Globe 
+  Globe,
+  Sliders,
+  GitPullRequest,
+  Ban
 } from 'lucide-react';
 
 interface ConfigDrawerProps {
-  selectedNode: any;
+  selectedNode: Node | null;
+  allNodes: Node[];
+  allEdges: Edge[];
   onUpdateNode: (nodeId: string, updatedData: any) => void;
+  onUpdateDependencyCondition: (edgeId: string, newCondition: string) => void;
   onClose: () => void;
 }
 
 export const ActivityConfigDrawer: React.FC<ConfigDrawerProps> = ({
   selectedNode,
+  allNodes,
+  allEdges,
   onUpdateNode,
+  onUpdateDependencyCondition,
   onClose
 }) => {
   const { connections } = useAppStore();
+  const [activeTab, setActiveTab] = useState<'config' | 'general' | 'dependencies'>('config');
   const [sourceTables, setSourceTables] = useState<string[]>([]);
   const [destTables, setDestTables] = useState<string[]>([]);
 
   if (!selectedNode) return null;
 
   const { id } = selectedNode;
-  const data = selectedNode.data || {};
+  const data = (selectedNode.data as any) || {};
   const config = data.config || {};
   const activityType = data.activityType || 'CopyData';
+  const state = data.state || 'Active';
+  const retryPolicy = data.retry_policy || { max_retries: 0, retry_interval_seconds: 2 };
+
+  // Incoming edges (dependencies for this activity)
+  const incomingEdges = allEdges.filter((e) => e.target === id);
 
   const updateConfig = (newConfigPartial: any) => {
     const updated = {
@@ -78,368 +94,463 @@ export const ActivityConfigDrawer: React.FC<ConfigDrawerProps> = ({
   };
 
   return (
-    <div className="w-96 bg-slate-900 border-l border-slate-800 p-5 space-y-5 overflow-y-auto shrink-0 flex flex-col justify-between">
+    <div className="w-[400px] bg-slate-900 border-l border-slate-800 p-5 space-y-4 overflow-y-auto shrink-0 flex flex-col justify-between select-none">
       <div className="space-y-4">
         {/* Header */}
         <div className="flex items-center justify-between pb-3 border-b border-slate-800">
           <div className="flex items-center gap-2">
             <Settings2 className="h-4 w-4 text-brand-400" />
-            <h3 className="text-sm font-semibold text-white">Activity Settings</h3>
+            <h3 className="text-sm font-semibold text-white">Activity Properties</h3>
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-white">
             <X className="h-4 w-4" />
           </button>
         </div>
 
-        {/* General Info */}
-        <div className="space-y-3 text-xs">
-          <div>
-            <label className="block text-slate-400 mb-1 font-medium">Activity Name</label>
-            <input
-              type="text"
-              value={data.label || ''}
-              onChange={(e) => onUpdateNode(id, { ...data, label: e.target.value })}
-              className="w-full bg-slate-950 border border-slate-800 rounded px-3 py-1.5 text-slate-200 focus:outline-none focus:border-brand-500 font-medium"
-            />
-          </div>
+        {/* Navigation Tabs (ADF Style) */}
+        <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800 text-xs">
+          <button
+            onClick={() => setActiveTab('config')}
+            className={`flex-1 py-1.5 px-2 rounded-md font-medium transition flex items-center justify-center gap-1.5 ${
+              activeTab === 'config'
+                ? 'bg-brand-600 text-white shadow-sm'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Sliders className="h-3.5 w-3.5" />
+            <span>Settings</span>
+          </button>
 
-          <div>
-            <label className="block text-slate-400 mb-1 font-medium">Activity Type</label>
-            <div className="px-3 py-1.5 bg-slate-950/80 border border-slate-800 rounded font-mono text-[11px] text-brand-400">
-              {activityType}
-            </div>
-          </div>
+          <button
+            onClick={() => setActiveTab('dependencies')}
+            className={`flex-1 py-1.5 px-2 rounded-md font-medium transition flex items-center justify-center gap-1.5 ${
+              activeTab === 'dependencies'
+                ? 'bg-brand-600 text-white shadow-sm'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <GitPullRequest className="h-3.5 w-3.5" />
+            <span>Conditions ({incomingEdges.length})</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('general')}
+            className={`flex-1 py-1.5 px-2 rounded-md font-medium transition flex items-center justify-center gap-1.5 ${
+              activeTab === 'general'
+                ? 'bg-brand-600 text-white shadow-sm'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <span>General</span>
+          </button>
         </div>
 
-        {/* ================= COPY DATA ================= */}
-        {activityType === 'CopyData' && (
-          <div className="space-y-4 pt-2 border-t border-slate-800/80 text-xs">
-            <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-lg space-y-2.5">
-              <div className="flex items-center justify-between text-slate-300 font-semibold text-[11px] uppercase tracking-wider">
-                <span>1. Source Connection</span>
-                <Database className="h-3.5 w-3.5 text-amber-400" />
-              </div>
+        {/* TAB 1: ACTIVITY CONFIGURATION */}
+        {activeTab === 'config' && (
+          <div className="space-y-4 text-xs">
+            {/* COPY DATA */}
+            {activityType === 'CopyData' && (
+              <div className="space-y-3">
+                <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-lg space-y-2.5">
+                  <div className="flex items-center justify-between text-slate-300 font-semibold text-[11px] uppercase tracking-wider">
+                    <span>Source Connection</span>
+                    <Database className="h-3.5 w-3.5 text-amber-400" />
+                  </div>
 
-              <div>
-                <label className="block text-slate-400 mb-1 text-[11px]">Source Connection</label>
-                <select
-                  value={config.source?.connection_id || ''}
-                  onChange={(e) => handleSourceConnChange(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 focus:outline-none focus:border-brand-500"
-                >
-                  <option value="">Select connection...</option>
-                  {connections.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name} ({c.connector_type})
-                    </option>
-                  ))}
-                </select>
-              </div>
+                  <div>
+                    <label className="block text-slate-400 mb-1 text-[11px]">Connection</label>
+                    <select
+                      value={config.source?.connection_id || ''}
+                      onChange={(e) => handleSourceConnChange(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200"
+                    >
+                      <option value="">Select connection...</option>
+                      {connections.map((c) => (
+                        <option key={c.id} value={c.id}>{c.name} ({c.connector_type})</option>
+                      ))}
+                    </select>
+                  </div>
 
-              <div>
-                <label className="block text-slate-400 mb-1 text-[11px]">Source Table</label>
-                <input
-                  type="text"
-                  placeholder="e.g. source_orders"
-                  value={config.source?.table_name || ''}
-                  onChange={(e) =>
-                    updateConfig({
-                      source: { ...(config.source || {}), table_name: e.target.value }
-                    })
-                  }
-                  className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 focus:outline-none focus:border-brand-500"
-                />
-              </div>
+                  <div>
+                    <label className="block text-slate-400 mb-1 text-[11px]">Source Table</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. source_orders"
+                      value={config.source?.table_name || ''}
+                      onChange={(e) => updateConfig({ source: { ...(config.source || {}), table_name: e.target.value } })}
+                      className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200"
+                    />
+                  </div>
 
-              {/* Watermark Section */}
-              <div className="pt-2 border-t border-slate-800/80 space-y-2">
-                <div className="text-[11px] font-medium text-slate-400">Incremental Watermark</div>
-                <div className="grid grid-cols-2 gap-2">
-                  <input
-                    type="text"
-                    placeholder="Column (updated_at)"
-                    value={config.source?.incremental?.column || ''}
-                    onChange={(e) =>
-                      updateConfig({
-                        source: {
-                          ...(config.source || {}),
-                          incremental: {
-                            ...(config.source?.incremental || {}),
-                            mode: 'watermark',
-                            column: e.target.value
+                  <div className="pt-2 border-t border-slate-800/80 space-y-2">
+                    <div className="text-[11px] font-medium text-slate-400">Incremental Watermark</div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        type="text"
+                        placeholder="Column (updated_at)"
+                        value={config.source?.incremental?.column || ''}
+                        onChange={(e) => updateConfig({
+                          source: {
+                            ...(config.source || {}),
+                            incremental: { ...(config.source?.incremental || {}), mode: 'watermark', column: e.target.value }
                           }
-                        }
-                      })
-                    }
-                    className="bg-slate-900 border border-slate-700/80 rounded px-2 py-1 text-slate-200 text-[11px]"
+                        })}
+                        className="bg-slate-900 border border-slate-700/80 rounded px-2 py-1 text-slate-200 text-[11px]"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Watermark Value"
+                        value={config.source?.incremental?.watermark_value || ''}
+                        onChange={(e) => updateConfig({
+                          source: {
+                            ...(config.source || {}),
+                            incremental: { ...(config.source?.incremental || {}), watermark_value: e.target.value }
+                          }
+                        })}
+                        className="bg-slate-900 border border-slate-700/80 rounded px-2 py-1 text-slate-200 text-[11px]"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-lg space-y-2.5">
+                  <div className="flex items-center justify-between text-slate-300 font-semibold text-[11px] uppercase tracking-wider">
+                    <span>Destination Target</span>
+                    <Database className="h-3.5 w-3.5 text-blue-400" />
+                  </div>
+
+                  <div>
+                    <label className="block text-slate-400 mb-1 text-[11px]">Connection</label>
+                    <select
+                      value={config.destination?.connection_id || ''}
+                      onChange={(e) => handleDestConnChange(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200"
+                    >
+                      <option value="">Select connection...</option>
+                      {connections.map((c) => (
+                        <option key={c.id} value={c.id}>{c.name} ({c.connector_type})</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-slate-400 mb-1 text-[11px]">Target Table</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. target_orders"
+                      value={config.destination?.table_name || ''}
+                      onChange={(e) => updateConfig({ destination: { ...(config.destination || {}), table_name: e.target.value } })}
+                      className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-slate-400 mb-1 text-[11px]">Write Mode</label>
+                      <select
+                        value={config.destination?.write_mode || 'append'}
+                        onChange={(e) => updateConfig({ destination: { ...(config.destination || {}), write_mode: e.target.value } })}
+                        className="w-full bg-slate-900 border border-slate-700/80 rounded px-2 py-1 text-slate-200 text-[11px]"
+                      >
+                        <option value="append">Append</option>
+                        <option value="overwrite">Overwrite</option>
+                        <option value="upsert">Upsert / Merge</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-slate-400 mb-1 text-[11px]">Key Column</label>
+                      <input
+                        type="text"
+                        placeholder="order_id"
+                        value={(config.destination?.key_columns || []).join(', ')}
+                        onChange={(e) => updateConfig({
+                          destination: {
+                            ...(config.destination || {}),
+                            key_columns: e.target.value.split(',').map((s) => s.trim()).filter(Boolean)
+                          }
+                        })}
+                        className="w-full bg-slate-900 border border-slate-700/80 rounded px-2 py-1 text-slate-200 text-[11px]"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* LOOKUP */}
+            {activityType === 'Lookup' && (
+              <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-lg space-y-2.5">
+                <div className="flex items-center justify-between text-slate-300 font-semibold text-[11px] uppercase tracking-wider">
+                  <span>Lookup Query & Table</span>
+                  <Search className="h-3.5 w-3.5 text-teal-400" />
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 mb-1 text-[11px]">Connection</label>
+                  <select
+                    value={config.connection_id || ''}
+                    onChange={(e) => updateConfig({ connection_id: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200"
+                  >
+                    <option value="">Select connection...</option>
+                    {connections.map((c) => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 mb-1 text-[11px]">Custom Query</label>
+                  <textarea
+                    rows={3}
+                    placeholder="SELECT MAX(updated_at) as max_date FROM source_orders"
+                    value={config.query || ''}
+                    onChange={(e) => updateConfig({ query: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono text-[11px]"
                   />
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="first_row"
+                    checked={config.first_row_only !== false}
+                    onChange={(e) => updateConfig({ first_row_only: e.target.checked })}
+                    className="rounded bg-slate-800 text-brand-500"
+                  />
+                  <label htmlFor="first_row" className="text-slate-300 text-[11px]">First Row Only</label>
+                </div>
+              </div>
+            )}
+
+            {/* SET VARIABLE */}
+            {activityType === 'SetVariable' && (
+              <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-lg space-y-2.5">
+                <div className="flex items-center justify-between text-slate-300 font-semibold text-[11px] uppercase tracking-wider">
+                  <span>Set Variable</span>
+                  <Variable className="h-3.5 w-3.5 text-cyan-400" />
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 mb-1 text-[11px]">Variable Name</label>
                   <input
                     type="text"
-                    placeholder="Value (@variables('watermark'))"
-                    value={config.source?.incremental?.watermark_value || ''}
-                    onChange={(e) =>
-                      updateConfig({
-                        source: {
-                          ...(config.source || {}),
-                          incremental: {
-                            ...(config.source?.incremental || {}),
-                            watermark_value: e.target.value
-                          }
-                        }
-                      })
-                    }
-                    className="bg-slate-900 border border-slate-700/80 rounded px-2 py-1 text-slate-200 text-[11px]"
+                    placeholder="e.g. high_watermark"
+                    value={config.variable_name || ''}
+                    onChange={(e) => updateConfig({ variable_name: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 mb-1 text-[11px]">Expression / Value</label>
+                  <input
+                    type="text"
+                    placeholder="@activity('Lookup').output.first_row.max_date"
+                    value={config.value || ''}
+                    onChange={(e) => updateConfig({ value: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono"
                   />
                 </div>
               </div>
+            )}
+
+            {/* IF CONDITION */}
+            {activityType === 'IfCondition' && (
+              <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-lg space-y-2.5">
+                <div className="flex items-center justify-between text-slate-300 font-semibold text-[11px] uppercase tracking-wider">
+                  <span>Condition Expression</span>
+                  <GitFork className="h-3.5 w-3.5 text-orange-400" />
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 mb-1 text-[11px]">Expression</label>
+                  <input
+                    type="text"
+                    placeholder="@equals(@parameters('env'), 'production')"
+                    value={config.expression || ''}
+                    onChange={(e) => updateConfig({ expression: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* WAIT */}
+            {activityType === 'Wait' && (
+              <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-lg space-y-2.5">
+                <div className="flex items-center justify-between text-slate-300 font-semibold text-[11px] uppercase tracking-wider">
+                  <span>Wait Duration</span>
+                  <Clock className="h-3.5 w-3.5 text-amber-400" />
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 mb-1 text-[11px]">Duration (seconds)</label>
+                  <input
+                    type="number"
+                    value={config.wait_time_in_seconds || 1}
+                    onChange={(e) => updateConfig({ wait_time_in_seconds: parseInt(e.target.value) || 1 })}
+                    className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* REST API */}
+            {activityType === 'RestApi' && (
+              <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-lg space-y-2.5">
+                <div className="flex items-center justify-between text-slate-300 font-semibold text-[11px] uppercase tracking-wider">
+                  <span>REST API Endpoint</span>
+                  <Globe className="h-3.5 w-3.5 text-sky-400" />
+                </div>
+
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <label className="block text-slate-400 mb-1 text-[11px]">Method</label>
+                    <select
+                      value={config.method || 'GET'}
+                      onChange={(e) => updateConfig({ method: e.target.value })}
+                      className="w-full bg-slate-900 border border-slate-700/80 rounded px-2 py-1 text-slate-200 text-[11px]"
+                    >
+                      <option value="GET">GET</option>
+                      <option value="POST">POST</option>
+                      <option value="PUT">PUT</option>
+                      <option value="DELETE">DELETE</option>
+                    </select>
+                  </div>
+                  <div className="col-span-2">
+                    <label className="block text-slate-400 mb-1 text-[11px]">Endpoint URL</label>
+                    <input
+                      type="text"
+                      placeholder="https://api.example.com/webhook"
+                      value={config.url || ''}
+                      onChange={(e) => updateConfig({ url: e.target.value })}
+                      className="w-full bg-slate-900 border border-slate-700/80 rounded px-2 py-1 text-slate-200 font-mono text-[11px]"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* TAB 2: DEPENDENCIES & OUTCOME CONDITIONS (ADF STYLE) */}
+        {activeTab === 'dependencies' && (
+          <div className="space-y-3 text-xs">
+            <div className="text-[11px] text-slate-400">
+              Configure conditions under which this activity triggers from upstream activities:
             </div>
 
-            <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-lg space-y-2.5">
-              <div className="flex items-center justify-between text-slate-300 font-semibold text-[11px] uppercase tracking-wider">
-                <span>2. Destination Target</span>
-                <Database className="h-3.5 w-3.5 text-blue-400" />
+            {incomingEdges.length === 0 ? (
+              <div className="p-6 text-center text-slate-500 bg-slate-950/60 border border-slate-800 rounded-lg text-xs">
+                This activity is a root entry point. Connect incoming output handles from other activities to add dependency conditions.
               </div>
+            ) : (
+              <div className="space-y-2">
+                {incomingEdges.map((edge) => {
+                  const parentNode = allNodes.find((n) => n.id === edge.source);
+                  const parentName = (parentNode?.data as any)?.label || edge.source;
+                  const currentCond = (edge.data as any)?.condition || 'Succeeded';
 
-              <div>
-                <label className="block text-slate-400 mb-1 text-[11px]">Destination Connection</label>
-                <select
-                  value={config.destination?.connection_id || ''}
-                  onChange={(e) => handleDestConnChange(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 focus:outline-none focus:border-brand-500"
-                >
-                  <option value="">Select connection...</option>
-                  {connections.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name} ({c.connector_type})
-                    </option>
-                  ))}
-                </select>
+                  return (
+                    <div key={edge.id} className="p-3 bg-slate-950/80 border border-slate-800 rounded-lg space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold text-slate-200">{parentName}</span>
+                        <span className="text-[10px] font-mono text-slate-500">{edge.source}</span>
+                      </div>
+
+                      <div>
+                        <label className="block text-slate-400 mb-1 text-[11px]">Trigger Condition</label>
+                        <select
+                          value={currentCond}
+                          onChange={(e) => onUpdateDependencyCondition(edge.id, e.target.value)}
+                          className="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-1 text-slate-200 text-xs font-semibold"
+                        >
+                          <option value="Succeeded">🟢 Upon Success (Succeeded)</option>
+                          <option value="Failed">🔴 Upon Failure (Failed)</option>
+                          <option value="Completed">🔵 Upon Completion (Completed)</option>
+                          <option value="Skipped">⚪ Upon Skip (Skipped)</option>
+                        </select>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
+            )}
 
-              <div>
-                <label className="block text-slate-400 mb-1 text-[11px]">Target Table</label>
-                <input
-                  type="text"
-                  placeholder="e.g. target_orders"
-                  value={config.destination?.table_name || ''}
-                  onChange={(e) =>
-                    updateConfig({
-                      destination: { ...(config.destination || {}), table_name: e.target.value }
-                    })
-                  }
-                  className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 focus:outline-none focus:border-brand-500"
-                />
-              </div>
+            <div className="p-3 bg-slate-950/50 border border-slate-800/80 rounded text-[11px] text-slate-400 space-y-1">
+              <div className="font-semibold text-slate-300">Condition Guide:</div>
+              <div>• <span className="text-emerald-400 font-semibold">Success</span>: Runs only if parent succeeds.</div>
+              <div>• <span className="text-rose-400 font-semibold">Failure</span>: Runs if parent fails (error handling/cleanup).</div>
+              <div>• <span className="text-blue-400 font-semibold">Completion</span>: Runs after parent terminates regardless of success.</div>
+              <div>• <span className="text-slate-400 font-semibold">Skip</span>: Runs if parent was skipped due to prior conditions.</div>
+            </div>
+          </div>
+        )}
 
+        {/* TAB 3: GENERAL SETTINGS & STATE (ACTIVE / SKIP) */}
+        {activeTab === 'general' && (
+          <div className="space-y-4 text-xs">
+            <div>
+              <label className="block text-slate-400 mb-1 font-medium">Activity Name</label>
+              <input
+                type="text"
+                value={data.label || ''}
+                onChange={(e) => onUpdateNode(id, { ...data, label: e.target.value })}
+                className="w-full bg-slate-950 border border-slate-800 rounded px-3 py-1.5 text-slate-200 focus:outline-none focus:border-brand-500 font-medium"
+              />
+            </div>
+
+            {/* Activity State (Active vs Disabled / Skip) */}
+            <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-lg space-y-2">
+              <label className="block text-slate-300 font-semibold text-[11px] uppercase tracking-wider">
+                Activity Execution State
+              </label>
+              <select
+                value={state}
+                onChange={(e) => onUpdateNode(id, { ...data, state: e.target.value })}
+                className="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-1 text-slate-200"
+              >
+                <option value="Active">Active (Executes normally in pipeline)</option>
+                <option value="Disabled">Disabled / Skip (Bypassed during execution)</option>
+              </select>
+              <p className="text-[10px] text-slate-500">
+                Disabled activities will be marked as 'Skipped' at runtime, triggering downstream 'On Skip' paths.
+              </p>
+            </div>
+
+            {/* Retry Policy (ADF Feature) */}
+            <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-lg space-y-2">
+              <label className="block text-slate-300 font-semibold text-[11px] uppercase tracking-wider">
+                Retry Policy
+              </label>
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-slate-400 mb-1 text-[11px]">Write Mode</label>
-                  <select
-                    value={config.destination?.write_mode || 'append'}
-                    onChange={(e) =>
-                      updateConfig({
-                        destination: { ...(config.destination || {}), write_mode: e.target.value }
-                      })
-                    }
-                    className="w-full bg-slate-900 border border-slate-700/80 rounded px-2 py-1 text-slate-200 text-[11px]"
-                  >
-                    <option value="append">Append</option>
-                    <option value="overwrite">Overwrite</option>
-                    <option value="upsert">Upsert / Merge</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-slate-400 mb-1 text-[11px]">Key Column</label>
+                  <label className="block text-slate-400 mb-1 text-[11px]">Max Retries</label>
                   <input
-                    type="text"
-                    placeholder="order_id"
-                    value={(config.destination?.key_columns || []).join(', ')}
-                    onChange={(e) =>
-                      updateConfig({
-                        destination: {
-                          ...(config.destination || {}),
-                          key_columns: e.target.value.split(',').map((s) => s.trim()).filter(Boolean)
-                        }
-                      })
-                    }
-                    className="w-full bg-slate-900 border border-slate-700/80 rounded px-2 py-1 text-slate-200 text-[11px]"
+                    type="number"
+                    min={0}
+                    max={10}
+                    value={retryPolicy.max_retries || 0}
+                    onChange={(e) => onUpdateNode(id, {
+                      ...data,
+                      retry_policy: { ...retryPolicy, max_retries: parseInt(e.target.value) || 0 }
+                    })}
+                    className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-slate-200"
                   />
                 </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ================= LOOKUP ================= */}
-        {activityType === 'Lookup' && (
-          <div className="space-y-3 pt-2 border-t border-slate-800 text-xs">
-            <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-lg space-y-2.5">
-              <div className="flex items-center justify-between text-slate-300 font-semibold text-[11px] uppercase tracking-wider">
-                <span>Lookup Configuration</span>
-                <Search className="h-3.5 w-3.5 text-teal-400" />
-              </div>
-
-              <div>
-                <label className="block text-slate-400 mb-1 text-[11px]">Connection</label>
-                <select
-                  value={config.connection_id || ''}
-                  onChange={(e) => updateConfig({ connection_id: e.target.value })}
-                  className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 focus:outline-none focus:border-brand-500"
-                >
-                  <option value="">Select connection...</option>
-                  {connections.map((c) => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-slate-400 mb-1 text-[11px]">Table Name</label>
-                <input
-                  type="text"
-                  placeholder="e.g. source_orders"
-                  value={config.table_name || ''}
-                  onChange={(e) => updateConfig({ table_name: e.target.value })}
-                  className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200"
-                />
-              </div>
-
-              <div>
-                <label className="block text-slate-400 mb-1 text-[11px]">Or Custom Query</label>
-                <textarea
-                  rows={2}
-                  placeholder="SELECT MAX(updated_at) as max_date FROM orders"
-                  value={config.query || ''}
-                  onChange={(e) => updateConfig({ query: e.target.value })}
-                  className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono text-[11px]"
-                />
-              </div>
-
-              <div className="flex items-center gap-2 pt-1">
-                <input
-                  type="checkbox"
-                  id="first_row"
-                  checked={config.first_row_only !== false}
-                  onChange={(e) => updateConfig({ first_row_only: e.target.checked })}
-                  className="rounded bg-slate-800 border-slate-700 text-brand-500"
-                />
-                <label htmlFor="first_row" className="text-slate-300 text-[11px]">First Row Only</label>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ================= SET VARIABLE ================= */}
-        {activityType === 'SetVariable' && (
-          <div className="space-y-3 pt-2 border-t border-slate-800 text-xs">
-            <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-lg space-y-2.5">
-              <div className="flex items-center justify-between text-slate-300 font-semibold text-[11px] uppercase tracking-wider">
-                <span>Set Variable Configuration</span>
-                <Variable className="h-3.5 w-3.5 text-cyan-400" />
-              </div>
-
-              <div>
-                <label className="block text-slate-400 mb-1 text-[11px]">Variable Name</label>
-                <input
-                  type="text"
-                  placeholder="e.g. high_watermark"
-                  value={config.variable_name || ''}
-                  onChange={(e) => updateConfig({ variable_name: e.target.value })}
-                  className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono"
-                />
-              </div>
-
-              <div>
-                <label className="block text-slate-400 mb-1 text-[11px]">Value / Expression</label>
-                <input
-                  type="text"
-                  placeholder="@activity('Lookup').output.first_row.max_date"
-                  value={config.value || ''}
-                  onChange={(e) => updateConfig({ value: e.target.value })}
-                  className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono"
-                />
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ================= IF CONDITION ================= */}
-        {activityType === 'IfCondition' && (
-          <div className="space-y-3 pt-2 border-t border-slate-800 text-xs">
-            <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-lg space-y-2.5">
-              <div className="flex items-center justify-between text-slate-300 font-semibold text-[11px] uppercase tracking-wider">
-                <span>Condition Expression</span>
-                <GitFork className="h-3.5 w-3.5 text-orange-400" />
-              </div>
-
-              <div>
-                <label className="block text-slate-400 mb-1 text-[11px]">Boolean Expression</label>
-                <input
-                  type="text"
-                  placeholder="@equals(@parameters('env'), 'production')"
-                  value={config.expression || ''}
-                  onChange={(e) => updateConfig({ expression: e.target.value })}
-                  className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono"
-                />
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ================= WAIT ================= */}
-        {activityType === 'Wait' && (
-          <div className="space-y-3 pt-2 border-t border-slate-800 text-xs">
-            <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-lg space-y-2.5">
-              <div className="flex items-center justify-between text-slate-300 font-semibold text-[11px] uppercase tracking-wider">
-                <span>Wait Duration</span>
-                <Clock className="h-3.5 w-3.5 text-amber-400" />
-              </div>
-
-              <div>
-                <label className="block text-slate-400 mb-1 text-[11px]">Duration (seconds)</label>
-                <input
-                  type="number"
-                  placeholder="5"
-                  value={config.wait_time_in_seconds || 1}
-                  onChange={(e) => updateConfig({ wait_time_in_seconds: parseInt(e.target.value) || 1 })}
-                  className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono"
-                />
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ================= REST API ================= */}
-        {activityType === 'RestApi' && (
-          <div className="space-y-3 pt-2 border-t border-slate-800 text-xs">
-            <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-lg space-y-2.5">
-              <div className="flex items-center justify-between text-slate-300 font-semibold text-[11px] uppercase tracking-wider">
-                <span>HTTP Request</span>
-                <Globe className="h-3.5 w-3.5 text-sky-400" />
-              </div>
-
-              <div className="grid grid-cols-3 gap-2">
                 <div>
-                  <label className="block text-slate-400 mb-1 text-[11px]">Method</label>
-                  <select
-                    value={config.method || 'GET'}
-                    onChange={(e) => updateConfig({ method: e.target.value })}
-                    className="w-full bg-slate-900 border border-slate-700/80 rounded px-2 py-1 text-slate-200 text-[11px]"
-                  >
-                    <option value="GET">GET</option>
-                    <option value="POST">POST</option>
-                    <option value="PUT">PUT</option>
-                    <option value="DELETE">DELETE</option>
-                  </select>
-                </div>
-                <div className="col-span-2">
-                  <label className="block text-slate-400 mb-1 text-[11px]">Endpoint URL</label>
+                  <label className="block text-slate-400 mb-1 text-[11px]">Interval (sec)</label>
                   <input
-                    type="text"
-                    placeholder="https://api.example.com/v1/webhook"
-                    value={config.url || ''}
-                    onChange={(e) => updateConfig({ url: e.target.value })}
-                    className="w-full bg-slate-900 border border-slate-700/80 rounded px-2 py-1 text-slate-200 font-mono text-[11px]"
+                    type="number"
+                    min={1}
+                    max={3600}
+                    value={retryPolicy.retry_interval_seconds || 2}
+                    onChange={(e) => onUpdateNode(id, {
+                      ...data,
+                      retry_policy: { ...retryPolicy, retry_interval_seconds: parseInt(e.target.value) || 2 }
+                    })}
+                    className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-slate-200"
                   />
                 </div>
               </div>

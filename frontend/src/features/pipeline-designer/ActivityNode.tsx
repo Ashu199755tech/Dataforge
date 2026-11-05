@@ -9,7 +9,10 @@ import {
   Variable, 
   Clock, 
   GitFork, 
-  Globe 
+  Globe,
+  CheckCircle2,
+  AlertOctagon,
+  Ban
 } from 'lucide-react';
 
 export const ActivityNode: React.FC<NodeProps> = ({ data, selected }) => {
@@ -17,8 +20,15 @@ export const ActivityNode: React.FC<NodeProps> = ({ data, selected }) => {
     label: string;
     activityType: string;
     status?: string;
+    state?: 'Active' | 'Disabled';
     config?: any;
+    retry_policy?: {
+      max_retries: number;
+      retry_interval_seconds: number;
+    };
   };
+
+  const isDeactivated = activityData.state === 'Disabled';
 
   const getIcon = () => {
     switch (activityData.activityType) {
@@ -44,49 +54,150 @@ export const ActivityNode: React.FC<NodeProps> = ({ data, selected }) => {
   };
 
   const getBorderColor = () => {
-    if (selected) return 'border-brand-500 shadow-lg shadow-brand-500/20 ring-2 ring-brand-500/30';
+    if (selected) return 'border-brand-500 shadow-xl shadow-brand-500/20 ring-2 ring-brand-500/40';
+    if (isDeactivated) return 'border-dashed border-slate-700 opacity-60';
     return 'border-slate-700/80 hover:border-slate-500';
   };
 
   return (
-    <div className={`px-4 py-3 rounded-xl bg-slate-900 border ${getBorderColor()} min-w-[200px] transition duration-150`}>
-      <Handle type="target" position={Position.Left} className="!bg-brand-400" />
-      
-      <div className="flex items-center gap-3">
-        <div className="p-2 rounded-lg bg-slate-800/90 border border-slate-700/60 shrink-0">
-          {getIcon()}
-        </div>
-        <div className="overflow-hidden">
-          <div className="text-[10px] font-mono text-slate-500 uppercase tracking-wider">
-            {activityData.activityType}
+    <div className={`p-3.5 rounded-xl bg-slate-900/95 border ${getBorderColor()} min-w-[240px] max-w-[280px] shadow-lg transition duration-150 relative text-xs select-none backdrop-blur-sm`}>
+      {/* Target input handle on Left */}
+      <Handle
+        type="target"
+        position={Position.Left}
+        id="input"
+        className="!w-3 !h-3 !bg-slate-300 !border-2 !border-slate-900 !rounded-full hover:!scale-125 transition"
+        title="Input Dependency"
+      />
+
+      {/* Node Header */}
+      <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+        <div className="flex items-center gap-2">
+          <div className="p-1.5 rounded-lg bg-slate-800 border border-slate-700/70 shrink-0">
+            {getIcon()}
           </div>
-          <div className="text-xs font-semibold text-slate-200 truncate">
-            {activityData.label}
+          <div>
+            <div className="text-[10px] font-mono text-slate-500 uppercase tracking-wider font-semibold">
+              {activityData.activityType}
+            </div>
+            <div className="font-semibold text-slate-200 truncate max-w-[140px]">
+              {activityData.label}
+            </div>
+          </div>
+        </div>
+
+        {isDeactivated ? (
+          <span className="px-1.5 py-0.5 rounded text-[9px] bg-slate-800 text-slate-400 border border-slate-700 flex items-center gap-1">
+            <Ban className="h-2.5 w-2.5 text-amber-400" />
+            <span>Disabled</span>
+          </span>
+        ) : (
+          <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" title="Active" />
+        )}
+      </div>
+
+      {/* Node Body Details Preview */}
+      <div className="py-2 space-y-1 text-[11px] font-mono text-slate-400">
+        {activityData.config?.source?.table_name && activityData.config?.destination?.table_name && (
+          <div className="truncate flex items-center gap-1 text-[10px]">
+            <span className="text-slate-300">{activityData.config.source.table_name}</span>
+            <span className="text-brand-400 font-bold">→</span>
+            <span className="text-slate-300">{activityData.config.destination.table_name}</span>
+          </div>
+        )}
+
+        {activityData.config?.expression && (
+          <div className="truncate text-amber-400/90 text-[10px]">
+            {activityData.config.expression}
+          </div>
+        )}
+
+        {activityData.config?.variable_name && (
+          <div className="truncate text-cyan-400/90 text-[10px]">
+            {activityData.config.variable_name} = {activityData.config.value}
+          </div>
+        )}
+
+        {activityData.config?.url && (
+          <div className="truncate text-sky-400 text-[10px]">
+            {activityData.config.method || 'GET'} {activityData.config.url}
+          </div>
+        )}
+
+        {activityData.config?.wait_time_in_seconds && (
+          <div className="text-amber-300 text-[10px]">
+            Wait: {activityData.config.wait_time_in_seconds}s
+          </div>
+        )}
+      </div>
+
+      {/* ADF-Style Multi-Output Ports (Success, Failure, Completion, Skip) */}
+      <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[10px] text-slate-400">
+        <span className="text-[9px] font-semibold text-slate-500 uppercase tracking-wider">Outcomes</span>
+        <div className="flex items-center gap-2">
+          {/* Green: Success */}
+          <div className="flex items-center gap-1" title="Upon Success (Green)">
+            <span className="h-2 w-2 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500/50" />
+            <span className="text-[9px] text-emerald-400 font-medium">OK</span>
+          </div>
+          {/* Red: Failure */}
+          <div className="flex items-center gap-1" title="Upon Failure (Red)">
+            <span className="h-2 w-2 rounded-full bg-rose-500 shadow-sm shadow-rose-500/50" />
+            <span className="text-[9px] text-rose-400 font-medium">Fail</span>
+          </div>
+          {/* Blue: Completion */}
+          <div className="flex items-center gap-1" title="Upon Completion (Blue)">
+            <span className="h-2 w-2 rounded-full bg-blue-500 shadow-sm shadow-blue-500/50" />
+            <span className="text-[9px] text-blue-400 font-medium">Done</span>
+          </div>
+          {/* Gray: Skip */}
+          <div className="flex items-center gap-1" title="Upon Skip (Gray)">
+            <span className="h-2 w-2 rounded-full bg-slate-400 shadow-sm shadow-slate-400/50" />
+            <span className="text-[9px] text-slate-400 font-medium">Skip</span>
           </div>
         </div>
       </div>
 
-      {activityData.config?.source?.table_name && activityData.config?.destination?.table_name && (
-        <div className="mt-2 pt-2 border-t border-slate-800/80 text-[10px] font-mono text-slate-400 truncate flex items-center gap-1">
-          <span className="text-slate-300">{activityData.config.source.table_name}</span>
-          <span className="text-brand-400">→</span>
-          <span className="text-slate-300">{activityData.config.destination.table_name}</span>
-        </div>
-      )}
+      {/* Output Handles aligned on the Right */}
+      {/* 1. Success (Green) */}
+      <Handle
+        type="source"
+        position={Position.Right}
+        id="success"
+        style={{ top: '22%', background: '#10b981', width: '10px', height: '10px', right: '-6px' }}
+        className="!border-2 !border-slate-900 hover:!scale-150 transition"
+        title="Upon Success (Succeeded)"
+      />
 
-      {activityData.config?.expression && (
-        <div className="mt-2 pt-2 border-t border-slate-800/80 text-[10px] font-mono text-amber-400 truncate">
-          {activityData.config.expression}
-        </div>
-      )}
+      {/* 2. Failure (Red) */}
+      <Handle
+        type="source"
+        position={Position.Right}
+        id="failure"
+        style={{ top: '44%', background: '#ef4444', width: '10px', height: '10px', right: '-6px' }}
+        className="!border-2 !border-slate-900 hover:!scale-150 transition"
+        title="Upon Failure (Failed)"
+      />
 
-      {activityData.config?.variable_name && (
-        <div className="mt-2 pt-2 border-t border-slate-800/80 text-[10px] font-mono text-cyan-400 truncate">
-          {activityData.config.variable_name} = {activityData.config.value}
-        </div>
-      )}
+      {/* 3. Completion (Blue) */}
+      <Handle
+        type="source"
+        position={Position.Right}
+        id="completion"
+        style={{ top: '66%', background: '#3b82f6', width: '10px', height: '10px', right: '-6px' }}
+        className="!border-2 !border-slate-900 hover:!scale-150 transition"
+        title="Upon Completion (Completed)"
+      />
 
-      <Handle type="source" position={Position.Right} className="!bg-brand-400" />
+      {/* 4. Skipped (Gray) */}
+      <Handle
+        type="source"
+        position={Position.Right}
+        id="skipped"
+        style={{ top: '88%', background: '#94a3b8', width: '10px', height: '10px', right: '-6px' }}
+        className="!border-2 !border-slate-900 hover:!scale-150 transition"
+        title="Upon Skip (Skipped)"
+      />
     </div>
   );
 };

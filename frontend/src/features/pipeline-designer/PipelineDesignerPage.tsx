@@ -27,6 +27,39 @@ import {
   RotateCcw
 } from 'lucide-react';
 
+export const getConditionEdgeProperties = (condOrHandle: string) => {
+  const norm = (condOrHandle || '').toLowerCase();
+  if (norm === 'failure' || norm === 'failed') {
+    return {
+      condition: 'Failed',
+      color: '#ef4444',
+      label: 'On Failure',
+      sourceHandle: 'failure'
+    };
+  } else if (norm === 'completion' || norm === 'completed') {
+    return {
+      condition: 'Completed',
+      color: '#3b82f6',
+      label: 'On Completion',
+      sourceHandle: 'completion'
+    };
+  } else if (norm === 'skipped' || norm === 'skip') {
+    return {
+      condition: 'Skipped',
+      color: '#94a3b8',
+      label: 'On Skip',
+      sourceHandle: 'skipped'
+    };
+  } else {
+    return {
+      condition: 'Succeeded',
+      color: '#10b981',
+      label: 'On Success',
+      sourceHandle: 'success'
+    };
+  }
+};
+
 export const PipelineDesignerPage: React.FC = () => {
   const { selectedPipelineId, pipelines, fetchPipelines, setCurrentTab } = useAppStore();
   const [pipeline, setPipeline] = useState<any>(null);
@@ -51,17 +84,33 @@ export const PipelineDesignerPage: React.FC = () => {
 
         if (def.nodes && def.nodes.length > 0) {
           setNodes(def.nodes);
-          setEdges(def.edges || []);
+          // Apply styled edges with condition colors
+          const styledEdges = (def.edges || []).map((e: Edge) => {
+            const condition = ((e.data as any)?.condition as string) || e.sourceHandle || 'Succeeded';
+            const prop = getConditionEdgeProperties(condition);
+            return {
+              ...e,
+              animated: true,
+              label: prop.label,
+              data: { condition: prop.condition },
+              style: { stroke: prop.color, strokeWidth: 2.5 },
+              labelStyle: { fill: prop.color, fontWeight: 600, fontSize: 10 },
+              labelBgStyle: { fill: '#0f172a', rx: 4, stroke: '#334155' }
+            };
+          });
+          setEdges(styledEdges);
         } else if (def.activities && def.activities.length > 0) {
           // Convert activities to nodes
           const generatedNodes: Node[] = def.activities.map((act: any, idx: number) => ({
             id: act.id,
             type: 'activityNode',
-            position: { x: 150 + idx * 260, y: 150 },
+            position: { x: 150 + idx * 290, y: 150 },
             data: {
               label: act.name,
               activityType: act.type,
-              config: act.config || {}
+              state: act.state || 'Active',
+              config: act.config || {},
+              retry_policy: act.retry_policy
             }
           }));
 
@@ -69,11 +118,21 @@ export const PipelineDesignerPage: React.FC = () => {
           def.activities.forEach((act: any) => {
             (act.depends_on || []).forEach((dep: any) => {
               const parentId = typeof dep === 'string' ? dep : dep.activity_id;
+              const cond = typeof dep === 'string' ? 'Succeeded' : (dep.condition || 'Succeeded');
+              const prop = getConditionEdgeProperties(cond);
+
               generatedEdges.push({
-                id: `e-${parentId}-${act.id}`,
+                id: `e-${parentId}-${act.id}-${prop.sourceHandle}`,
                 source: parentId,
                 target: act.id,
-                animated: true
+                sourceHandle: prop.sourceHandle,
+                targetHandle: 'input',
+                animated: true,
+                label: prop.label,
+                data: { condition: prop.condition },
+                style: { stroke: prop.color, strokeWidth: 2.5 },
+                labelStyle: { fill: prop.color, fontWeight: 600, fontSize: 10 },
+                labelBgStyle: { fill: '#0f172a', rx: 4, stroke: '#334155' }
               });
             });
           });
@@ -81,7 +140,6 @@ export const PipelineDesignerPage: React.FC = () => {
           setNodes(generatedNodes);
           setEdges(generatedEdges);
         } else {
-          // Default initial empty canvas
           setNodes([]);
           setEdges([]);
         }
@@ -93,9 +151,56 @@ export const PipelineDesignerPage: React.FC = () => {
   }, [selectedPipelineId]);
 
   const onConnect = useCallback(
-    (params: Connection) => setEdges((eds) => addEdge({ ...params, animated: true }, eds)),
+    (params: Connection) => {
+      const handleType = params.sourceHandle || 'success';
+      const prop = getConditionEdgeProperties(handleType);
+
+      const newEdge: Edge = {
+        id: `e-${params.source}-${params.target}-${prop.sourceHandle}`,
+        source: params.source,
+        target: params.target,
+        sourceHandle: params.sourceHandle,
+        targetHandle: params.targetHandle,
+        animated: true,
+        label: prop.label,
+        data: { condition: prop.condition },
+        style: { stroke: prop.color, strokeWidth: 2.5 },
+        labelStyle: { fill: prop.color, fontWeight: 600, fontSize: 10 },
+        labelBgStyle: { fill: '#0f172a', rx: 4, stroke: '#334155' }
+      };
+
+      setEdges((eds) => addEdge(newEdge, eds));
+    },
     [setEdges]
   );
+
+  const onEdgeClick = (_: any, edge: Edge) => {
+    // Cycle condition on edge click: Succeeded -> Failed -> Completed -> Skipped -> Succeeded
+    const current = edge.data?.condition || 'Succeeded';
+    let nextCond = 'Failed';
+    if (current === 'Failed') nextCond = 'Completed';
+    else if (current === 'Completed') nextCond = 'Skipped';
+    else if (current === 'Skipped') nextCond = 'Succeeded';
+
+    const prop = getConditionEdgeProperties(nextCond);
+
+    setEdges((eds) =>
+      eds.map((e) => {
+        if (e.id === edge.id) {
+          return {
+            ...e,
+            label: prop.label,
+            sourceHandle: prop.sourceHandle,
+            data: { condition: prop.condition },
+            style: { stroke: prop.color, strokeWidth: 2.5 },
+            labelStyle: { fill: prop.color, fontWeight: 600, fontSize: 10 },
+            labelBgStyle: { fill: '#0f172a', rx: 4, stroke: '#334155' }
+          };
+        }
+        return e;
+      })
+    );
+  };
 
   const onDragOver = useCallback((event: React.DragEvent) => {
     event.preventDefault();
@@ -124,10 +229,15 @@ export const PipelineDesignerPage: React.FC = () => {
         data: {
           label: label || 'New Activity',
           activityType: type,
+          state: 'Active',
           config: {
             source: {},
             destination: {},
             rules: []
+          },
+          retry_policy: {
+            max_retries: 0,
+            retry_interval_seconds: 2
           }
         },
       };
@@ -155,19 +265,47 @@ export const PipelineDesignerPage: React.FC = () => {
     );
   };
 
+  const handleUpdateDependencyCondition = (edgeId: string, newCondition: string) => {
+    const prop = getConditionEdgeProperties(newCondition);
+    setEdges((eds) =>
+      eds.map((e) => {
+        if (e.id === edgeId) {
+          return {
+            ...e,
+            label: prop.label,
+            sourceHandle: prop.sourceHandle,
+            data: { condition: prop.condition },
+            style: { stroke: prop.color, strokeWidth: 2.5 },
+            labelStyle: { fill: prop.color, fontWeight: 600, fontSize: 10 },
+            labelBgStyle: { fill: '#0f172a', rx: 4, stroke: '#334155' }
+          };
+        }
+        return e;
+      })
+    );
+  };
+
   const constructPipelineDefinition = () => {
-    // Convert nodes & edges to executable activity JSON
     const activities = nodes.map((n) => {
       const incomingEdges = edges.filter((e) => e.target === n.id);
-      const depends_on = incomingEdges.map((e) => ({
-        activity_id: e.source,
-        condition: 'Succeeded'
-      }));
+      const depends_on = incomingEdges.map((e) => {
+        const cond = e.data?.condition || (
+          e.sourceHandle === 'failure' ? 'Failed' :
+          e.sourceHandle === 'completion' ? 'Completed' :
+          e.sourceHandle === 'skipped' ? 'Skipped' : 'Succeeded'
+        );
+        return {
+          activity_id: e.source,
+          condition: cond
+        };
+      });
 
       return {
         id: n.id,
         name: n.data.label,
         type: n.data.activityType,
+        state: n.data.state || 'Active',
+        retry_policy: n.data.retry_policy,
         depends_on,
         config: n.data.config || {}
       };
@@ -217,10 +355,8 @@ export const PipelineDesignerPage: React.FC = () => {
     if (!selectedPipelineId) return;
     setIsRunning(true);
     try {
-      // First save latest layout
       const def = constructPipelineDefinition();
       await api.put(`/pipelines/${selectedPipelineId}`, { definition_json: def });
-      // Then trigger run
       await api.post(`/pipelines/${selectedPipelineId}/run`);
       setCurrentTab('runs');
     } catch (err: any) {
@@ -310,6 +446,7 @@ export const PipelineDesignerPage: React.FC = () => {
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
             onNodeClick={handleNodeClick}
+            onEdgeClick={onEdgeClick}
             nodeTypes={nodeTypes}
             fitView
           >
@@ -327,7 +464,10 @@ export const PipelineDesignerPage: React.FC = () => {
         {selectedNode && (
           <ActivityConfigDrawer
             selectedNode={selectedNode}
+            allNodes={nodes}
+            allEdges={edges}
             onUpdateNode={handleUpdateNode}
+            onUpdateDependencyCondition={handleUpdateDependencyCondition}
             onClose={() => setSelectedNode(null)}
           />
         )}
