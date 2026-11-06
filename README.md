@@ -6,6 +6,16 @@ DataFlow Enterprise provides an architectural alternative to proprietary cloud d
 
 ---
 
+## Development Governance & Quality Guardrails
+
+All development work on DataForge is strictly governed by mandatory engineering rules, quality controls, and architectural guardrails defined in [GEMINI.md](GEMINI.md). Every development session must comply with these standards.
+
+- **[GEMINI.md](GEMINI.md)**: Mandatory development rules (functionality protection, scope control, code quality, testing pyramid, security, bounded streaming, error handling).
+- **[MILESTONE_TRACKER.md](MILESTONE_TRACKER.md)**: Master milestone execution ledger and approval gates.
+- **[TECHNICAL_DECISIONS.md](TECHNICAL_DECISIONS.md)**: Architectural Decision Records (ADR 001 – ADR 023).
+
+---
+
 ## Key Highlights & Architectural Pillars
 
 - **Visual Pipeline Designer**: Drag-and-drop workflow canvas built with React Flow, supporting infinite pan, zoom, custom activity nodes, dependency routing, and interactive node configuration.
@@ -88,8 +98,13 @@ This verification automatically:
 
 ---
 
-## Architectural Documentation
-Detailed design documents are located in `docs/`:
+## Architectural Documentation & Governance
+Core governance and design documents:
+- [`GEMINI.md`](GEMINI.md): Mandatory Project-Level Development Governance & Quality Guardrails
+- [`MILESTONE_TRACKER.md`](MILESTONE_TRACKER.md): Master Milestone Execution Ledger
+- [`TECHNICAL_DECISIONS.md`](TECHNICAL_DECISIONS.md): Master Architectural Decision Records (ADR 001 – ADR 023)
+
+Detailed design specifications in `docs/`:
 - [`01_PRD.md`](docs/architecture/01_PRD.md): Product Requirements Document
 - [`02_HLD.md`](docs/architecture/02_HLD.md): High-Level Design & Control/Execution Separation
 - [`03_LLD.md`](docs/architecture/03_LLD.md): Low-Level Design & DAG State Machine
