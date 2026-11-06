@@ -84,6 +84,15 @@ In accordance with DataForge Technical Decision **ADR-007 (Empirical Benchmark C
 
 ---
 
+### 4.5 Intelligent Execution Planner: Decision Latency
+*(Populated during Phase 6 upon physical benchmark execution)*
+
+| Run ID | Date / Time | Workload Scope | Evaluations | Total Time (s) | Avg Latency / Decision | Planner Overhead Constraint | Status |
+| :--- | :--- | :--- | :---: | :---: | :---: | :---: | :---: |
+| `planner_p6_001` | 2026-11-06 16:55 | Multi-Factor Cost Model | 1,000 | 0.0571s | **0.0571 ms** (57.1 µs) | $< 1.0\text{ ms}$ (verified $< 0.06\text{ ms}$) | **PASSED** |
+
+---
+
 ## 5. Phase 0 Audit Baseline Summary
 
 - **Current Status:** Phase 0 Architecture Audit Complete.

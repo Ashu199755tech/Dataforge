@@ -9,8 +9,8 @@
 | **2** | **Parallel & Partitioned Data Movement** | **COMPLETED** | 309/309 Passed (10 new) | None | **YES** |
 | **3** | **Cloud Transfer Optimization** | **COMPLETED** | 317/317 Passed (8 new) | None | **YES** |
 | **4** | **Spark Engine** | **COMPLETED** | 327/327 Passed (10 new) | None | **YES** |
-| **5** | **SQL Pushdown Engine** | **COMPLETED** | 335/335 Passed (8 new) | None | Awaiting User Approval |
-| **6** | **Intelligent Execution Planner** | Pending | Not Run | None | Pending |
+| **5** | **SQL Pushdown Engine** | **COMPLETED** | 335/335 Passed (8 new) | None | **YES** |
+| **6** | **Intelligent Execution Planner** | **COMPLETED** | 343/343 Passed (8 new) | None | Awaiting User Approval |
 | **7** | **Pipeline Designer Integration** | Pending | Not Run | None | Pending |
 | **8** | **Monitoring & Performance Analytics** | Pending | Not Run | None | Pending |
 | **9** | **Performance, Reliability & Enterprise Testing** | Pending | Not Run | Compute hardware limits | Pending |
@@ -87,17 +87,17 @@
 - [x] Implement pushdown eligibility analyzer and boundary detection (`SQLPushdownAnalyzer`).
 - [x] Implement in-database execution engine with verified zero network egress contract (`DataForgeSQLPushdownEngine`).
 - [x] Write automated unit & benchmark tests for transpilation, dialects, CTAS execution, and cancellation (8 new tests, 335 total passed).
-- [ ] **Phase 5 Gate: User Approval**
+- [x] **Phase 5 Gate: User Approval**
 
 ---
 
 ### Phase 6: Intelligent Execution Planner
-- [ ] Create `backend/app/engine/planner/` decision framework.
-- [ ] Implement data volume and row count estimator.
-- [ ] Implement transformation complexity scoring.
-- [ ] Implement connector affinity analyzer.
-- [ ] Implement policy resolver honoring user overrides (`Auto`, `Force Copy`, `Force Spark`, `Force SqlPushdown`).
-- [ ] Test planner decisions across diverse scenario inputs.
+- [x] Create `backend/app/engine/planner/` decision framework.
+- [x] Implement data volume and row count estimator (`DataVolumeEstimator`).
+- [x] Implement transformation complexity scoring 0-10 (`TransformationComplexityScorer`).
+- [x] Implement multi-factor engine suitability cost calculator (`EngineCostCalculator`).
+- [x] Implement policy resolver honoring user overrides (`Auto`, `Force Copy`, `Force Spark`, `Force SqlPushdown`).
+- [x] Test planner decisions across diverse scenario inputs (8 new tests, 343 total passed).
 - [ ] **Phase 6 Gate: User Approval**
 
 ---
