@@ -220,7 +220,7 @@ export const DataForgeHomePage: React.FC = () => {
     return [
       { id: 1, title: 'Connect a data store', desc: 'Create connection to Postgres, Azure Blob, S3, or GCS.', done: hasConnection, tab: 'connections' },
       { id: 2, title: 'Define a reusable dataset', desc: 'Create relational or file-based dataset schemas.', done: hasDataset, tab: 'datasets' },
-      { id: 3, title: 'Build a data pipeline', desc: 'Author orchestration workflows in the visual canvas.', done: hasPipeline, tab: 'designer' },
+      { id: 3, title: 'Build a data pipeline', desc: 'Author orchestration workflows in the visual canvas.', done: hasPipeline, tab: 'pipelines' },
       { id: 4, title: 'Configure source and sink', desc: 'Add Copy Data or Data Flow activity.', done: hasConfiguredActivities, tab: 'designer' },
       { id: 5, title: 'Execute pipeline run', desc: 'Trigger manual run or self-hosted task.', done: hasRun, tab: 'runs' },
       { id: 6, title: 'Automate with triggers', desc: 'Schedule recurring cron jobs or storage event arrival.', done: hasSchedule, tab: 'triggers' },
@@ -460,7 +460,7 @@ export const DataForgeHomePage: React.FC = () => {
           <button
             onClick={() => {
               setSelectedPipelineId(null);
-              setCurrentTab('designer');
+              setCurrentTab('pipelines');
             }}
             className="px-3 py-1.5 bg-brand-600 hover:bg-brand-500 text-white rounded-lg text-xs font-medium transition flex items-center gap-1.5 shadow-sm shadow-brand-600/30 border border-brand-500"
           >
@@ -508,10 +508,10 @@ export const DataForgeHomePage: React.FC = () => {
             description="Design and orchestrate multi-cloud data workflows."
             icon={GitBranch}
             accentColor="blue"
-            actionLabel="Author canvas"
+            actionLabel="Pipeline catalog"
             onClick={() => {
               setSelectedPipelineId(null);
-              setCurrentTab('designer');
+              setCurrentTab('pipelines');
             }}
           />
 
@@ -575,7 +575,10 @@ export const DataForgeHomePage: React.FC = () => {
             value={metrics ? metrics.pipelines.total : '--'}
             subtext={metrics ? `${metrics.pipelines.active} active` : 'Loading...'}
             colorVariant="slate"
-            onClick={() => setCurrentTab('designer')}
+            onClick={() => {
+              setSelectedPipelineId(null);
+              setCurrentTab('pipelines');
+            }}
             loading={isLoading}
           />
 
@@ -584,7 +587,10 @@ export const DataForgeHomePage: React.FC = () => {
             value={metrics ? metrics.pipelines.active : '--'}
             subtext="Ready to run"
             colorVariant="blue"
-            onClick={() => setCurrentTab('designer')}
+            onClick={() => {
+              setSelectedPipelineId(null);
+              setCurrentTab('pipelines');
+            }}
             loading={isLoading}
           />
 

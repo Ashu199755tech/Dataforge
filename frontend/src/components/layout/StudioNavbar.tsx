@@ -60,7 +60,8 @@ export const StudioNavbar: React.FC = () => {
     activeProject, 
     setActiveProject,
     selectedEnvironment, 
-    setSelectedEnvironment 
+    setSelectedEnvironment,
+    setCurrentTab
   } = useAppStore();
 
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -166,7 +167,11 @@ export const StudioNavbar: React.FC = () => {
         {/* ================= LEFT SECTION: BRAND, WORKSPACE & ENV ================= */}
         <div className="flex items-center gap-3">
           {/* Original DataForge Logo Mark */}
-          <div className="flex items-center gap-2.5">
+          <div 
+            onClick={() => setCurrentTab('dashboard')}
+            className="flex items-center gap-2.5 cursor-pointer hover:opacity-90 transition"
+            title="Go to Home Workspace"
+          >
             <div className="h-7 w-7 rounded-lg bg-gradient-to-tr from-brand-600 via-indigo-600 to-cyan-400 flex items-center justify-center shadow-md shadow-brand-500/20 border border-brand-400/30">
               <svg className="h-4 w-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M4 14.5L12 3l8 11.5-8 6.5-8-6.5z" />
@@ -397,7 +402,14 @@ export const StudioNavbar: React.FC = () => {
                     </div>
                   ) : (
                     unreadNotifications.map((notif: any) => (
-                      <div key={notif.id} className="p-2 text-xs hover:bg-slate-800/60 rounded">
+                      <div 
+                        key={notif.id} 
+                        onClick={() => {
+                          setCurrentTab('runs');
+                          setIsNotificationsOpen(false);
+                        }}
+                        className="p-2 text-xs hover:bg-slate-800/60 rounded cursor-pointer transition"
+                      >
                         <div className="font-medium text-rose-300 flex items-center gap-1.5">
                           <AlertTriangle className="h-3 w-3 text-rose-400 shrink-0" />
                           <span className="truncate">Pipeline Failure: {notif.pipeline_id.substring(0, 8)}</span>
