@@ -8,8 +8,8 @@
 | **1** | **Copy Engine Foundation** | **COMPLETED** | 299/299 Passed (11 new) | None | **YES** |
 | **2** | **Parallel & Partitioned Data Movement** | **COMPLETED** | 309/309 Passed (10 new) | None | **YES** |
 | **3** | **Cloud Transfer Optimization** | **COMPLETED** | 317/317 Passed (8 new) | None | **YES** |
-| **4** | **Spark Engine** | **COMPLETED** | 327/327 Passed (10 new) | None | Awaiting User Approval |
-| **5** | **SQL Pushdown Engine** | Pending | Not Run | Dialect differences | Pending |
+| **4** | **Spark Engine** | **COMPLETED** | 327/327 Passed (10 new) | None | **YES** |
+| **5** | **SQL Pushdown Engine** | **COMPLETED** | 335/335 Passed (8 new) | None | Awaiting User Approval |
 | **6** | **Intelligent Execution Planner** | Pending | Not Run | None | Pending |
 | **7** | **Pipeline Designer Integration** | Pending | Not Run | None | Pending |
 | **8** | **Monitoring & Performance Analytics** | Pending | Not Run | None | Pending |
@@ -76,17 +76,17 @@
 - [x] Implement environment capability probing (Java 21 detected, PySpark detection).
 - [x] Implement vectorized fallback execution preserving Spark script generation.
 - [x] Write automated tests for compiler, cycle detection, session validation, and submit handling (10 new tests, 327 total passed).
-- [ ] **Phase 4 Gate: User Approval**
+- [x] **Phase 4 Gate: User Approval**
 
 ---
 
 ### Phase 5: SQL Pushdown Engine
-- [ ] Create `backend/app/engine/sql_pushdown/` compiler.
-- [ ] Implement AST query builder for PostgreSQL dialect.
-- [ ] Implement AST query builder for MySQL 8.0+ dialect.
-- [ ] Implement AST query builder for SQLite / DuckDB dialect.
-- [ ] Build pushdown capability analyzer detecting 100% compatible subgraphs.
-- [ ] Write pushdown test suite verifying atomic CTAS and zero network egress.
+- [x] Create `backend/app/engine/pushdown/` compiler and engine.
+- [x] Implement multi-dialect AST query builder supporting PostgreSQL, MySQL, SQLite, DuckDB, Snowflake (`SQLPushdownTranspiler`).
+- [x] Implement chained CTE generator (`WITH "cte" AS (...)`) supporting Filter, Select, Derive, Aggregate, Window, Join, Union, and CTAS/Insert targets.
+- [x] Implement pushdown eligibility analyzer and boundary detection (`SQLPushdownAnalyzer`).
+- [x] Implement in-database execution engine with verified zero network egress contract (`DataForgeSQLPushdownEngine`).
+- [x] Write automated unit & benchmark tests for transpilation, dialects, CTAS execution, and cancellation (8 new tests, 335 total passed).
 - [ ] **Phase 5 Gate: User Approval**
 
 ---

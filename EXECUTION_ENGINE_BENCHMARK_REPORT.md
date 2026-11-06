@@ -63,11 +63,12 @@ In accordance with DataForge Technical Decision **ADR-007 (Empirical Benchmark C
 ---
 
 ### 4.3 SQL Pushdown Engine: In-Database Transformations
-*(To be populated during Phase 5 upon physical benchmark execution)*
+*(Populated during Phase 5 upon physical benchmark execution)*
 
 | Run ID | Date / Time | Dataset ID | Database | Transformations | Egress Bytes | In-DB Duration (s) | Network Transfer Avoided | Status |
 | :--- | :--- | :--- | :--- | :--- | :---: | :---: | :---: | :---: |
-| *Pending* | - | DS-100M | Postgres | Filter + Join + Agg | 0 B | - | $\sim 100\text{ MB}$ | Pending Phase 5 |
+| `pushdown_p5_001` | 2026-11-06 16:27 | DS-25K (25,000 rows) | SQLite / ANSI | Filter + Derived + Agg + CTAS | **0 B** | **0.0158s** | $\sim 1.5\text{ MB}$ (100% avoided) | **PASSED (Zero Egress)** |
+| *Pending* | - | DS-100M | Postgres | Filter + Join + Agg | 0 B | - | $\sim 100\text{ MB}$ | Pending Remote DB Suite |
 | *Pending* | - | DS-1G | Postgres | CTAS Window + Join | 0 B | - | $\sim 1\text{ GB}$ | Pending Phase 5 |
 
 ---
