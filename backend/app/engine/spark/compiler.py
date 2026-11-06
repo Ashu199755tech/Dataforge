@@ -216,15 +216,25 @@ class SparkDataFlowCompiler:
 
     @classmethod
     def _compile_derived_column_node(cls, lines: List[str], var: str, parent_var: str, cfg: Dict[str, Any]):
-        col_name = cfg.get("column_name") or cfg.get("target_column") or "new_col"
-        expr = cfg.get("expression") or cfg.get("expr") or "1"
-        escaped_expr = expr.replace('"', '\\"')
-        lines.append(f'    {var} = {parent_var}.withColumn("{col_name}", F.expr("{escaped_expr}"))')
+        cols = cfg.get("columns")
+        if isinstance(cols, list) and cols:
+            current_var = parent_var
+            for c in cols:
+                c_name = c.get("name") or c.get("column_name") or "new_col"
+                c_expr = c.get("expression") or c.get("expr") or "1"
+                escaped = c_expr.replace('"', '\\"')
+                lines.append(f'    {var} = {current_var}.withColumn("{c_name}", F.expr("{escaped}"))')
+                current_var = var
+        else:
+            col_name = cfg.get("column_name") or cfg.get("target_column") or "new_col"
+            expr = cfg.get("expression") or cfg.get("expr") or "1"
+            escaped_expr = expr.replace('"', '\\"')
+            lines.append(f'    {var} = {parent_var}.withColumn("{col_name}", F.expr("{escaped_expr}"))')
 
     @classmethod
     def _compile_aggregate_node(cls, lines: List[str], var: str, parent_var: str, cfg: Dict[str, Any]):
         group_cols = cfg.get("group_by") or cfg.get("group_columns") or []
-        aggs = cfg.get("aggregates") or []
+        aggs = cfg.get("aggregates") or cfg.get("aggregations") or []
         groups_str = ", ".join(f'"{c}"' for c in group_cols) if group_cols else ""
 
         agg_exprs = []
@@ -274,8 +284,15 @@ class SparkDataFlowCompiler:
     @classmethod
     def _compile_sort_node(cls, lines: List[str], var: str, parent_var: str, cfg: Dict[str, Any]):
         cols = cfg.get("sort_columns") or cfg.get("columns") or ["id"]
-        descending = cfg.get("descending", False)
-        order_clauses = [f'F.col("{c}").desc()' if descending else f'F.col("{c}").asc()' for c in cols]
+        order_clauses = []
+        for c in cols:
+            if isinstance(c, dict):
+                col_name = c.get("column", "id")
+                is_desc = (c.get("direction", "") or "").lower() == "desc"
+            else:
+                col_name = str(c)
+                is_desc = cfg.get("descending", False)
+            order_clauses.append(f'F.col("{col_name}").desc()' if is_desc else f'F.col("{col_name}").asc()')
         order_str = ", ".join(order_clauses)
         lines.append(f"    {var} = {parent_var}.orderBy({order_str})")
 

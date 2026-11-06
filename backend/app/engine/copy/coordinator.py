@@ -118,8 +118,8 @@ class ParallelCopyCoordinator:
 
             try:
                 result = worker_fn(spec, self.cancellation_token, updater)
-                rows = result.get("rows_transferred", 0) if isinstance(result, dict) else getattr(result, "rows_transferred", 0)
-                bytes_cnt = result.get("bytes_transferred", 0) if isinstance(result, dict) else getattr(result, "bytes_transferred", 0)
+                rows = (result.get("rows_transferred") or result.get("rows") or 0) if isinstance(result, dict) else getattr(result, "rows_transferred", 0)
+                bytes_cnt = (result.get("bytes_transferred") or result.get("bytes") or 0) if isinstance(result, dict) else getattr(result, "bytes_transferred", 0)
                 checksum = result.get("checksum") if isinstance(result, dict) else getattr(result, "checksum", None)
                 meta = result.get("metadata", {}) if isinstance(result, dict) else getattr(result, "metadata", {})
 

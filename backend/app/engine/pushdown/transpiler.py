@@ -258,17 +258,26 @@ class SQLPushdownTranspiler:
     @classmethod
     def _transpile_derived_column(cls, parent_cte: str, cfg: Dict[str, Any], dialect: SQLDialect) -> str:
         parent_q = DialectFormatter.quote_identifier(parent_cte, dialect)
-        col_name = cfg.get("column_name") or cfg.get("target_column") or "new_col"
-        expr = cfg.get("expression") or cfg.get("expr") or "NULL"
-        col_q = DialectFormatter.quote_identifier(col_name, dialect)
-
-        return f"    SELECT *, ({expr}) AS {col_q} FROM {parent_q}"
+        cols = cfg.get("columns")
+        if isinstance(cols, list) and cols:
+            derived_items = []
+            for c in cols:
+                c_name = c.get("name") or c.get("column_name") or "new_col"
+                c_expr = c.get("expression") or c.get("expr") or "NULL"
+                c_q = DialectFormatter.quote_identifier(c_name, dialect)
+                derived_items.append(f"({c_expr}) AS {c_q}")
+            return f"    SELECT *, {', '.join(derived_items)} FROM {parent_q}"
+        else:
+            col_name = cfg.get("column_name") or cfg.get("target_column") or "new_col"
+            expr = cfg.get("expression") or cfg.get("expr") or "NULL"
+            col_q = DialectFormatter.quote_identifier(col_name, dialect)
+            return f"    SELECT *, ({expr}) AS {col_q} FROM {parent_q}"
 
     @classmethod
     def _transpile_aggregate(cls, parent_cte: str, cfg: Dict[str, Any], dialect: SQLDialect) -> str:
         parent_q = DialectFormatter.quote_identifier(parent_cte, dialect)
         group_cols = cfg.get("group_by") or cfg.get("group_columns") or []
-        aggs = cfg.get("aggregates") or []
+        aggs = cfg.get("aggregates") or cfg.get("aggregations") or []
 
         group_items = [DialectFormatter.quote_identifier(c, dialect) for c in group_cols]
         agg_items = []
@@ -333,10 +342,16 @@ class SQLPushdownTranspiler:
     def _transpile_sort(cls, parent_cte: str, cfg: Dict[str, Any], dialect: SQLDialect) -> str:
         parent_q = DialectFormatter.quote_identifier(parent_cte, dialect)
         cols = cfg.get("sort_columns") or cfg.get("columns") or ["id"]
-        descending = cfg.get("descending", False)
-        direction = "DESC" if descending else "ASC"
-
-        sort_items = [f"{DialectFormatter.quote_identifier(c, dialect)} {direction}" for c in cols]
+        sort_items = []
+        for c in cols:
+            if isinstance(c, dict):
+                col_name = c.get("column", "id")
+                direction = (c.get("direction", "") or "ASC").upper()
+            else:
+                col_name = str(c)
+                descending = cfg.get("descending", False)
+                direction = "DESC" if descending else "ASC"
+            sort_items.append(f"{DialectFormatter.quote_identifier(col_name, dialect)} {direction}")
         return f"    SELECT * FROM {parent_q} ORDER BY {', '.join(sort_items)}"
 
     @classmethod
