@@ -27,7 +27,9 @@ import {
   Copy,
   ChevronRight,
   ShieldAlert,
-  ArrowRight
+  ArrowRight,
+  Database,
+  Code
 } from 'lucide-react';
 
 export const RunsMonitorPage: React.FC = () => {
@@ -493,8 +495,19 @@ export const RunsMonitorPage: React.FC = () => {
                         return (
                           <div key={item.activity_id} className="space-y-1 text-xs">
                             <div className="flex items-center justify-between text-[11px]">
-                              <span className="font-medium text-slate-200">
+                              <span className="font-medium text-slate-200 flex items-center gap-2">
                                 {item.activity_name} <span className="font-mono text-slate-500 text-[10px]">({item.activity_type})</span>
+                                {item.execution_engine && (
+                                  <span className={`px-1.5 py-0.2 rounded text-[9px] font-mono border ${
+                                    item.execution_engine === 'SQL_PUSHDOWN'
+                                      ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                                      : item.execution_engine === 'SPARK'
+                                      ? 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+                                      : 'bg-sky-500/20 text-sky-300 border-sky-500/30'
+                                  }`}>
+                                    {item.execution_engine === 'SQL_PUSHDOWN' ? '⚡ SQL Pushdown' : item.execution_engine === 'SPARK' ? '🔥 Spark' : '🚀 Copy Engine'}
+                                  </span>
+                                )}
                               </span>
                               <div className="flex items-center gap-3 text-[10px]">
                                 <span className="text-slate-400 font-mono">Offset: +{item.offset_seconds}s</span>
@@ -542,6 +555,10 @@ export const RunsMonitorPage: React.FC = () => {
                     <div className="space-y-2">
                       {selectedRun.activity_runs?.map((act) => {
                         const isActSelected = selectedActivity?.id === act.id;
+                        const engine = act.metrics?.execution_engine;
+                        const partitionCol = act.metrics?.partition_column;
+                        const concurrency = act.metrics?.concurrency_limit;
+                        const isPushdown = engine === 'SQL_PUSHDOWN';
                         return (
                           <div
                             key={act.id}
@@ -557,11 +574,32 @@ export const RunsMonitorPage: React.FC = () => {
                                 <Layers className="h-3.5 w-3.5" />
                               </div>
                               <div>
-                                <div className="font-semibold text-slate-200 flex items-center gap-2">
-                                  {act.activity_name}
+                                <div className="font-semibold text-slate-200 flex items-center gap-2 flex-wrap">
+                                  <span>{act.activity_name}</span>
                                   {act.error_classification && (
                                     <span className="px-1.5 py-0.2 rounded text-[9px] bg-rose-500/20 text-rose-300 border border-rose-500/30 font-mono">
                                       [{act.error_classification}]
+                                    </span>
+                                  )}
+                                  {engine && (
+                                    <span className={`px-1.5 py-0.2 rounded text-[9px] font-mono border flex items-center gap-1 ${
+                                      engine === 'SQL_PUSHDOWN'
+                                        ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                                        : engine === 'SPARK'
+                                        ? 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+                                        : 'bg-sky-500/20 text-sky-300 border-sky-500/30'
+                                    }`}>
+                                      {engine === 'SQL_PUSHDOWN' ? '⚡ SQL Pushdown' : engine === 'SPARK' ? '🔥 Spark' : '🚀 Copy Engine'}
+                                    </span>
+                                  )}
+                                  {isPushdown && (
+                                    <span className="px-1.5 py-0.2 rounded text-[9px] font-mono bg-teal-500/20 text-teal-300 border border-teal-500/30">
+                                      0 Egress
+                                    </span>
+                                  )}
+                                  {partitionCol && (
+                                    <span className="px-1.5 py-0.2 rounded text-[9px] font-mono bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                                      ⎇ {concurrency ? `${concurrency}x ` : ''}Part. ({partitionCol})
                                     </span>
                                   )}
                                 </div>
@@ -727,6 +765,58 @@ export const RunsMonitorPage: React.FC = () => {
                     </div>
                   </div>
 
+                  {/* Intelligent Execution Engine Analytics */}
+                  {metricsData.engine_analytics && (
+                    <div className="p-4 bg-slate-900/80 border border-slate-800 rounded-xl space-y-3">
+                      <h3 className="text-xs font-semibold text-white uppercase tracking-wider flex items-center justify-between">
+                        <span className="flex items-center gap-2">
+                          <Zap className="h-3.5 w-3.5 text-brand-400" />
+                          Intelligent Execution Engine Analytics
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-mono font-normal">
+                          Empirical Telemetry
+                        </span>
+                      </h3>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-lg space-y-2">
+                          <div className="text-[10px] text-slate-400 uppercase font-semibold">Engine Distribution</div>
+                          <div className="flex flex-wrap items-center gap-1.5 font-mono text-xs">
+                            <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                              ⚡ Pushdown: {metricsData.engine_analytics.engine_distribution?.SQL_PUSHDOWN || 0}
+                            </span>
+                            <span className="px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                              🔥 Spark: {metricsData.engine_analytics.engine_distribution?.SPARK || 0}
+                            </span>
+                            <span className="px-2 py-0.5 rounded bg-sky-500/10 text-sky-400 border border-sky-500/20">
+                              🚀 Copy: {metricsData.engine_analytics.engine_distribution?.COPY || 0}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-lg space-y-1">
+                          <div className="text-[10px] text-slate-400 uppercase font-semibold">Cloud Egress Avoided</div>
+                          <div className="text-lg font-bold font-mono text-emerald-400">
+                            {metricsData.engine_analytics.egress_avoided_mb || 0} <span className="text-xs text-slate-400">MB</span>
+                          </div>
+                          <div className="text-[10px] text-slate-500">
+                            Zero network transfer overhead for in-database transformations
+                          </div>
+                        </div>
+
+                        <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-lg space-y-1">
+                          <div className="text-[10px] text-slate-400 uppercase font-semibold">Parallel Partition Slices</div>
+                          <div className="text-lg font-bold font-mono text-purple-400">
+                            {metricsData.engine_analytics.total_partition_slices || 0} <span className="text-xs text-slate-400">slices</span>
+                          </div>
+                          <div className="text-[10px] text-slate-500">
+                            Concurrent data chunk workers across activities
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Worker & Environment Details */}
                   <div className="p-4 bg-slate-900/80 border border-slate-800 rounded-xl space-y-2">
                     <h3 className="text-xs font-semibold text-white uppercase tracking-wider flex items-center gap-2">
@@ -871,6 +961,146 @@ export const RunsMonitorPage: React.FC = () => {
                   <div className="font-bold text-emerald-400">{diagnosticsActivity.rows_written}</div>
                 </div>
               </div>
+
+              {/* Execution Engine & Plan Rationale */}
+              {diagnosticsActivity.metrics?.execution_engine && (
+                <div className="p-3 bg-slate-950 border border-slate-800 rounded-lg space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-slate-300 text-xs uppercase tracking-wider flex items-center gap-1.5">
+                      <Zap className="h-3.5 w-3.5 text-brand-400" />
+                      Execution Engine & Planner Rationale
+                    </span>
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-mono border ${
+                      diagnosticsActivity.metrics.execution_engine === 'SQL_PUSHDOWN'
+                        ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                        : diagnosticsActivity.metrics.execution_engine === 'SPARK'
+                        ? 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+                        : 'bg-sky-500/20 text-sky-300 border-sky-500/30'
+                    }`}>
+                      {diagnosticsActivity.metrics.execution_engine}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-[11px] pt-1">
+                    <div>
+                      <span className="text-slate-500">Strategy: </span>
+                      <span className="font-semibold text-slate-300">
+                        {diagnosticsActivity.metrics.planner_strategy || 'AUTO'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500">Planner Confidence: </span>
+                      <span className="font-semibold text-emerald-400">
+                        {diagnosticsActivity.metrics.planner_confidence
+                          ? `${Math.round(diagnosticsActivity.metrics.planner_confidence * 100)}%`
+                          : '100%'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500">Workload Profile: </span>
+                      <span className="font-semibold text-slate-300">
+                        {diagnosticsActivity.metrics.execution_engine === 'SQL_PUSHDOWN'
+                          ? 'Pushdown-Eligible SQL'
+                          : diagnosticsActivity.metrics.execution_engine === 'SPARK'
+                          ? 'Distributed Spark DF'
+                          : 'Parallel Streaming Copy'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {diagnosticsActivity.metrics.planner_explanation && (
+                    <div className="text-[11px] text-slate-400 bg-slate-900/60 p-2 rounded border border-slate-800/80">
+                      <span className="text-slate-500 font-semibold">Decision: </span>
+                      {diagnosticsActivity.metrics.planner_explanation}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* In-Database Pushdown Telemetry & SQL Query Plan */}
+              {diagnosticsActivity.metrics?.generated_sql && (
+                <div className="space-y-2 p-3 bg-slate-950 border border-emerald-950/60 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-emerald-400 text-xs uppercase tracking-wider flex items-center gap-1.5">
+                      <Code className="h-3.5 w-3.5 text-emerald-400" />
+                      Pushdown SQL Execution Plan (0 Network Egress)
+                    </span>
+                    <button
+                      onClick={() => navigator.clipboard.writeText(diagnosticsActivity.metrics.generated_sql)}
+                      className="text-emerald-400 hover:text-emerald-300 text-[11px] flex items-center gap-1 font-mono"
+                    >
+                      <Copy className="h-3 w-3" /> Copy SQL
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-3 text-[10px] text-slate-400">
+                    <span>Dialect: <strong className="text-slate-200">{diagnosticsActivity.metrics.pushdown_dialect || 'PostgreSQL'}</strong></span>
+                    <span>Egress Avoided: <strong className="text-emerald-400">{((diagnosticsActivity.bytes_processed || 0) / (1024 * 1024)).toFixed(2)} MB</strong></span>
+                  </div>
+                  <pre className="p-3 bg-slate-900 border border-slate-800 rounded-lg text-emerald-300 text-[10px] overflow-x-auto whitespace-pre-wrap max-h-44 font-mono">
+                    {diagnosticsActivity.metrics.generated_sql}
+                  </pre>
+                </div>
+              )}
+
+              {/* Partition Slicing & Checkpoints */}
+              {(diagnosticsActivity.metrics?.partition_column || diagnosticsActivity.metrics?.concurrency_limit) && (
+                <div className="p-3 bg-slate-950 border border-purple-950/60 rounded-lg space-y-2">
+                  <span className="font-semibold text-purple-400 text-xs uppercase tracking-wider flex items-center gap-1.5">
+                    <Database className="h-3.5 w-3.5 text-purple-400" />
+                    Partition Slicing & Concurrency Telemetry
+                  </span>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-[11px]">
+                    <div>
+                      <span className="text-slate-500">Partition Column: </span>
+                      <span className="font-semibold text-slate-300 font-mono">
+                        {diagnosticsActivity.metrics.partition_column || 'Row-chunked'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500">Strategy: </span>
+                      <span className="font-semibold text-slate-300 font-mono">
+                        {diagnosticsActivity.metrics.partition_strategy || 'DYNAMIC_RANGE'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500">Concurrent Slices: </span>
+                      <span className="font-semibold text-purple-400 font-mono">
+                        {diagnosticsActivity.metrics.concurrency_limit || 1} slices
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Distributed Spark Telemetry */}
+              {diagnosticsActivity.metrics?.execution_engine === 'SPARK' && (
+                <div className="p-3 bg-slate-950 border border-amber-950/60 rounded-lg space-y-2">
+                  <span className="font-semibold text-amber-400 text-xs uppercase tracking-wider flex items-center gap-1.5">
+                    <Cpu className="h-3.5 w-3.5 text-amber-400" />
+                    Spark Cluster & Session Observability
+                  </span>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-[11px]">
+                    <div>
+                      <span className="text-slate-500">Master: </span>
+                      <span className="font-semibold text-slate-300 font-mono">
+                        {diagnosticsActivity.metrics.spark_master || 'local[*]'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500">App ID: </span>
+                      <span className="font-semibold text-slate-300 font-mono truncate">
+                        {diagnosticsActivity.metrics.spark_app_id || 'spark-df-session'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500">Stages: </span>
+                      <span className="font-semibold text-amber-400 font-mono">
+                        {diagnosticsActivity.metrics.spark_stages || 'Stage 0/0 Completed'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Retry History Timeline */}
               {diagnosticsActivity.retry_history?.length > 0 && (

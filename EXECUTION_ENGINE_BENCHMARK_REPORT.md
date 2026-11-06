@@ -104,6 +104,17 @@ In accordance with DataForge Technical Decision **ADR-007 (Empirical Benchmark C
 
 ---
 
+### 4.7 Monitoring & Performance Analytics: Telemetry Overhead & Export Latency
+*(Populated during Phase 8 upon physical benchmark execution across 100 iterations)*
+
+| Run ID | Date / Time | Component / Endpoint | Workload | Latency / Iteration | Memory Impact | Status |
+| :--- | :--- | :--- | :--- | :---: | :---: | :---: |
+| `telemetry_p8_001` | 2026-11-06 18:21 | `build_metrics_summary` | Engine Analytics & Distribution Aggregation | **0.054 ms** (54 µs) | $< 0.1\text{ MB}$ | **PASSED** |
+| `telemetry_p8_002` | 2026-11-06 18:21 | `ObservabilityService.export_opentelemetry_trace` | OpenTelemetry Span Graph & Attributes | **3.758 ms** | $< 0.5\text{ MB}$ | **PASSED** |
+| `telemetry_p8_003` | 2026-11-06 18:21 | `ObservabilityService.export_prometheus_metrics` | Full DB Prometheus Metric Scrape Generation | **45.921 ms** | $< 1.0\text{ MB}$ | **PASSED** |
+
+---
+
 ## 5. Phase 0 Audit Baseline Summary
 
 - **Current Status:** Phase 0 Architecture Audit Complete.

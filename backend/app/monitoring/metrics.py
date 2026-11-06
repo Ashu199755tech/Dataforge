@@ -49,7 +49,11 @@ def build_timeline(pipeline_run: PipelineRun) -> List[Dict[str, Any]]:
             "bytes_processed": act.bytes_processed,
             "error_classification": act.error_classification,
             "error_message": act.error_message,
-            "worker_info": act.worker_info or {}
+            "worker_info": act.worker_info or {},
+            "metrics": act.metrics or {},
+            "execution_engine": (act.metrics or {}).get("execution_engine"),
+            "planner_strategy": (act.metrics or {}).get("planner_strategy"),
+            "partition_column": (act.metrics or {}).get("partition_column")
         })
 
     return timeline
@@ -95,6 +99,36 @@ def build_metrics_summary(pipeline_run: PipelineRun) -> Dict[str, Any]:
         if pipeline_run.total_activities > 0 else 0.0
     )
 
+    # Intelligent Execution Engine Analytics
+    engine_counts = {"COPY": 0, "SPARK": 0, "SQL_PUSHDOWN": 0, "OTHER": 0}
+    egress_avoided_bytes = 0
+    total_partitions = 0
+
+    if pipeline_run.activity_runs:
+        for act in pipeline_run.activity_runs:
+            m = act.metrics or {}
+            eng = m.get("execution_engine")
+            if eng in engine_counts:
+                engine_counts[eng] += 1
+            elif eng:
+                engine_counts["OTHER"] += 1
+            if eng == "SQL_PUSHDOWN":
+                avoided = m.get("egress_avoided_bytes")
+                if avoided is None:
+                    avoided = act.bytes_processed or int(m.get("records_transferred", act.rows_written or 0) * 128)
+                egress_avoided_bytes += int(avoided)
+            if m.get("partition_column") or m.get("concurrency_limit"):
+                total_partitions += int(m.get("concurrency_limit", 1))
+
+    engine_summary = {
+        "engine_counts": engine_counts,
+        "engine_distribution": engine_counts,
+        "egress_avoided_bytes": egress_avoided_bytes,
+        "egress_avoided_mb": round(egress_avoided_bytes / (1024 * 1024), 2),
+        "total_partitions": total_partitions,
+        "total_partition_slices": total_partitions
+    }
+
     return {
         "pipeline_run_id": pipeline_run.id,
         "status": pipeline_run.status,
@@ -110,6 +144,7 @@ def build_metrics_summary(pipeline_run: PipelineRun) -> Dict[str, Any]:
             "write_throughput_rows_sec": rows_written_per_sec,
             "throughput_mb_sec": mb_per_sec
         },
+        "engine_analytics": engine_summary,
         "activity_summary": {
             "counts": status_counts,
             "success_rate_percentage": success_rate,
@@ -145,16 +180,20 @@ def generate_execution_report(pipeline_run: PipelineRun, format: str = "json") -
         # Activity Breakdown Table
         writer.writerow([
             "Activity ID", "Activity Name", "Type", "Status", "Duration (s)",
+            "Execution Engine", "Planner Strategy",
             "Rows Read", "Rows Written", "Bytes Processed", "Retries",
             "Error Classification", "Error Message"
         ])
         for act in pipeline_run.activity_runs or []:
+            m = act.metrics or {}
             writer.writerow([
                 act.activity_id,
                 act.activity_name,
                 act.activity_type,
                 act.status,
                 act.duration_seconds,
+                m.get("execution_engine", "COPY"),
+                m.get("planner_strategy", "AUTO"),
                 act.rows_read,
                 act.rows_written,
                 act.bytes_processed,
@@ -166,9 +205,9 @@ def generate_execution_report(pipeline_run: PipelineRun, format: str = "json") -
 
     elif format.lower() == "text":
         lines = [
-            "=" * 80,
+            "=" * 98,
             " DATAFLOW ENTERPRISE - PIPELINE EXECUTION LEDGER REPORT",
-            "=" * 80,
+            "=" * 98,
             f"Run ID:            {pipeline_run.id}",
             f"Pipeline ID:       {pipeline_run.pipeline_id}",
             f"Status:            {pipeline_run.status.upper()}",
@@ -177,16 +216,17 @@ def generate_execution_report(pipeline_run: PipelineRun, format: str = "json") -
             f"Duration:          {pipeline_run.duration_seconds}s",
             f"Ingestion Metrics: {pipeline_run.total_rows_written:,} rows written | {metrics['data_movement']['total_mb_processed']} MB ({metrics['data_movement']['throughput_mb_sec']} MB/s)",
             f"Activities:        {pipeline_run.succeeded_activities}/{pipeline_run.total_activities} Succeeded",
-            "-" * 88,
-            f"{'ACTIVITY (ID / NAME)':<36} {'TYPE':<16} {'STATUS':<10} {'TIME':<6} {'ROWS OUT':<10} {'RETRIES'}",
-            "-" * 88
+            "-" * 98,
+            f"{'ACTIVITY (ID / NAME)':<32} {'TYPE':<14} {'ENGINE':<14} {'STATUS':<10} {'TIME':<6} {'ROWS OUT':<10} {'RETRIES'}",
+            "-" * 98
         ]
         for act in pipeline_run.activity_runs or []:
-            name_and_id = f"{act.activity_id} ({act.activity_name})"[:34]
+            name_and_id = f"{act.activity_id} ({act.activity_name})"[:30]
+            eng = (act.metrics or {}).get("execution_engine", "COPY")
             lines.append(
-                f"{name_and_id:<36} {act.activity_type[:14]:<16} {act.status:<10} {act.duration_seconds}s{' '*(5-len(str(act.duration_seconds)))} {act.rows_written:<10} {act.retry_attempt}"
+                f"{name_and_id:<32} {act.activity_type[:12]:<14} {eng:<14} {act.status:<10} {act.duration_seconds}s{' '*(5-len(str(act.duration_seconds)))} {act.rows_written:<10} {act.retry_attempt}"
             )
-        lines.append("=" * 88)
+        lines.append("=" * 98)
         if pipeline_run.error_summary:
             lines.append(f"ERROR SUMMARY:\n{pipeline_run.error_summary}")
             lines.append("=" * 88)

@@ -369,6 +369,34 @@ class ObservabilityService:
         lines.append(f'dataforge_copy_data_rows_transferred_total {perf.total_rows_transferred}')
         lines.append(f'dataforge_copy_data_bytes_transferred_total {perf.total_bytes_transferred}')
 
+        # Intelligent Execution Engine Metrics
+        lines.append("# HELP dataforge_engine_activities_total Total activity runs dispatched by engine type")
+        lines.append("# TYPE dataforge_engine_activities_total counter")
+        all_acts = db.query(ActivityRun).all()
+        engine_counts = {"COPY": 0, "SPARK": 0, "SQL_PUSHDOWN": 0}
+        egress_avoided = 0
+        partitions_total = 0
+        for a in all_acts:
+            m = a.metrics or {}
+            eng = m.get("execution_engine")
+            if eng in engine_counts:
+                engine_counts[eng] += 1
+            if eng == "SQL_PUSHDOWN":
+                egress_avoided += int(m.get("records_transferred", a.rows_written or 0) * 128)
+            if m.get("partition_column") or m.get("concurrency_limit"):
+                partitions_total += int(m.get("concurrency_limit", 1))
+
+        for eng, count in engine_counts.items():
+            lines.append(f'dataforge_engine_activities_total{{engine="{eng}"}} {count}')
+
+        lines.append("# HELP dataforge_sql_pushdown_egress_bytes_avoided Total egress bytes avoided through in-database pushdown")
+        lines.append("# TYPE dataforge_sql_pushdown_egress_bytes_avoided counter")
+        lines.append(f'dataforge_sql_pushdown_egress_bytes_avoided {egress_avoided}')
+
+        lines.append("# HELP dataforge_copy_engine_partitions_total Total partitions executed by Copy Engine coordinator")
+        lines.append("# TYPE dataforge_copy_engine_partitions_total counter")
+        lines.append(f'dataforge_copy_engine_partitions_total {partitions_total}')
+
         # Runtime Fleet Telemetry
         fleet = cls.get_runtime_fleet_overview(db)
         lines.append("# HELP dataforge_runtime_fleet_agents_total Total number of integration runtime agents")
@@ -463,6 +491,10 @@ class ObservabilityService:
                     "dataforge.activity.duration_seconds": act.duration_seconds or 0.0,
                     "dataforge.activity.rows_read": act.rows_read or 0,
                     "dataforge.activity.rows_written": act.rows_written or 0,
+                    "dataforge.engine.selected": (act.metrics or {}).get("execution_engine", "COPY"),
+                    "dataforge.engine.strategy": (act.metrics or {}).get("planner_strategy", "AUTO"),
+                    "dataforge.engine.confidence": float((act.metrics or {}).get("planner_confidence", 1.0)),
+                    "dataforge.engine.egress_bytes": int((act.metrics or {}).get("egress_bytes", act.bytes_processed or 0)),
                     **(act.metrics or {})
                 },
                 status={

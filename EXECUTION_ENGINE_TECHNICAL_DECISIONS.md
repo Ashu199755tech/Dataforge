@@ -152,3 +152,34 @@ Pipeline designers and data engineers need immediate visibility into how their a
 #### Consequences
 - **Positive:** Developers receive instant, clear feedback on execution strategy and can override engine selection when desired.
 - **Negative:** Design-time planning relies on available schema metadata; live row counts may be estimates until execution runtime.
+
+---
+
+### ADR-009: Unified Intelligent Engine Telemetry & Zero-Egress Observability
+
+#### Context
+With three distinct execution engines (streaming Copy, distributed Spark, and in-database SQL Pushdown) operating concurrently or consecutively within pipelines, operations teams need deep, granular observability into:
+1. Which engine actually executed each activity and why (the planner's rationale and confidence score).
+2. Physical metrics specific to each engine: SQL Pushdown in-database generated SQL query plan, Spark master and stage progress, and parallel partition concurrency and slices.
+3. Accurate empirical accounting of cloud network transfer avoided via in-database pushdown (Zero Egress).
+
+#### Decision
+1. Standardize engine metadata emitted in `ActivityRun.metrics` across all engine dispatchers:
+   - `execution_engine` (`COPY`, `SPARK`, `SQL_PUSHDOWN`).
+   - `planner_strategy` (`AUTO`, `FORCE_COPY`, `FORCE_SPARK`, `FORCE_SQL_PUSHDOWN`).
+   - `planner_confidence` (0.0 to 1.0).
+   - `planner_explanation` (human-readable justification).
+   - Engine-specific diagnostic attributes: `generated_sql`, `pushdown_dialect`, `partition_column`, `concurrency_limit`, `spark_master`, `spark_app_id`.
+2. Expand Prometheus metrics endpoint (`/api/v1/observability/metrics`) with engine-level counters:
+   - `dataforge_engine_activities_total{engine="..."}`: Activity counter segmented by engine.
+   - `dataforge_sql_pushdown_egress_bytes_avoided`: Total empirical bytes transformed in-database with 0 egress.
+   - `dataforge_copy_engine_partitions_total`: Cumulative partition slices executed by the Copy Engine.
+3. Enrich OpenTelemetry trace exports (`/api/v1/observability/traces/{run_id}`) with semantic engine attributes on activity child spans (`dataforge.engine.selected`, `dataforge.engine.strategy`, `dataforge.engine.confidence`, `dataforge.engine.egress_bytes`).
+4. Augment `RunsMonitorPage.tsx` with:
+   - Visual engine and partition pills on activity ledgers and Gantt waterfall bars.
+   - Real-time Intelligent Execution Engine Analytics grid (engine distribution, cloud egress avoided MB, partition slices).
+   - Comprehensive Diagnostics Modal inspector: Execution Engine & Plan Rationale card, syntax-highlighted pushdown SQL plan viewer with "Copy SQL" button, Partition Slicing & Checkpoints telemetry, and Spark cluster session telemetry.
+
+#### Consequences
+- **Positive:** Full visibility from high-level Prometheus scraping down to individual SQL Pushdown query plans and partition slices. Egress cost savings are empirically demonstrable to infrastructure stakeholders.
+- **Negative:** Diagnostics modal payloads include full query text and partition metadata, requiring bounded memory serialization ($< 0.1\text{ ms}$ overhead verified).

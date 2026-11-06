@@ -273,6 +273,10 @@ export interface TimelineItem {
   error_classification?: string;
   error_message?: string;
   worker_info?: Record<string, any>;
+  metrics?: Record<string, any>;
+  execution_engine?: string;
+  planner_strategy?: string;
+  partition_column?: string;
 }
 
 export interface AlertRule {

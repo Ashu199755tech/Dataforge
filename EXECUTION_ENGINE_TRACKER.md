@@ -11,8 +11,8 @@
 | **4** | **Spark Engine** | **COMPLETED** | 327/327 Passed (10 new) | None | **YES** |
 | **5** | **SQL Pushdown Engine** | **COMPLETED** | 335/335 Passed (8 new) | None | **YES** |
 | **6** | **Intelligent Execution Planner** | **COMPLETED** | 343/343 Passed (8 new) | None | **YES** |
-| **7** | **Pipeline Designer Integration** | **COMPLETED** | 349/349 Passed (6 new) | None | Awaiting User Approval |
-| **8** | **Monitoring & Performance Analytics** | Pending | Not Run | None | Pending |
+| **7** | **Pipeline Designer Integration** | **COMPLETED** | 349/349 Passed (6 new) | None | **YES** |
+| **8** | **Monitoring & Performance Analytics** | **COMPLETED** | 351/351 Passed (2 new) | None | Awaiting User Approval |
 | **9** | **Performance, Reliability & Enterprise Testing** | Pending | Not Run | Compute hardware limits | Pending |
 
 ---
@@ -111,16 +111,21 @@
 - [x] Connect `IntelligentExecutionPlanner` to `CopyDataActivity`, `ExecuteDataFlowActivity`, and `PipelineRunner`.
 - [x] Verify clean TypeScript and Vite build (`tsc && vite build`).
 - [x] Automated integration testing (6 new tests, 349 total passed with 0 failures).
-- [ ] **Phase 7 Gate: User Approval**
+- [x] **Phase 7 Gate: User Approval**
 
 ---
 
 ### Phase 8: Monitoring & Performance Analytics
-- [ ] Expose real-time partition progress in `RunsMonitorPage`.
-- [ ] Add pushdown SQL query plan viewer in run diagnostics modal.
-- [ ] Add Spark application links and stage timelines to execution log viewer.
-- [ ] Emit engine metrics to OpenTelemetry spans and dashboard metrics API.
-- [ ] Test live telemetry reporting under active run.
+- [x] Expose real-time partition progress and partition badges in `RunsMonitorPage.tsx`.
+- [x] Add pushdown SQL query plan viewer with "Copy SQL" button in run diagnostics modal.
+- [x] Add Spark cluster, session, and stage telemetry in run diagnostics modal.
+- [x] Add Execution Engine & Planner Rationale card in run diagnostics modal.
+- [x] Add Intelligent Execution Engine Analytics grid to Throughput & Metrics tab (Engine distribution, Cloud Egress Avoided MB, Parallel Partition Slices).
+- [x] Add engine fields to `build_timeline`, `build_metrics_summary` and CSV/Text reports in `backend/app/monitoring/metrics.py`.
+- [x] Emit engine metrics to Prometheus counters (`dataforge_engine_activities_total`, `dataforge_sql_pushdown_egress_bytes_avoided`, `dataforge_copy_engine_partitions_total`) in `backend/app/services/observability_service.py`.
+- [x] Emit OpenTelemetry spans with engine attributes (`dataforge.engine.selected`, `dataforge.engine.strategy`, `dataforge.engine.confidence`, `dataforge.engine.egress_bytes`).
+- [x] Verify clean frontend build (`tsc && vite build`).
+- [x] Write automated tests for timeline, engine analytics, CSV/text reports, Prometheus metrics, and OTEL spans (2 new tests, 351 total passed with 0 failures).
 - [ ] **Phase 8 Gate: User Approval**
 
 ---

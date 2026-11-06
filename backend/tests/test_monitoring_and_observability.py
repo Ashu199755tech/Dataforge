@@ -397,3 +397,211 @@ def test_pipeline_cancel_and_rerun(client, auth_headers, test_setup):
     new_run = rerun_res.json()
     assert new_run["pipeline_id"] == pipeline_id
     assert new_run["run_type"] == "Rerun"
+
+
+def test_timeline_and_metrics_engine_analytics(test_setup):
+    """Test Phase 8 timeline engine fields, metrics summary engine analytics, and report generation."""
+    db: Session = SessionLocal()
+    pipeline_id = test_setup["pipeline_id"]
+
+    run = PipelineRun(
+        pipeline_id=pipeline_id,
+        run_type="Manual",
+        status="Succeeded",
+        started_at=datetime.now(timezone.utc),
+        ended_at=datetime.now(timezone.utc),
+        duration_seconds=12.5,
+        total_activities=3,
+        succeeded_activities=3,
+        failed_activities=0,
+        total_rows_read=15000,
+        total_rows_written=15000,
+        total_bytes_processed=17825792
+    )
+    db.add(run)
+    db.commit()
+    db.refresh(run)
+
+    act_pushdown = ActivityRun(
+        pipeline_run_id=run.id,
+        activity_id="act_pushdown_1",
+        activity_name="In-Database Transform",
+        activity_type="CopyData",
+        status="Succeeded",
+        retry_attempt=0,
+        rows_read=5000,
+        rows_written=5000,
+        bytes_processed=5242880,  # 5 MB
+        duration_seconds=2.1,
+        started_at=datetime.now(timezone.utc),
+        ended_at=datetime.now(timezone.utc),
+        metrics={
+            "execution_engine": "SQL_PUSHDOWN",
+            "planner_strategy": "AUTO",
+            "planner_confidence": 0.98,
+            "planner_explanation": "Zero-egress in-database SQL transformation",
+            "pushdown_dialect": "PostgreSQL",
+            "generated_sql": "INSERT INTO target SELECT * FROM source WHERE active = true"
+        }
+    )
+    act_spark = ActivityRun(
+        pipeline_run_id=run.id,
+        activity_id="act_spark_1",
+        activity_name="Distributed Aggregation",
+        activity_type="ExecuteDataFlow",
+        status="Succeeded",
+        retry_attempt=0,
+        rows_read=7000,
+        rows_written=7000,
+        bytes_processed=10485760,  # 10 MB
+        duration_seconds=6.4,
+        started_at=datetime.now(timezone.utc),
+        ended_at=datetime.now(timezone.utc),
+        metrics={
+            "execution_engine": "SPARK",
+            "planner_strategy": "FORCE_SPARK",
+            "planner_confidence": 1.0,
+            "spark_master": "local[*]",
+            "spark_app_id": "spark-app-test-8"
+        }
+    )
+    act_copy = ActivityRun(
+        pipeline_run_id=run.id,
+        activity_id="act_copy_1",
+        activity_name="Parallel Copy Slices",
+        activity_type="CopyData",
+        status="Succeeded",
+        retry_attempt=0,
+        rows_read=3000,
+        rows_written=3000,
+        bytes_processed=2097152,  # 2 MB
+        duration_seconds=3.8,
+        started_at=datetime.now(timezone.utc),
+        ended_at=datetime.now(timezone.utc),
+        metrics={
+            "execution_engine": "COPY",
+            "planner_strategy": "AUTO",
+            "partition_column": "customer_id",
+            "concurrency_limit": 4
+        }
+    )
+    db.add_all([act_pushdown, act_spark, act_copy])
+    db.commit()
+
+    try:
+        # Refresh run with activity_runs relation or direct access
+        db.refresh(run)
+        # 1. Timeline verification
+        timeline_result = build_timeline(run)
+        items = timeline_result
+        assert len(items) == 3
+
+        pd_item = next(i for i in items if i["activity_id"] == "act_pushdown_1")
+        assert pd_item["execution_engine"] == "SQL_PUSHDOWN"
+        assert pd_item["planner_strategy"] == "AUTO"
+
+        sp_item = next(i for i in items if i["activity_id"] == "act_spark_1")
+        assert sp_item["execution_engine"] == "SPARK"
+        assert sp_item["planner_strategy"] == "FORCE_SPARK"
+
+        cp_item = next(i for i in items if i["activity_id"] == "act_copy_1")
+        assert cp_item["execution_engine"] == "COPY"
+        assert cp_item["partition_column"] == "customer_id"
+
+        # 2. Metrics summary & Engine Analytics verification
+        summary = build_metrics_summary(run)
+        assert "engine_analytics" in summary
+        ea = summary["engine_analytics"]
+        assert ea["engine_distribution"]["SQL_PUSHDOWN"] == 1
+        assert ea["engine_distribution"]["SPARK"] == 1
+        assert ea["engine_distribution"]["COPY"] == 1
+        assert ea["egress_avoided_bytes"] == 5242880
+        assert ea["egress_avoided_mb"] == 5.0
+        assert ea["total_partition_slices"] == 4
+
+        # 3. Execution report verification
+        csv_report = generate_execution_report(run, "csv")
+        assert "Execution Engine" in csv_report
+        assert "Planner Strategy" in csv_report
+        assert "SQL_PUSHDOWN" in csv_report
+        assert "SPARK" in csv_report
+        assert "COPY" in csv_report
+
+        txt_report = generate_execution_report(run, "text")
+        assert "ENGINE" in txt_report
+        assert "SQL_PUSHDOWN" in txt_report
+        assert "SPARK" in txt_report
+        assert "COPY" in txt_report
+    finally:
+        db.delete(act_pushdown)
+        db.delete(act_spark)
+        db.delete(act_copy)
+        db.delete(run)
+        db.commit()
+        db.close()
+
+
+def test_observability_service_engine_metrics_and_spans(test_setup):
+    """Test Phase 8 Prometheus metric counters and OpenTelemetry span attributes."""
+    from backend.app.services.observability_service import ObservabilityService
+
+    db: Session = SessionLocal()
+    pipeline_id = test_setup["pipeline_id"]
+
+    run = PipelineRun(
+        pipeline_id=pipeline_id,
+        run_type="Manual",
+        status="Succeeded",
+        started_at=datetime.now(timezone.utc),
+        ended_at=datetime.now(timezone.utc),
+        duration_seconds=5.0
+    )
+    db.add(run)
+    db.commit()
+    db.refresh(run)
+
+    act = ActivityRun(
+        pipeline_run_id=run.id,
+        activity_id="act_pd_telemetry_1",
+        activity_name="Pushdown In-Database Aggregate",
+        activity_type="CopyData",
+        status="Succeeded",
+        rows_read=1000,
+        rows_written=1000,
+        bytes_processed=204800,
+        duration_seconds=1.2,
+        metrics={
+            "execution_engine": "SQL_PUSHDOWN",
+            "planner_strategy": "AUTO",
+            "planner_confidence": 0.96,
+            "records_transferred": 1000
+        }
+    )
+    db.add(act)
+    db.commit()
+
+    try:
+        # 1. Prometheus Engine Metrics
+        prom_metrics = ObservabilityService.export_prometheus_metrics(db)
+        assert "dataforge_engine_activities_total" in prom_metrics
+        assert 'dataforge_engine_activities_total{engine="SQL_PUSHDOWN"}' in prom_metrics
+        assert "dataforge_sql_pushdown_egress_bytes_avoided" in prom_metrics
+        assert "dataforge_copy_engine_partitions_total" in prom_metrics
+
+        # 2. OpenTelemetry Trace Attributes
+        otel_trace = ObservabilityService.export_opentelemetry_trace(db, run.id)
+        assert otel_trace is not None
+        assert otel_trace.trace_id is not None
+        assert len(otel_trace.spans) >= 2  # Root span + activity span
+
+        act_span = next((s for s in otel_trace.spans if s.name.startswith("Activity: ")), None)
+        assert act_span is not None
+        assert act_span.attributes["dataforge.engine.selected"] == "SQL_PUSHDOWN"
+        assert act_span.attributes["dataforge.engine.strategy"] == "AUTO"
+        assert act_span.attributes["dataforge.engine.confidence"] == 0.96
+    finally:
+        db.delete(act)
+        db.delete(run)
+        db.commit()
+        db.close()
+
