@@ -18,6 +18,13 @@ from backend.app.engine.copy.stream_io import (
 )
 from backend.app.engine.copy.record_batch import ArrowRecordBatchTransformer
 from backend.app.engine.copy.checkpoints import PartitionCheckpointLedger
+from backend.app.engine.copy.partitioner import (
+    RangePartitioner,
+    TemporalPartitioner,
+    ListPartitioner,
+    StorageFilePartitioner
+)
+from backend.app.engine.copy.coordinator import ParallelCopyCoordinator
 from backend.app.engine.copy.engine import DataForgeCopyEngine
 
 __all__ = [
@@ -33,5 +40,10 @@ __all__ = [
     "StreamChecksumCalculator",
     "ArrowRecordBatchTransformer",
     "PartitionCheckpointLedger",
+    "RangePartitioner",
+    "TemporalPartitioner",
+    "ListPartitioner",
+    "StorageFilePartitioner",
+    "ParallelCopyCoordinator",
     "DataForgeCopyEngine"
 ]

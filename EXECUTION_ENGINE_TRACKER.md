@@ -5,8 +5,8 @@
 | Phase | Milestone Name | Status | Test Status | Blockers / Risks | Gate Cleared |
 | :---: | :--- | :---: | :---: | :--- | :---: |
 | **0** | **Architecture Audit & Blueprint** | **COMPLETED** | 288/288 Passed | None | **YES** |
-| **1** | **Copy Engine Foundation** | **COMPLETED** | 299/299 Passed (11 new) | None | Awaiting User Approval |
-| **2** | **Parallel & Partitioned Data Movement** | Pending | Not Run | None | Pending |
+| **1** | **Copy Engine Foundation** | **COMPLETED** | 299/299 Passed (11 new) | None | **YES** |
+| **2** | **Parallel & Partitioned Data Movement** | **COMPLETED** | 309/309 Passed (10 new) | None | Awaiting User Approval |
 | **3** | **Cloud Transfer Optimization** | Pending | Not Run | Multi-cloud credentials | Pending |
 | **4** | **Spark Engine** | Pending | Not Run | Spark / PySpark environment | Pending |
 | **5** | **SQL Pushdown Engine** | Pending | Not Run | Dialect differences | Pending |
@@ -43,17 +43,17 @@
 - [x] Implement cooperative `CancellationToken` across all chunk loops.
 - [x] Create automated unit tests for format transcodings (CSV, Parquet, JSON, Avro, ORC).
 - [x] Verify bounded memory consumption ($\le 64\text{ MB}$ RSS on large transfers via `tracemalloc`).
-- [ ] **Phase 1 Gate: User Approval**
+- [x] **Phase 1 Gate: User Approval**
 
 ---
 
 ### Phase 2: Parallel and Partitioned Data Movement
-- [ ] Implement database partition planner (numeric range, timestamp/date slicing).
-- [ ] Implement storage file-set partitioner.
-- [ ] Implement concurrent partition worker pool with semaphore concurrency limits.
-- [ ] Implement checkpoint persistence ledger in `ActivityRun.metrics["partitions"]`.
-- [ ] Implement partition resume mechanism on failed activity rerun.
-- [ ] Write unit & integration tests for partition slicing and checkpoint recovery.
+- [x] Implement database partition planner (numeric range, timestamp/date slicing).
+- [x] Implement storage file-set partitioner with LPT bin-packing.
+- [x] Implement concurrent partition worker pool with semaphore/thread concurrency limits (`ParallelCopyCoordinator`).
+- [x] Implement checkpoint persistence ledger in `PartitionCheckpointLedger`.
+- [x] Implement partition resume mechanism (skips already succeeded slices).
+- [x] Write unit & integration tests for partition slicing and checkpoint recovery (10 new tests, 309 total passed).
 - [ ] **Phase 2 Gate: User Approval**
 
 ---

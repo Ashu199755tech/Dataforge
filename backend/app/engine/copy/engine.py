@@ -1,7 +1,8 @@
 import time
 import io
+import os
 import threading
-from typing import Dict, Any, Optional, Callable, Iterator, List
+from typing import Dict, Any, Optional, Callable, Iterator, List, Union
 from backend.app.connectors.base import BaseConnector
 from backend.app.connectors.storage.base import BaseStorageConnector
 from backend.app.formats.registry import FormatRegistry
@@ -20,6 +21,13 @@ from backend.app.engine.copy.stream_io import (
 )
 from backend.app.engine.copy.record_batch import ArrowRecordBatchTransformer
 from backend.app.engine.copy.checkpoints import PartitionCheckpointLedger
+from backend.app.engine.copy.partitioner import (
+    RangePartitioner,
+    TemporalPartitioner,
+    ListPartitioner,
+    StorageFilePartitioner
+)
+from backend.app.engine.copy.coordinator import ParallelCopyCoordinator
 
 
 class DataForgeCopyEngine:
@@ -543,3 +551,283 @@ class DataForgeCopyEngine:
             auto_create_table=dest.get("auto_create_table", True),
             schema_name=dest.get("schema_name")
         )
+
+    @classmethod
+    def execute_partitioned_database_to_storage(
+        cls,
+        db_connector: BaseConnector,
+        dst_connector: BaseStorageConnector,
+        src_table: str,
+        dst_container: str,
+        dst_path: str,
+        partition_specs: Optional[List[PartitionSpec]] = None,
+        partition_column: Optional[str] = None,
+        num_partitions: int = 4,
+        options: Optional[CopyOptions] = None,
+        config: Optional[Dict[str, Any]] = None,
+        checkpoint_ledger: Optional[PartitionCheckpointLedger] = None,
+        cancellation_token: Optional[CancellationToken] = None,
+        progress_callback: Optional[Callable[[CopyProgress], None]] = None
+    ) -> CopyResult:
+        """
+        Executes parallel partitioned extraction from database into multi-file storage.
+        Uses range/temporal partitioning to split workload across concurrent threads.
+        """
+        token = cancellation_token or CancellationToken()
+        cfg = config or {}
+        opts = options or cls._resolve_options(cfg)
+        concurrency = opts.max_parallel_partitions or num_partitions
+
+        specs = partition_specs
+        if not specs:
+            base_filter = cfg.get("source", {}).get("filter_expr") or cfg.get("source", {}).get("filter_expression")
+            if partition_column:
+                specs = RangePartitioner.auto_probe_and_partition(
+                    connector=db_connector,
+                    table_name=src_table,
+                    column=partition_column,
+                    num_partitions=num_partitions,
+                    schema_name=opts.schema_name or cfg.get("source", {}).get("schema_name"),
+                    base_filter=base_filter
+                )
+            else:
+                specs = [PartitionSpec(partition_id="part-00000", slice_index=0, total_slices=1, filter_expr=base_filter)]
+
+        ledger = checkpoint_ledger or PartitionCheckpointLedger(run_id="run_part_db", activity_id="act_part_db")
+        ledger.register_partitions(specs)
+
+        dst_format = (cfg.get("destination", {}).get("format") or 
+                      cfg.get("destination_settings", {}).get("format") or 
+                      FormatRegistry.detect_format_from_filename(dst_path)).lower()
+
+        def _worker(spec: PartitionSpec, part_token: CancellationToken, updater: Callable[[int, int], None]) -> Dict[str, Any]:
+            if "." in os.path.basename(dst_path):
+                name, ext = os.path.splitext(dst_path)
+                part_dst_path = f"{name}_part_{spec.slice_index:05d}{ext}" if spec.total_slices > 1 else dst_path
+            else:
+                part_dst_path = f"{dst_path.rstrip('/')}/part_{spec.slice_index:05d}.{dst_format}"
+
+            part_cfg = dict(cfg)
+            part_source = dict(part_cfg.get("source", {}))
+            if spec.filter_expr:
+                base_f = part_source.get("filter_expr")
+                part_source["filter_expr"] = f"({base_f}) AND ({spec.filter_expr})" if base_f and spec.filter_expr != base_f else spec.filter_expr
+            part_cfg["source"] = part_source
+
+            last_bytes = 0
+            last_records = 0
+
+            def _sub_callback(p: CopyProgress):
+                nonlocal last_bytes, last_records
+                d_b = p.bytes_written - last_bytes
+                d_r = p.records_written - last_records
+                last_bytes = p.bytes_written
+                last_records = p.records_written
+                updater(d_b, d_r)
+
+            res = cls.execute_database_to_storage(
+                db_connector=db_connector,
+                dst_connector=dst_connector,
+                src_table=src_table,
+                dst_container=dst_container,
+                dst_path=part_dst_path,
+                options=opts,
+                config=part_cfg,
+                cancellation_token=part_token,
+                progress_callback=_sub_callback
+            )
+
+            if not res.success:
+                raise RuntimeError(res.error_message or "Partition stream failed")
+
+            return {
+                "rows_transferred": res.records_transferred,
+                "bytes_transferred": res.bytes_transferred,
+                "checksum": res.destination_checksum,
+                "metadata": {"partition_path": part_dst_path}
+            }
+
+        coordinator = ParallelCopyCoordinator(
+            ledger=ledger,
+            max_parallel_partitions=concurrency,
+            cancellation_token=token,
+            progress_callback=progress_callback
+        )
+        return coordinator.execute(_worker)
+
+    @classmethod
+    def execute_partitioned_storage_to_storage(
+        cls,
+        src_connector: BaseStorageConnector,
+        dst_connector: BaseStorageConnector,
+        src_container: str,
+        src_path: str,
+        dst_container: str,
+        dst_path: str,
+        files: Optional[List[str]] = None,
+        num_partitions: int = 4,
+        options: Optional[CopyOptions] = None,
+        config: Optional[Dict[str, Any]] = None,
+        checkpoint_ledger: Optional[PartitionCheckpointLedger] = None,
+        cancellation_token: Optional[CancellationToken] = None,
+        progress_callback: Optional[Callable[[CopyProgress], None]] = None
+    ) -> CopyResult:
+        """
+        Executes parallel multi-file data movement between storage systems.
+        Distributes files across partition workers using bin-packing.
+        """
+        token = cancellation_token or CancellationToken()
+        cfg = config or {}
+        opts = options or cls._resolve_options(cfg)
+        concurrency = opts.max_parallel_partitions or num_partitions
+
+        file_list = files
+        if file_list is None:
+            try:
+                listed = list(src_connector.list_files(src_container, prefix=src_path, recursive=True))
+                file_list = [item.path for item in listed if not getattr(item, "is_directory", False)]
+            except Exception:
+                file_list = [src_path]
+
+        if not file_list:
+            file_list = [src_path]
+
+        specs = StorageFilePartitioner.create_file_partitions(file_list, num_partitions=num_partitions)
+        ledger = checkpoint_ledger or PartitionCheckpointLedger(run_id="run_part_s2s", activity_id="act_part_s2s")
+        ledger.register_partitions(specs)
+
+        def _worker(spec: PartitionSpec, part_token: CancellationToken, updater: Callable[[int, int], None]) -> Dict[str, Any]:
+            total_b = 0
+            total_r = 0
+            for f_item in (spec.file_items or []):
+                part_token.raise_if_cancelled()
+                if src_path.rstrip('/') and f_item.startswith(src_path.rstrip('/') + '/'):
+                    rel = f_item[len(src_path.rstrip('/') + '/'):]
+                else:
+                    rel = os.path.basename(f_item)
+                target_file_path = f"{dst_path.rstrip('/')}/{rel}" if dst_path else rel
+
+                last_b = 0
+
+                def _file_cb(p: CopyProgress):
+                    nonlocal last_b
+                    d = p.bytes_written - last_b
+                    last_b = p.bytes_written
+                    updater(d, 0)
+
+                res = cls.execute_storage_to_storage(
+                    src_connector=src_connector,
+                    dst_connector=dst_connector,
+                    src_container=src_container,
+                    src_path=f_item,
+                    dst_container=dst_container,
+                    dst_path=target_file_path,
+                    options=opts,
+                    config=cfg,
+                    cancellation_token=part_token,
+                    progress_callback=_file_cb
+                )
+
+                if not res.success:
+                    raise RuntimeError(f"Failed copying file '{f_item}': {res.error_message}")
+
+                total_b += res.bytes_transferred
+                total_r += res.records_transferred
+
+            return {
+                "rows_transferred": total_r,
+                "bytes_transferred": total_b,
+                "metadata": {"files_count": len(spec.file_items or [])}
+            }
+
+        coordinator = ParallelCopyCoordinator(
+            ledger=ledger,
+            max_parallel_partitions=concurrency,
+            cancellation_token=token,
+            progress_callback=progress_callback
+        )
+        return coordinator.execute(_worker)
+
+    @classmethod
+    def execute_partitioned_storage_to_database(
+        cls,
+        src_connector: BaseStorageConnector,
+        db_connector: BaseConnector,
+        src_container: str,
+        src_path: str,
+        dst_table: str,
+        files: Optional[List[str]] = None,
+        num_partitions: int = 4,
+        options: Optional[CopyOptions] = None,
+        config: Optional[Dict[str, Any]] = None,
+        checkpoint_ledger: Optional[PartitionCheckpointLedger] = None,
+        cancellation_token: Optional[CancellationToken] = None,
+        progress_callback: Optional[Callable[[CopyProgress], None]] = None
+    ) -> CopyResult:
+        """
+        Executes parallel multi-file ingestion from storage into relational database.
+        """
+        token = cancellation_token or CancellationToken()
+        cfg = config or {}
+        opts = options or cls._resolve_options(cfg)
+        concurrency = opts.max_parallel_partitions or num_partitions
+
+        file_list = files
+        if file_list is None:
+            try:
+                listed = list(src_connector.list_files(src_container, prefix=src_path, recursive=True))
+                file_list = [item.path for item in listed if not getattr(item, "is_directory", False)]
+            except Exception:
+                file_list = [src_path]
+
+        if not file_list:
+            file_list = [src_path]
+
+        specs = StorageFilePartitioner.create_file_partitions(file_list, num_partitions=num_partitions)
+        ledger = checkpoint_ledger or PartitionCheckpointLedger(run_id="run_part_s2db", activity_id="act_part_s2db")
+        ledger.register_partitions(specs)
+
+        def _worker(spec: PartitionSpec, part_token: CancellationToken, updater: Callable[[int, int], None]) -> Dict[str, Any]:
+            total_b = 0
+            total_r = 0
+            for f_item in (spec.file_items or []):
+                part_token.raise_if_cancelled()
+                last_r = 0
+
+                def _ingest_cb(p: CopyProgress):
+                    nonlocal last_r
+                    d = p.records_written - last_r
+                    last_r = p.records_written
+                    updater(d * 128, d)
+
+                res = cls.execute_storage_to_database(
+                    src_connector=src_connector,
+                    db_connector=db_connector,
+                    src_container=src_container,
+                    src_path=f_item,
+                    dst_table=dst_table,
+                    options=opts,
+                    config=cfg,
+                    cancellation_token=part_token,
+                    progress_callback=_ingest_cb
+                )
+
+                if not res.success:
+                    raise RuntimeError(f"Failed ingesting file '{f_item}': {res.error_message}")
+
+                total_b += res.bytes_transferred
+                total_r += res.records_transferred
+
+            return {
+                "rows_transferred": total_r,
+                "bytes_transferred": total_b,
+                "metadata": {"files_count": len(spec.file_items or [])}
+            }
+
+        coordinator = ParallelCopyCoordinator(
+            ledger=ledger,
+            max_parallel_partitions=concurrency,
+            cancellation_token=token,
+            progress_callback=progress_callback
+        )
+        return coordinator.execute(_worker)

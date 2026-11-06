@@ -40,11 +40,13 @@ In accordance with DataForge Technical Decision **ADR-007 (Empirical Benchmark C
 ## 4. Empirical Benchmark Results Ledger
 
 ### 4.1 Copy Engine: Storage-to-Storage Transfers
-*(Populated during Phase 1 & Phase 3 upon physical benchmark execution)*
+*(Populated during Phase 1, Phase 2 & Phase 3 upon physical benchmark execution)*
 
 | Run ID | Date / Time | Dataset ID | Source | Sink | Engine | Partitions | Duration (s) | Throughput (MB/s) | Peak RAM (MB) | Verified Hash | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
 | `copy_p1_001` | 2026-11-06 15:55 | DS-25M | Local NVMe | Local NVMe | Copy (Bounded) | 1 | 0.097s | 256.57 MB/s | 4.02 MB | MD5 Verified | **PASSED** |
+| `copy_p2_001` | 2026-11-06 16:02 | DS-8M (8 files) | Local NVMe | Local NVMe | Copy (Serial) | 1 | 0.0474s | 175.26 MB/s | 2.15 MB | MD5 Verified | **PASSED** |
+| `copy_p2_002` | 2026-11-06 16:02 | DS-8M (8 files) | Local NVMe | Local NVMe | Copy (Parallel) | 4 | 0.0212s | 398.76 MB/s | 3.84 MB | MD5 Verified | **PASSED (2.24x speedup)** |
 | *Pending* | - | DS-1G | Local | S3 | Copy (Parallel) | 4 | - | - | - | - | Pending Phase 3 |
 
 ---
