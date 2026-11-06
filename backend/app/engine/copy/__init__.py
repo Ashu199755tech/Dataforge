@@ -25,6 +25,13 @@ from backend.app.engine.copy.partitioner import (
     StorageFilePartitioner
 )
 from backend.app.engine.copy.coordinator import ParallelCopyCoordinator
+from backend.app.engine.copy.cloud_optimizer import (
+    CloudPartSizer,
+    CloudStagingPolicy,
+    ConcurrentMultipartUploader,
+    CloudToCloudPipe,
+    CloudTransferOptimizer
+)
 from backend.app.engine.copy.engine import DataForgeCopyEngine
 
 __all__ = [
@@ -45,5 +52,10 @@ __all__ = [
     "ListPartitioner",
     "StorageFilePartitioner",
     "ParallelCopyCoordinator",
+    "CloudPartSizer",
+    "CloudStagingPolicy",
+    "ConcurrentMultipartUploader",
+    "CloudToCloudPipe",
+    "CloudTransferOptimizer",
     "DataForgeCopyEngine"
 ]

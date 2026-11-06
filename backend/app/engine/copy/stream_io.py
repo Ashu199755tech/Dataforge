@@ -145,6 +145,8 @@ class BoundedTransferBuffer:
             except queue.Full:
                 continue
 
+    put_chunk = push
+
     def close(self) -> None:
         """Signals that no more chunks will be pushed."""
         self._closed = True

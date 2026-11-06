@@ -28,6 +28,13 @@ from backend.app.engine.copy.partitioner import (
     StorageFilePartitioner
 )
 from backend.app.engine.copy.coordinator import ParallelCopyCoordinator
+from backend.app.engine.copy.cloud_optimizer import (
+    CloudPartSizer,
+    CloudStagingPolicy,
+    ConcurrentMultipartUploader,
+    CloudToCloudPipe,
+    CloudTransferOptimizer
+)
 
 
 class DataForgeCopyEngine:
@@ -831,3 +838,34 @@ class DataForgeCopyEngine:
             progress_callback=progress_callback
         )
         return coordinator.execute(_worker)
+
+    @classmethod
+    def execute_cloud_to_cloud(
+        cls,
+        src_connector: BaseStorageConnector,
+        dst_connector: BaseStorageConnector,
+        src_container: str,
+        src_path: str,
+        dst_container: str,
+        dst_path: str,
+        options: Optional[CopyOptions] = None,
+        config: Optional[Dict[str, Any]] = None,
+        cancellation_token: Optional[CancellationToken] = None,
+        progress_callback: Optional[Callable[[CopyProgress], None]] = None
+    ) -> CopyResult:
+        """
+        Executes high-performance, direct cloud-to-cloud data movement without
+        intermediate disk landing. Uses intelligent part sizing and multipart acceleration.
+        """
+        return CloudTransferOptimizer.optimize_and_execute(
+            src_connector=src_connector,
+            dst_connector=dst_connector,
+            src_container=src_container,
+            src_path=src_path,
+            dst_container=dst_container,
+            dst_path=dst_path,
+            options=options,
+            config=config,
+            cancellation_token=cancellation_token,
+            progress_callback=progress_callback
+        )
