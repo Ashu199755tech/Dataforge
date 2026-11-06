@@ -12,28 +12,16 @@ import {
   Cpu, 
   CheckCircle2, 
   XCircle, 
-  AlertTriangle, 
-  ArrowRight, 
   Plus, 
   Server, 
-  TrendingUp, 
-  HardDrive, 
-  Search, 
   ExternalLink,
   ChevronRight,
-  ShieldCheck,
   Check,
   Sparkles,
-  RefreshCw,
-  Eye,
-  FileCode,
-  Sliders,
-  Filter
+  RefreshCw
 } from 'lucide-react';
 import { 
   ResponsiveContainer, 
-  BarChart, 
-  Bar, 
   AreaChart, 
   Area, 
   XAxis, 
@@ -41,6 +29,11 @@ import {
   Tooltip, 
   CartesianGrid 
 } from 'recharts';
+import { MetricCard } from '../components/common/MetricCard';
+import { QuickActionCard } from '../components/common/QuickActionCard';
+import { StatusBadge } from '../components/common/StatusBadge';
+import { StudioTable, ColumnDef } from '../components/common/StudioTable';
+import { StudioTabs, TabItem } from '../components/common/StudioTabs';
 
 interface RecentRunItem {
   id: string;
@@ -84,9 +77,6 @@ export const DataForgeHomePage: React.FC = () => {
   const [isGettingStartedMinimized, setIsGettingStartedMinimized] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
-
-  // Selected Run modal
-  const [activeRunModal, setActiveRunModal] = useState<RecentRunItem | null>(null);
 
   const fetchHomeTelemetry = async () => {
     setIsRefreshing(true);
@@ -245,6 +235,24 @@ export const DataForgeHomePage: React.FC = () => {
     return recentResources.filter(r => r.type === resourceFilter);
   }, [recentResources, resourceFilter]);
 
+  // Resource Filter Tabs
+  const resourceFilterTabs = useMemo<TabItem[]>(() => {
+    return [
+      { id: 'All', label: 'All', count: recentResources.length },
+      { id: 'Pipeline', label: 'Pipelines', count: recentResources.filter(r => r.type === 'Pipeline').length },
+      { id: 'DataFlow', label: 'Data Flows', count: recentResources.filter(r => r.type === 'DataFlow').length },
+      { id: 'Dataset', label: 'Datasets', count: recentResources.filter(r => r.type === 'Dataset').length },
+      { id: 'Connection', label: 'Connections', count: recentResources.filter(r => r.type === 'Connection').length }
+    ];
+  }, [recentResources]);
+
+  // Timeframe Tabs
+  const timeframeTabs: TabItem[] = [
+    { id: '24h', label: '24h' },
+    { id: '7d', label: '7d' },
+    { id: '30d', label: '30d' }
+  ];
+
   // Activity chart data based on timeframe
   const activityChartData = useMemo(() => {
     if (!metrics?.runs) return [];
@@ -286,41 +294,147 @@ export const DataForgeHomePage: React.FC = () => {
     setCurrentTab('designer');
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'Succeeded':
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-            <CheckCircle2 className="h-2.5 w-2.5" /> Succeeded
-          </span>
-        );
-      case 'Failed':
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-rose-500/10 text-rose-400 border border-rose-500/20">
-            <XCircle className="h-2.5 w-2.5" /> Failed
-          </span>
-        );
-      case 'Running':
-      case 'In Progress':
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-brand-500/10 text-brand-400 border border-brand-500/20 animate-pulse">
-            <Clock className="h-2.5 w-2.5" /> Running
-          </span>
-        );
-      case 'Queued':
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
-            <Clock className="h-2.5 w-2.5" /> Queued
-          </span>
-        );
-      default:
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-800 text-slate-400 border border-slate-700">
-            {status}
-          </span>
-        );
+  // Columns for Recent Runs StudioTable
+  const recentRunsColumns: ColumnDef<RecentRunItem>[] = [
+    {
+      key: 'pipeline_name',
+      header: 'Pipeline',
+      render: (run) => (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            handleOpenPipeline(run.pipeline_id);
+          }}
+          className="hover:text-brand-400 font-medium text-slate-200 text-left transition truncate max-w-[140px] block"
+          title={run.pipeline_name}
+        >
+          {run.pipeline_name}
+        </button>
+      )
+    },
+    {
+      key: 'id',
+      header: 'Run ID',
+      render: (run) => (
+        <span className="font-mono text-[11px] text-slate-400">
+          {run.id.substring(0, 8)}...
+        </span>
+      )
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      render: (run) => <StatusBadge status={run.status} size="sm" />
+    },
+    {
+      key: 'run_type',
+      header: 'Trigger',
+      render: (run) => (
+        <span className="text-slate-400 text-[11px]">{run.run_type}</span>
+      )
+    },
+    {
+      key: 'duration',
+      header: 'Duration',
+      render: (run) => (
+        <span className="text-slate-300 font-mono text-[11px]">{run.duration_seconds}s</span>
+      )
+    },
+    {
+      key: 'runtime',
+      header: 'Runtime',
+      render: (run) => (
+        <span className="text-slate-400 text-[11px] truncate max-w-[110px] block" title={run.runtime_name}>
+          {run.runtime_name}
+        </span>
+      )
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      align: 'right',
+      render: (run) => (
+        <div className="flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
+          <button
+            onClick={() => setCurrentTab('runs')}
+            className="px-2 py-0.5 rounded text-[11px] text-slate-300 hover:text-white hover:bg-slate-800 border border-slate-700/60 transition"
+            title="View Run Details & Logs"
+          >
+            Details
+          </button>
+          <button
+            onClick={() => handleOpenPipeline(run.pipeline_id)}
+            className="p-1 rounded text-slate-400 hover:text-brand-400 hover:bg-slate-800 transition"
+            title="Open in Designer"
+          >
+            <ExternalLink className="h-3 w-3" />
+          </button>
+        </div>
+      )
     }
-  };
+  ];
+
+  // Columns for Recent Resources StudioTable
+  const recentResourcesColumns: ColumnDef<RecentResourceItem>[] = [
+    {
+      key: 'name',
+      header: 'Resource Name',
+      render: (item) => (
+        <span className="font-medium text-slate-200">{item.name}</span>
+      )
+    },
+    {
+      key: 'type',
+      header: 'Type',
+      render: (item) => (
+        <span className={`text-[10px] px-2 py-0.5 rounded font-mono font-medium ${
+          item.type === 'Pipeline' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' :
+          item.type === 'DataFlow' ? 'bg-teal-500/10 text-teal-400 border border-teal-500/20' :
+          item.type === 'Dataset' ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20' :
+          'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+        }`}>
+          {item.type}
+        </span>
+      )
+    },
+    {
+      key: 'updated_at',
+      header: 'Last Modified',
+      render: (item) => (
+        <span className="text-slate-400 text-[11px]">
+          {new Date(item.updated_at).toLocaleDateString()} {new Date(item.updated_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+        </span>
+      )
+    },
+    {
+      key: 'modified_by',
+      header: 'Modified By',
+      render: (item) => (
+        <span className="text-slate-500 text-[11px]">{item.modified_by}</span>
+      )
+    },
+    {
+      key: 'action',
+      header: 'Action',
+      align: 'right',
+      render: (item) => (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            if (item.type === 'Pipeline') {
+              setSelectedPipelineId(item.id);
+              setCurrentTab('designer');
+            } else {
+              setCurrentTab(item.tab);
+            }
+          }}
+          className="px-2 py-0.5 rounded text-[11px] text-brand-400 hover:text-white hover:bg-brand-600/20 border border-brand-500/30 transition"
+        >
+          Open
+        </button>
+      )
+    }
+  ];
 
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto select-none">
@@ -389,140 +503,62 @@ export const DataForgeHomePage: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
-          {/* Card 1: Pipeline */}
-          <div
+          <QuickActionCard
+            title="Create Pipeline"
+            description="Design and orchestrate multi-cloud data workflows."
+            icon={GitBranch}
+            accentColor="blue"
+            actionLabel="Author canvas"
             onClick={() => {
               setSelectedPipelineId(null);
               setCurrentTab('designer');
             }}
-            className="group p-3.5 rounded-xl bg-slate-900/80 hover:bg-slate-850 border border-slate-800 hover:border-brand-500/40 cursor-pointer transition flex flex-col justify-between shadow-sm"
-          >
-            <div>
-              <div className="h-8 w-8 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 group-hover:bg-blue-500/20 transition mb-2.5">
-                <GitBranch className="h-4 w-4" />
-              </div>
-              <div className="text-xs font-semibold text-white group-hover:text-brand-300 transition">
-                Create Pipeline
-              </div>
-              <div className="text-[11px] text-slate-400 mt-1 line-clamp-2">
-                Design and orchestrate multi-cloud data workflows.
-              </div>
-            </div>
-            <div className="mt-3 flex items-center text-[10px] text-brand-400 font-medium group-hover:translate-x-0.5 transition gap-1">
-              <span>Author canvas</span>
-              <ArrowRight className="h-3 w-3" />
-            </div>
-          </div>
+          />
 
-          {/* Card 2: Data Flow */}
-          <div
+          <QuickActionCard
+            title="Create Data Flow"
+            description="Build visual data transformation and mapping logic."
+            icon={Workflow}
+            accentColor="teal"
+            actionLabel="ETL graph"
             onClick={() => setCurrentTab('dataflows')}
-            className="group p-3.5 rounded-xl bg-slate-900/80 hover:bg-slate-850 border border-slate-800 hover:border-teal-500/40 cursor-pointer transition flex flex-col justify-between shadow-sm"
-          >
-            <div>
-              <div className="h-8 w-8 rounded-lg bg-teal-500/10 border border-teal-500/20 flex items-center justify-center text-teal-400 group-hover:bg-teal-500/20 transition mb-2.5">
-                <Workflow className="h-4 w-4" />
-              </div>
-              <div className="text-xs font-semibold text-white group-hover:text-teal-300 transition">
-                Create Data Flow
-              </div>
-              <div className="text-[11px] text-slate-400 mt-1 line-clamp-2">
-                Build visual data transformation and mapping logic.
-              </div>
-            </div>
-            <div className="mt-3 flex items-center text-[10px] text-teal-400 font-medium group-hover:translate-x-0.5 transition gap-1">
-              <span>ETL graph</span>
-              <ArrowRight className="h-3 w-3" />
-            </div>
-          </div>
+          />
 
-          {/* Card 3: Connection */}
-          <div
+          <QuickActionCard
+            title="Create Connection"
+            description="Connect databases, Azure, AWS S3, and GCP storage."
+            icon={Database}
+            accentColor="amber"
+            actionLabel="Linked services"
             onClick={() => setCurrentTab('connections')}
-            className="group p-3.5 rounded-xl bg-slate-900/80 hover:bg-slate-850 border border-slate-800 hover:border-amber-500/40 cursor-pointer transition flex flex-col justify-between shadow-sm"
-          >
-            <div>
-              <div className="h-8 w-8 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 group-hover:bg-amber-500/20 transition mb-2.5">
-                <Database className="h-4 w-4" />
-              </div>
-              <div className="text-xs font-semibold text-white group-hover:text-amber-300 transition">
-                Create Connection
-              </div>
-              <div className="text-[11px] text-slate-400 mt-1 line-clamp-2">
-                Connect databases, Azure, AWS S3, and GCP storage.
-              </div>
-            </div>
-            <div className="mt-3 flex items-center text-[10px] text-amber-400 font-medium group-hover:translate-x-0.5 transition gap-1">
-              <span>Linked services</span>
-              <ArrowRight className="h-3 w-3" />
-            </div>
-          </div>
+          />
 
-          {/* Card 4: Dataset */}
-          <div
+          <QuickActionCard
+            title="Create Dataset"
+            description="Define reusable data sources, sinks, and schemas."
+            icon={Layers}
+            accentColor="purple"
+            actionLabel="Catalog assets"
             onClick={() => setCurrentTab('datasets')}
-            className="group p-3.5 rounded-xl bg-slate-900/80 hover:bg-slate-850 border border-slate-800 hover:border-purple-500/40 cursor-pointer transition flex flex-col justify-between shadow-sm"
-          >
-            <div>
-              <div className="h-8 w-8 rounded-lg bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 group-hover:bg-purple-500/20 transition mb-2.5">
-                <Layers className="h-4 w-4" />
-              </div>
-              <div className="text-xs font-semibold text-white group-hover:text-purple-300 transition">
-                Create Dataset
-              </div>
-              <div className="text-[11px] text-slate-400 mt-1 line-clamp-2">
-                Define reusable data sources, sinks, and schemas.
-              </div>
-            </div>
-            <div className="mt-3 flex items-center text-[10px] text-purple-400 font-medium group-hover:translate-x-0.5 transition gap-1">
-              <span>Catalog assets</span>
-              <ArrowRight className="h-3 w-3" />
-            </div>
-          </div>
+          />
 
-          {/* Card 5: Trigger */}
-          <div
+          <QuickActionCard
+            title="Create Trigger"
+            description="Configure schedules, file arrival events, and windows."
+            icon={Clock}
+            accentColor="emerald"
+            actionLabel="Schedules"
             onClick={() => setCurrentTab('triggers')}
-            className="group p-3.5 rounded-xl bg-slate-900/80 hover:bg-slate-850 border border-slate-800 hover:border-emerald-500/40 cursor-pointer transition flex flex-col justify-between shadow-sm"
-          >
-            <div>
-              <div className="h-8 w-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 group-hover:bg-emerald-500/20 transition mb-2.5">
-                <Clock className="h-4 w-4" />
-              </div>
-              <div className="text-xs font-semibold text-white group-hover:text-emerald-300 transition">
-                Create Trigger
-              </div>
-              <div className="text-[11px] text-slate-400 mt-1 line-clamp-2">
-                Configure schedules, file arrival events, and windows.
-              </div>
-            </div>
-            <div className="mt-3 flex items-center text-[10px] text-emerald-400 font-medium group-hover:translate-x-0.5 transition gap-1">
-              <span>Schedules</span>
-              <ArrowRight className="h-3 w-3" />
-            </div>
-          </div>
+          />
 
-          {/* Card 6: View Monitoring */}
-          <div
+          <QuickActionCard
+            title="View Monitoring"
+            description="Inspect live run Gantt timelines and worker logs."
+            icon={PlayCircle}
+            accentColor="indigo"
+            actionLabel="Runs telemetry"
             onClick={() => setCurrentTab('runs')}
-            className="group p-3.5 rounded-xl bg-slate-900/80 hover:bg-slate-850 border border-slate-800 hover:border-indigo-500/40 cursor-pointer transition flex flex-col justify-between shadow-sm"
-          >
-            <div>
-              <div className="h-8 w-8 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 group-hover:bg-indigo-500/20 transition mb-2.5">
-                <PlayCircle className="h-4 w-4" />
-              </div>
-              <div className="text-xs font-semibold text-white group-hover:text-indigo-300 transition">
-                View Monitoring
-              </div>
-              <div className="text-[11px] text-slate-400 mt-1 line-clamp-2">
-                Inspect live run Gantt timelines and worker logs.
-              </div>
-            </div>
-            <div className="mt-3 flex items-center text-[10px] text-indigo-400 font-medium group-hover:translate-x-0.5 transition gap-1">
-              <span>Runs telemetry</span>
-              <ArrowRight className="h-3 w-3" />
-            </div>
-          </div>
+          />
         </div>
       </div>
 
@@ -534,85 +570,77 @@ export const DataForgeHomePage: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
-          {/* 1. Total Pipelines */}
-          <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800">
-            <div className="text-[11px] text-slate-400 truncate">Total Pipelines</div>
-            <div className="text-lg font-bold text-white mt-1">
-              {metrics ? metrics.pipelines.total : <span className="text-slate-600">--</span>}
-            </div>
-            <div className="text-[10px] text-slate-500 truncate mt-0.5">
-              {metrics ? `${metrics.pipelines.active} active` : 'Loading...'}
-            </div>
-          </div>
+          <MetricCard
+            title="Total Pipelines"
+            value={metrics ? metrics.pipelines.total : '--'}
+            subtext={metrics ? `${metrics.pipelines.active} active` : 'Loading...'}
+            colorVariant="slate"
+            onClick={() => setCurrentTab('designer')}
+            loading={isLoading}
+          />
 
-          {/* 2. Active Pipelines */}
-          <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800">
-            <div className="text-[11px] text-slate-400 truncate">Active Pipelines</div>
-            <div className="text-lg font-bold text-brand-400 mt-1">
-              {metrics ? metrics.pipelines.active : <span className="text-slate-600">--</span>}
-            </div>
-            <div className="text-[10px] text-slate-500 truncate mt-0.5">Ready to run</div>
-          </div>
+          <MetricCard
+            title="Active Pipelines"
+            value={metrics ? metrics.pipelines.active : '--'}
+            subtext="Ready to run"
+            colorVariant="blue"
+            onClick={() => setCurrentTab('designer')}
+            loading={isLoading}
+          />
 
-          {/* 3. Successful Runs */}
-          <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800">
-            <div className="text-[11px] text-slate-400 truncate">Successful Runs</div>
-            <div className="text-lg font-bold text-emerald-400 mt-1">
-              {metrics ? metrics.runs.successful : <span className="text-slate-600">--</span>}
-            </div>
-            <div className="text-[10px] text-emerald-500/80 truncate mt-0.5">
-              {metrics ? `${metrics.runs.success_rate_percent}% success` : 'Historical'}
-            </div>
-          </div>
+          <MetricCard
+            title="Successful Runs"
+            value={metrics ? metrics.runs.successful : '--'}
+            subtext={metrics ? `${metrics.runs.success_rate_percent}% success` : 'Historical'}
+            colorVariant="emerald"
+            onClick={() => setCurrentTab('runs')}
+            loading={isLoading}
+          />
 
-          {/* 4. Failed Runs */}
-          <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800">
-            <div className="text-[11px] text-slate-400 truncate">Failed Runs</div>
-            <div className="text-lg font-bold text-rose-400 mt-1">
-              {metrics ? metrics.runs.failed : <span className="text-slate-600">--</span>}
-            </div>
-            <div className="text-[10px] text-rose-500/80 truncate mt-0.5">
-              {metrics?.runs?.failed > 0 ? 'Requires review' : 'Zero errors'}
-            </div>
-          </div>
+          <MetricCard
+            title="Failed Runs"
+            value={metrics ? metrics.runs.failed : '--'}
+            subtext={metrics?.runs?.failed > 0 ? 'Requires review' : 'Zero errors'}
+            colorVariant="rose"
+            onClick={() => setCurrentTab('runs')}
+            loading={isLoading}
+          />
 
-          {/* 5. Total Datasets */}
-          <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800">
-            <div className="text-[11px] text-slate-400 truncate">Total Datasets</div>
-            <div className="text-lg font-bold text-purple-400 mt-1">
-              {datasetsCount}
-            </div>
-            <div className="text-[10px] text-slate-500 truncate mt-0.5">Reusable assets</div>
-          </div>
+          <MetricCard
+            title="Total Datasets"
+            value={datasetsCount}
+            subtext="Reusable assets"
+            colorVariant="purple"
+            onClick={() => setCurrentTab('datasets')}
+            loading={isLoading}
+          />
 
-          {/* 6. Registered Connections */}
-          <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800">
-            <div className="text-[11px] text-slate-400 truncate">Connections</div>
-            <div className="text-lg font-bold text-amber-400 mt-1">
-              {connections.length}
-            </div>
-            <div className="text-[10px] text-slate-500 truncate mt-0.5">Multi-cloud endpoints</div>
-          </div>
+          <MetricCard
+            title="Connections"
+            value={connections.length}
+            subtext="Multi-cloud endpoints"
+            colorVariant="amber"
+            onClick={() => setCurrentTab('connections')}
+            loading={isLoading}
+          />
 
-          {/* 7. Active Triggers */}
-          <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800">
-            <div className="text-[11px] text-slate-400 truncate">Active Triggers</div>
-            <div className="text-lg font-bold text-teal-400 mt-1">
-              {triggersCount}
-            </div>
-            <div className="text-[10px] text-slate-500 truncate mt-0.5">Schedules & events</div>
-          </div>
+          <MetricCard
+            title="Active Triggers"
+            value={triggersCount}
+            subtext="Schedules & events"
+            colorVariant="teal"
+            onClick={() => setCurrentTab('triggers')}
+            loading={isLoading}
+          />
 
-          {/* 8. Available Runtimes */}
-          <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800">
-            <div className="text-[11px] text-slate-400 truncate">Online Runtimes</div>
-            <div className="text-lg font-bold text-cyan-400 mt-1">
-              {fleetHealth ? fleetHealth.online_count : 1}
-            </div>
-            <div className="text-[10px] text-slate-500 truncate mt-0.5">
-              {fleetHealth ? `${fleetHealth.total_runtimes} total fleet` : 'Cloud active'}
-            </div>
-          </div>
+          <MetricCard
+            title="Online Runtimes"
+            value={fleetHealth ? fleetHealth.online_count : 1}
+            subtext={fleetHealth ? `${fleetHealth.total_runtimes} total fleet` : 'Cloud active'}
+            colorVariant="cyan"
+            onClick={() => setCurrentTab('runtimes')}
+            loading={isLoading}
+          />
         </div>
       </div>
 
@@ -636,77 +664,14 @@ export const DataForgeHomePage: React.FC = () => {
               </button>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-slate-950/60 text-slate-400 uppercase text-[10px] font-semibold tracking-wider">
-                  <tr>
-                    <th className="py-2 px-3 rounded-l">Pipeline</th>
-                    <th className="py-2 px-3">Run ID</th>
-                    <th className="py-2 px-3">Status</th>
-                    <th className="py-2 px-3">Trigger</th>
-                    <th className="py-2 px-3">Duration</th>
-                    <th className="py-2 px-3">Runtime</th>
-                    <th className="py-2 px-3 text-right rounded-r">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-800/60">
-                  {recentRuns.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} className="py-8 text-center text-slate-500 text-xs">
-                        No executions recorded yet. Launch a pipeline to begin tracking!
-                      </td>
-                    </tr>
-                  ) : (
-                    recentRuns.map((run) => (
-                      <tr key={run.id} className="hover:bg-slate-800/40 transition">
-                        <td className="py-2.5 px-3 font-medium text-slate-200">
-                          <button
-                            onClick={() => handleOpenPipeline(run.pipeline_id)}
-                            className="hover:text-brand-400 text-left transition truncate max-w-[140px] block"
-                            title={run.pipeline_name}
-                          >
-                            {run.pipeline_name}
-                          </button>
-                        </td>
-                        <td className="py-2.5 px-3 font-mono text-[11px] text-slate-400">
-                          {run.id.substring(0, 8)}...
-                        </td>
-                        <td className="py-2.5 px-3">
-                          {getStatusBadge(run.status)}
-                        </td>
-                        <td className="py-2.5 px-3 text-slate-400 text-[11px]">
-                          {run.run_type}
-                        </td>
-                        <td className="py-2.5 px-3 text-slate-300 font-mono text-[11px]">
-                          {run.duration_seconds}s
-                        </td>
-                        <td className="py-2.5 px-3 text-slate-400 text-[11px] truncate max-w-[110px]" title={run.runtime_name}>
-                          {run.runtime_name}
-                        </td>
-                        <td className="py-2.5 px-3 text-right">
-                          <div className="flex items-center justify-end gap-1.5">
-                            <button
-                              onClick={() => setCurrentTab('runs')}
-                              className="px-2 py-0.5 rounded text-[11px] text-slate-300 hover:text-white hover:bg-slate-800 border border-slate-700/60 transition"
-                              title="View Run Details & Logs"
-                            >
-                              Details
-                            </button>
-                            <button
-                              onClick={() => handleOpenPipeline(run.pipeline_id)}
-                              className="p-1 rounded text-slate-400 hover:text-brand-400 hover:bg-slate-800 transition"
-                              title="Open in Designer"
-                            >
-                              <ExternalLink className="h-3 w-3" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+            <StudioTable
+              columns={recentRunsColumns}
+              data={recentRuns}
+              loading={isLoading}
+              emptyTitle="No executions recorded yet"
+              emptyDescription="Launch a pipeline in the designer to track operational runs."
+              keyField="id"
+            />
           </div>
         </div>
 
@@ -719,22 +684,13 @@ export const DataForgeHomePage: React.FC = () => {
                 <p className="text-xs text-slate-400">Historical pipeline outcomes</p>
               </div>
 
-              {/* Timeframe Selector Pills */}
-              <div className="flex items-center gap-1 bg-slate-950/80 p-0.5 rounded-lg border border-slate-800 text-[10px]">
-                {(['24h', '7d', '30d'] as const).map(tf => (
-                  <button
-                    key={tf}
-                    onClick={() => setActivityTimeframe(tf)}
-                    className={`px-2 py-0.5 rounded font-medium transition ${
-                      activityTimeframe === tf 
-                        ? 'bg-brand-600 text-white' 
-                        : 'text-slate-400 hover:text-slate-200'
-                    }`}
-                  >
-                    {tf}
-                  </button>
-                ))}
-              </div>
+              {/* Timeframe Selector Pills via StudioTabs */}
+              <StudioTabs
+                tabs={timeframeTabs}
+                activeTab={activityTimeframe}
+                onChange={(tabId) => setActivityTimeframe(tabId as any)}
+                variant="pill"
+              />
             </div>
 
             <div className="h-52 mt-3">
@@ -791,85 +747,23 @@ export const DataForgeHomePage: React.FC = () => {
               <p className="text-xs text-slate-400">Recently edited pipelines, datasets, and connections</p>
             </div>
 
-            {/* Filter Pills */}
-            <div className="flex items-center gap-1 overflow-x-auto text-[11px] bg-slate-950/80 p-0.5 rounded-lg border border-slate-800">
-              {['All', 'Pipeline', 'DataFlow', 'Dataset', 'Connection'].map(f => (
-                <button
-                  key={f}
-                  onClick={() => setResourceFilter(f)}
-                  className={`px-2 py-0.5 rounded font-medium transition ${
-                    resourceFilter === f 
-                      ? 'bg-brand-600 text-white' 
-                      : 'text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  {f}
-                </button>
-              ))}
-            </div>
+            {/* Filter Pills via StudioTabs */}
+            <StudioTabs
+              tabs={resourceFilterTabs}
+              activeTab={resourceFilter}
+              onChange={setResourceFilter}
+              variant="pill"
+            />
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-950/60 text-slate-400 uppercase text-[10px] font-semibold tracking-wider">
-                <tr>
-                  <th className="py-2 px-3 rounded-l">Resource Name</th>
-                  <th className="py-2 px-3">Type</th>
-                  <th className="py-2 px-3">Last Modified</th>
-                  <th className="py-2 px-3">Modified By</th>
-                  <th className="py-2 px-3 text-right rounded-r">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800/60">
-                {filteredResources.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="py-6 text-center text-slate-500 text-xs">
-                      No resources found for selected filter.
-                    </td>
-                  </tr>
-                ) : (
-                  filteredResources.map((item) => (
-                    <tr key={`${item.type}-${item.id}`} className="hover:bg-slate-800/40 transition">
-                      <td className="py-2.5 px-3 font-medium text-slate-200">
-                        {item.name}
-                      </td>
-                      <td className="py-2.5 px-3">
-                        <span className={`text-[10px] px-2 py-0.5 rounded font-mono font-medium ${
-                          item.type === 'Pipeline' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' :
-                          item.type === 'DataFlow' ? 'bg-teal-500/10 text-teal-400 border border-teal-500/20' :
-                          item.type === 'Dataset' ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20' :
-                          'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-                        }`}>
-                          {item.type}
-                        </span>
-                      </td>
-                      <td className="py-2.5 px-3 text-slate-400 text-[11px]">
-                        {new Date(item.updated_at).toLocaleDateString()} {new Date(item.updated_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </td>
-                      <td className="py-2.5 px-3 text-slate-500 text-[11px]">
-                        {item.modified_by}
-                      </td>
-                      <td className="py-2.5 px-3 text-right">
-                        <button
-                          onClick={() => {
-                            if (item.type === 'Pipeline') {
-                              setSelectedPipelineId(item.id);
-                              setCurrentTab('designer');
-                            } else {
-                              setCurrentTab(item.tab);
-                            }
-                          }}
-                          className="px-2 py-0.5 rounded text-[11px] text-brand-400 hover:text-white hover:bg-brand-600/20 border border-brand-500/30 transition"
-                        >
-                          Open
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+          <StudioTable
+            columns={recentResourcesColumns}
+            data={filteredResources}
+            loading={isLoading}
+            emptyTitle="No resources found"
+            emptyDescription="Create your first pipeline or connection to view it here."
+            keyField={(item) => `${item.type}-${item.id}`}
+          />
         </div>
 
         {/* SECTION 7: RUNTIME HEALTH TELEMETRY (1 col on lg) */}
@@ -929,9 +823,7 @@ export const DataForgeHomePage: React.FC = () => {
                       <div className="text-[10px] text-slate-500">Cloud Managed • 8 Cores</div>
                     </div>
                   </div>
-                  <span className="px-1.5 py-0.5 rounded text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                    Online
-                  </span>
+                  <StatusBadge status="Online" size="sm" />
                 </div>
               ) : (
                 fleetHealth.runtimes.slice(0, 3).map((rt: any) => (
@@ -943,13 +835,7 @@ export const DataForgeHomePage: React.FC = () => {
                         <div className="text-[10px] text-slate-500 truncate">{rt.runtime_type} • {rt.cpu_cores} Cores</div>
                       </div>
                     </div>
-                    <span className={`px-1.5 py-0.5 rounded text-[10px] shrink-0 ${
-                      rt.status === 'Online' 
-                        ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' 
-                        : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
-                    }`}>
-                      {rt.status}
-                    </span>
+                    <StatusBadge status={rt.status} size="sm" />
                   </div>
                 ))
               )}
