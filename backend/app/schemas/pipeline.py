@@ -1,6 +1,32 @@
 from pydantic import BaseModel
 from typing import Optional, Dict, Any, List
 from datetime import datetime
+from enum import Enum
+
+
+class ExecutionEngineStrategy(str, Enum):
+    AUTO = "AUTO"
+    FORCE_COPY = "FORCE_COPY"
+    FORCE_SPARK = "FORCE_SPARK"
+    FORCE_SQL_PUSHDOWN = "FORCE_SQL_PUSHDOWN"
+
+
+class PlanActivityRequest(BaseModel):
+    activity_type: str = "CopyData"
+    activity_config: Dict[str, Any] = {}
+    strategy: Optional[str] = "AUTO"
+
+
+class PlanActivityResponse(BaseModel):
+    selected_engine: str
+    strategy_applied: str
+    confidence_score: float
+    scores: Dict[str, float] = {}
+    explanation: str
+    primary_reason: str
+    fallback_engine: Optional[str] = None
+    estimated_egress_bytes: Optional[int] = None
+    profile_summary: Dict[str, Any] = {}
 
 
 class PipelineBase(BaseModel):

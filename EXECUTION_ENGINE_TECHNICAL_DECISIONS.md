@@ -11,6 +11,7 @@
 | **ADR-005** | Resumable Partition Checkpoints vs. All-or-Nothing Activity Retry | **ACCEPTED** | 2026-11-06 |
 | **ADR-006** | Heuristic & Cost-Based Execution Planning with Deterministic Fallback | **ACCEPTED** | 2026-11-06 |
 | **ADR-007** | Empirical Benchmark Contract & Prohibition of Fabricated Metrics | **ACCEPTED** | 2026-11-06 |
+| **ADR-008** | Real-Time Design-Time Planning & Canvas Visual Engine Badging | **ACCEPTED** | 2026-11-06 |
 
 ---
 
@@ -134,3 +135,20 @@ All performance claims, benchmark reports, and throughput figures in DataForge m
 #### Consequences
 - **Positive:** Uncompromising technical integrity and trusted production metrics.
 - **Negative:** Requires rigorous test infrastructure and real hardware benchmark execution.
+
+---
+
+### ADR-008: Real-Time Design-Time Planning & Canvas Visual Engine Badging
+
+#### Context
+Pipeline designers and data engineers need immediate visibility into how their activities will execute (whether an activity will run via Spark, in-database SQL pushdown, or bounded streaming copy) before triggering full pipeline runs. If engine selection is a black box that only evaluates during execution, developers cannot optimize topology, catch unpushdownable transformations, or verify connector affinities beforehand.
+
+#### Decision
+1. Expose interactive design-time planning endpoints (`POST /api/v1/pipelines/plan-activity` and `POST /api/v1/dataflows/{id}/plan`) that evaluate workload characteristics without executing queries.
+2. Integrate an interactive "Evaluate Execution Plan" control directly inside `CopyDataConfigTabs` and `ActivityConfigDrawer` rendering live suitability scores and rationale.
+3. Render visual runtime affinity badges on canvas activity nodes (`ActivityNode.tsx`) displaying engine strategy (`Auto Planner`, `Copy Engine`, `Spark Engine`, `SQL Pushdown`) and partition slice counts (`⎇ {N} Slices`).
+4. Display pushdown capability indicators on DataFlow nodes (`DataFlowNode.tsx`) to highlight zero-egress compatibility for transformations (Filter, Select, Derive, Sort, Aggregate, Join, Window).
+
+#### Consequences
+- **Positive:** Developers receive instant, clear feedback on execution strategy and can override engine selection when desired.
+- **Negative:** Design-time planning relies on available schema metadata; live row counts may be estimates until execution runtime.

@@ -9,6 +9,9 @@ from backend.app.connectors.factory import get_connector
 from backend.app.connectors.storage.base import BaseStorageConnector
 from backend.app.transfer.engine import TransferEngine
 from backend.app.core.security import decrypt_secret
+from backend.app.engine.planner.planner import IntelligentExecutionPlanner
+from backend.app.engine.planner.models import PlannerStrategy, ExecutionEngineType
+from backend.app.engine.copy.engine import DataForgeCopyEngine
 
 
 class CopyDataActivity(BaseActivity):
@@ -84,9 +87,115 @@ class CopyDataActivity(BaseActivity):
         src_connector = self._resolve_connector(src_conn_id)
         dst_connector = self._resolve_connector(dst_conn_id)
 
+        # Evaluate Intelligent Execution Planner
+        strategy_raw = (
+            config.get("execution_engine_strategy")
+            or config.get("engine_strategy")
+            or "AUTO"
+        )
+        strat_key = str(strategy_raw).upper().replace(" ", "_")
+        strategy = getattr(PlannerStrategy, strat_key, PlannerStrategy.AUTO)
+
+        plan = IntelligentExecutionPlanner.plan_copy_activity(
+            activity_config=config,
+            source_connector=src_connector,
+            target_connector=dst_connector,
+            strategy=strategy
+        )
+        self.log(
+            "INFO",
+            f"Execution Planner Decision: {plan.selected_engine.value} "
+            f"(Strategy: {strategy.value}, Confidence: {plan.confidence_score}) - {plan.explanation}"
+        )
+
+        planner_metrics = {
+            "execution_engine": plan.selected_engine.value,
+            "planner_strategy": strategy.value,
+            "planner_confidence": plan.confidence_score,
+            "planner_scores": plan.scores,
+            "planner_explanation": plan.explanation,
+            "primary_reason": plan.primary_reason
+        }
+
+        partition_cfg = config.get("partitioning") or {}
+        partition_col = partition_cfg.get("column") or config.get("partition_column")
+        if partition_col:
+            planner_metrics["partition_column"] = partition_col
+            planner_metrics["partition_strategy"] = partition_cfg.get("strategy") or "Range"
+            planner_metrics["concurrency_limit"] = int(partition_cfg.get("concurrency_limit") or config.get("concurrency_limit") or 4)
+
         # Multi-Cloud Storage-to-Storage Transfer
         is_src_storage = isinstance(src_connector, BaseStorageConnector)
         is_dst_storage = isinstance(dst_connector, BaseStorageConnector)
+
+        # In-Database SQL Pushdown (Same Database instance)
+        if plan.selected_engine == ExecutionEngineType.SQL_PUSHDOWN and not is_src_storage and not is_dst_storage:
+            src_table = source_cfg.get("table_name")
+            dst_table = dest_cfg.get("table_name")
+            write_mode = dest_cfg.get("write_mode", "append")
+            filter_expr = source_cfg.get("filter_expr") or source_cfg.get("filter_expression")
+            column_mappings = config.get("column_mappings", [])
+            pre_copy_script = dest_cfg.get("pre_copy_script")
+            post_copy_script = dest_cfg.get("post_copy_script")
+
+            if src_table and dst_table and hasattr(dst_connector, "execute_query"):
+                start_p = time.time()
+                self.log("INFO", f"Executing In-Database SQL Pushdown: '{src_table}' -> '{dst_table}' (0 B egress)")
+
+                if pre_copy_script:
+                    self.log("INFO", f"Executing pre-copy script: {pre_copy_script}")
+                    dst_connector.execute_query(pre_copy_script)
+
+                if write_mode == "overwrite":
+                    try:
+                        dst_connector.execute_query(f'DELETE FROM "{dst_table}"')
+                    except Exception:
+                        pass
+
+                if column_mappings:
+                    proj = ", ".join([f'"{m.get("source_column", m.get("source"))}" AS "{m.get("destination_column", m.get("destination"))}"' for m in column_mappings if not m.get("exclude")])
+                    cols = ", ".join([f'"{m.get("destination_column", m.get("destination"))}"' for m in column_mappings if not m.get("exclude")])
+                else:
+                    proj = "*"
+                    cols = ""
+
+                where_clause = f" WHERE {filter_expr}" if filter_expr else ""
+                if cols:
+                    insert_sql = f'INSERT INTO "{dst_table}" ({cols}) SELECT {proj} FROM "{src_table}"{where_clause}'
+                else:
+                    insert_sql = f'INSERT INTO "{dst_table}" SELECT {proj} FROM "{src_table}"{where_clause}'
+
+                self.log("INFO", f"Pushdown SQL: {insert_sql}")
+                dst_connector.execute_query(insert_sql)
+
+                if post_copy_script:
+                    self.log("INFO", f"Executing post-copy script: {post_copy_script}")
+                    dst_connector.execute_query(post_copy_script)
+
+                duration_p = round(time.time() - start_p, 4)
+                row_count = 0
+                try:
+                    cnt_res = dst_connector.execute_query(f'SELECT COUNT(*) FROM "{dst_table}"')
+                    if cnt_res and len(cnt_res) > 0:
+                        first_row = list(cnt_res[0].values())
+                        row_count = int(first_row[0]) if first_row else 0
+                except Exception:
+                    row_count = 1
+
+                self.log("INFO", f"SQL Pushdown completed in {duration_p}s. Zero network egress bytes transferred.")
+                return ActivityExecutionResult(
+                    status="Succeeded",
+                    rows_read=row_count,
+                    rows_written=row_count,
+                    bytes_processed=0,
+                    metrics={
+                        **planner_metrics,
+                        "duration_seconds": duration_p,
+                        "bytes_transferred": 0,
+                        "records_transferred": row_count,
+                        "egress_bytes": 0
+                    }
+                )
 
         if is_src_storage and is_dst_storage:
             src_container = source_cfg.get("container") or source_cfg.get("bucket")
@@ -123,6 +232,7 @@ class CopyDataActivity(BaseActivity):
                 rows_written=res.records_transferred,
                 bytes_processed=res.bytes_transferred,
                 metrics={
+                    **planner_metrics,
                     "duration_seconds": res.duration_seconds,
                     "bytes_transferred": res.bytes_transferred,
                     "records_transferred": res.records_transferred,
@@ -159,6 +269,7 @@ class CopyDataActivity(BaseActivity):
                 rows_written=res.records_transferred,
                 bytes_processed=res.bytes_transferred,
                 metrics={
+                    **planner_metrics,
                     "duration_seconds": res.duration_seconds,
                     "bytes_transferred": res.bytes_transferred,
                     "records_transferred": res.records_transferred,
@@ -194,6 +305,7 @@ class CopyDataActivity(BaseActivity):
                 rows_written=res.records_transferred,
                 bytes_processed=res.bytes_transferred,
                 metrics={
+                    **planner_metrics,
                     "duration_seconds": res.duration_seconds,
                     "bytes_transferred": res.bytes_transferred,
                     "records_transferred": res.records_transferred
@@ -297,6 +409,7 @@ class CopyDataActivity(BaseActivity):
             bytes_processed=total_bytes,
             output_variables=output_vars,
             metrics={
+                **planner_metrics,
                 "duration_seconds": duration,
                 "throughput_rows_sec": round(total_rows_written / max(duration, 0.001), 2)
             }

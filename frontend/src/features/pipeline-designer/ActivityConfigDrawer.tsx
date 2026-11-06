@@ -79,11 +79,16 @@ export const ActivityConfigDrawer: React.FC<ConfigDrawerProps> = ({
   const retryPolicy = data.retry_policy || { max_retries: 0, retry_interval_seconds: 2 };
   const [isExpanded, setIsExpanded] = useState(activityType === 'CopyData');
   const [availableRuntimes, setAvailableRuntimes] = useState<any[]>([]);
+  const [availableDataflows, setAvailableDataflows] = useState<any[]>([]);
 
   useEffect(() => {
     api.get('/runtimes')
       .then(res => setAvailableRuntimes(res.data))
       .catch(err => console.error('Failed to fetch runtimes', err));
+
+    api.get('/dataflows')
+      .then(res => setAvailableDataflows(res.data))
+      .catch(err => console.error('Failed to fetch dataflows', err));
   }, []);
 
   // Incoming edges (dependencies for this activity)
@@ -274,6 +279,63 @@ export const ActivityConfigDrawer: React.FC<ConfigDrawerProps> = ({
                 onUpdateConfig={updateConfig}
                 onOpenExpressionBuilder={openExpressionBuilder}
               />
+            )}
+
+            {/* EXECUTE DATA FLOW ACTIVITY */}
+            {(activityType === 'ExecuteDataFlow' || activityType === 'DataFlow') && (
+              <div className="space-y-4">
+                <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-lg space-y-2.5">
+                  <div className="flex items-center justify-between text-slate-300 font-semibold text-[11px] uppercase tracking-wider">
+                    <span>DataFlow Transformation Graph</span>
+                    <Workflow className="h-3.5 w-3.5 text-brand-400" />
+                  </div>
+
+                  <div>
+                    <label className="block text-slate-400 mb-1 text-[11px]">Select DataFlow</label>
+                    <select
+                      value={config.dataflow_id || ''}
+                      onChange={(e) => updateConfig({ dataflow_id: e.target.value })}
+                      className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1.5 text-slate-200 text-xs"
+                    >
+                      <option value="">Select DataFlow...</option>
+                      {availableDataflows.map((df: any) => (
+                        <option key={df.id} value={df.id}>{df.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-lg space-y-3">
+                  <div className="flex items-center justify-between text-slate-300 font-semibold text-[11px] uppercase tracking-wider">
+                    <span className="flex items-center gap-1.5">
+                      <Cpu className="h-3.5 w-3.5 text-brand-400" />
+                      Execution Engine Strategy
+                    </span>
+                    <span className="text-[10px] font-mono text-slate-400">
+                      {config.execution_engine_strategy || 'AUTO'}
+                    </span>
+                  </div>
+
+                  <select
+                    value={config.execution_engine_strategy || 'AUTO'}
+                    onChange={(e) => updateConfig({ execution_engine_strategy: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1.5 text-slate-200 text-xs"
+                  >
+                    <option value="AUTO">Auto (Intelligent Planner - Multi-Factor Cost Model)</option>
+                    <option value="FORCE_SQL_PUSHDOWN">SQL Pushdown Engine (In-Database CTAS / Zero Egress)</option>
+                    <option value="FORCE_SPARK">Apache Spark Engine (Distributed Cluster Compute)</option>
+                    <option value="FORCE_COPY">DataForge Vectorized Engine (Local Streaming Polars)</option>
+                  </select>
+
+                  <div className="p-2.5 rounded bg-slate-900 border border-slate-800 space-y-1 text-[11px] text-slate-400">
+                    <div className="text-slate-300 font-medium">Pushdown Capabilities:</div>
+                    <div className="flex items-center gap-1.5 text-emerald-400">
+                      <DatabaseZap className="h-3.5 w-3.5" />
+                      <span>Zero Egress: Filter, Derive, Join, Aggregate, Window</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
             )}
 
             {/* LOOKUP */}

@@ -22,7 +22,11 @@ import {
   FileCode,
   RefreshCw,
   FileSpreadsheet,
-  Check
+  Check,
+  Flame,
+  Gauge,
+  Play,
+  ArrowDownUp
 } from 'lucide-react';
 import api from '../../api/client';
 import { StorageHierarchyBrowserModal } from './StorageHierarchyBrowserModal';
@@ -260,6 +264,38 @@ export const CopyDataConfigTabs: React.FC<CopyDataConfigTabsProps> = ({
   const openStorageBrowser = (target: 'source' | 'destination') => {
     setBrowserTarget(target);
     setBrowserModalOpen(true);
+  };
+
+  // Planner Evaluation State
+  const [evaluatingPlan, setEvaluatingPlan] = useState(false);
+  const [planResult, setPlanResult] = useState<any>(null);
+  const [planError, setPlanError] = useState<string | null>(null);
+
+  const handleEvaluatePlan = async () => {
+    setEvaluatingPlan(true);
+    setPlanError(null);
+    try {
+      const res = await api.post('/pipelines/plan-activity', {
+        activity_type: 'CopyData',
+        activity_config: config,
+        strategy: config.execution_engine_strategy || 'AUTO'
+      });
+      setPlanResult(res.data);
+    } catch (err: any) {
+      setPlanError(err.response?.data?.detail || err.message || 'Failed to evaluate plan');
+    } finally {
+      setEvaluatingPlan(false);
+    }
+  };
+
+  const partitioning = config.partitioning || {};
+  const updatePartitioning = (partial: any) => {
+    onUpdateConfig({
+      partitioning: {
+        ...partitioning,
+        ...partial
+      }
+    });
   };
 
   const handleBrowserSelect = (container: string, path: string, isDirectory: boolean) => {
@@ -1455,6 +1491,146 @@ export const CopyDataConfigTabs: React.FC<CopyDataConfigTabsProps> = ({
         {/* ================================================================= */}
         {activeTab === 'performance' && (
           <div className="space-y-4">
+            {/* 1. Intelligent Execution Engine Selector & Planner */}
+            <div className="p-3.5 bg-slate-950/70 border border-slate-800 rounded-lg space-y-3">
+              <div className="flex items-center justify-between text-slate-300 font-semibold text-[11px] uppercase tracking-wider">
+                <span className="flex items-center gap-1.5">
+                  <Cpu className="h-4 w-4 text-brand-400" />
+                  Intelligent Execution Engine
+                </span>
+                <span className="text-[10px] font-mono text-slate-400">
+                  {config.execution_engine_strategy || 'AUTO'}
+                </span>
+              </div>
+
+              <div>
+                <label className="block text-slate-400 mb-1 text-[11px]">Engine Strategy & Override</label>
+                <select
+                  value={config.execution_engine_strategy || 'AUTO'}
+                  onChange={(e) => onUpdateConfig({ execution_engine_strategy: e.target.value })}
+                  className="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 text-slate-200 text-xs font-medium focus:outline-none focus:border-brand-500"
+                >
+                  <option value="AUTO">Auto (Intelligent Planner - Multi-Factor Cost Model)</option>
+                  <option value="FORCE_COPY">DataForge Copy Engine (Parallel Streaming & Memory-Bounded)</option>
+                  <option value="FORCE_SPARK">Apache Spark Engine (Distributed Cluster Compute)</option>
+                  <option value="FORCE_SQL_PUSHDOWN">SQL Pushdown Engine (In-Database CTAS / Zero Egress)</option>
+                </select>
+                <p className="text-[10px] text-slate-500 mt-1">
+                  Auto evaluates connector affinity, data volume, and cluster availability to pick the fastest execution path.
+                </p>
+              </div>
+
+              <div className="pt-2 border-t border-slate-800 flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={handleEvaluatePlan}
+                  disabled={evaluatingPlan}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-brand-600/20 hover:bg-brand-600/30 text-brand-300 border border-brand-500/30 text-[11px] font-semibold transition"
+                >
+                  <Sparkles className="h-3.5 w-3.5 text-brand-400" />
+                  <span>{evaluatingPlan ? 'Evaluating Cost Model...' : 'Evaluate Execution Plan'}</span>
+                </button>
+
+                {planResult && (
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-emerald-400 border border-emerald-500/30 font-semibold">
+                    Planned: {planResult.selected_engine} ({Math.round(planResult.confidence_score * 100)}% conf)
+                  </span>
+                )}
+              </div>
+
+              {planError && (
+                <div className="p-2.5 rounded bg-rose-500/10 border border-rose-500/20 text-rose-300 text-[10px]">
+                  {planError}
+                </div>
+              )}
+
+              {planResult && (
+                <div className="p-3 rounded-lg bg-slate-900/90 border border-slate-700/80 space-y-2 text-xs">
+                  <div className="flex items-center justify-between font-mono text-[11px]">
+                    <span className="text-slate-300 font-semibold">Planner Recommendation:</span>
+                    <span className="px-2 py-0.5 rounded bg-brand-500/20 text-brand-300 font-bold">
+                      {planResult.selected_engine}
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-slate-300">
+                    {planResult.explanation}
+                  </div>
+                  {planResult.scores && (
+                    <div className="pt-1.5 border-t border-slate-800/80 space-y-1">
+                      <div className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">
+                        Engine Suitability Scores
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 text-[10px] font-mono">
+                        {Object.entries(planResult.scores).map(([eng, sc]: [string, any]) => (
+                          <div key={eng} className="p-1.5 rounded bg-slate-950 border border-slate-800">
+                            <div className="text-slate-400 truncate">{eng}</div>
+                            <div className="font-bold text-slate-200">{sc} / 100</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* 2. Partitioned Data Movement Controls */}
+            <div className="p-3.5 bg-slate-950/70 border border-slate-800 rounded-lg space-y-3">
+              <div className="flex items-center justify-between text-slate-300 font-semibold text-[11px] uppercase tracking-wider">
+                <span className="flex items-center gap-1.5">
+                  <Layers className="h-4 w-4 text-purple-400" />
+                  Partitioning & Concurrent Slices
+                </span>
+                <span className="text-[10px] font-mono text-purple-400">
+                  {partitioning.column ? `Col: ${partitioning.column}` : 'Disabled'}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-400 mb-1 text-[11px]">Partition Column</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. order_id or created_at"
+                    value={partitioning.column || ''}
+                    onChange={(e) => updatePartitioning({ column: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-1 text-slate-200 text-xs font-mono"
+                  />
+                  <p className="text-[9px] text-slate-500 mt-0.5">Numeric key or timestamp column for parallel slice boundaries.</p>
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 mb-1 text-[11px]">Partition Slicing Strategy</label>
+                  <select
+                    value={partitioning.strategy || 'Range'}
+                    onChange={(e) => updatePartitioning({ strategy: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-1 text-slate-200 text-xs"
+                  >
+                    <option value="Range">Numeric Range (Min / Max Slicing)</option>
+                    <option value="Temporal">Temporal (Date & Hour Windows)</option>
+                    <option value="List">Discrete List / Modulo Hash</option>
+                    <option value="FileSet">Storage FileSet (LPT Bin-Packing)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="pt-2 border-t border-slate-800">
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-slate-400 text-[11px]">Concurrency Partition Limit</label>
+                  <span className="font-mono text-purple-400 font-bold">{partitioning.concurrency_limit || 4} concurrent slices</span>
+                </div>
+                <input
+                  type="range"
+                  min={1}
+                  max={32}
+                  value={partitioning.concurrency_limit || 4}
+                  onChange={(e) => updatePartitioning({ concurrency_limit: parseInt(e.target.value) || 4 })}
+                  className="w-full accent-purple-500"
+                />
+              </div>
+            </div>
+
+            {/* 3. Concurrency & Parallel Copies */}
             <div className="p-3.5 bg-slate-950/70 border border-slate-800 rounded-lg space-y-3">
               <div className="flex items-center justify-between text-slate-300 font-semibold text-[11px] uppercase tracking-wider">
                 <span>Concurrency & Parallel Copies</span>

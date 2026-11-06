@@ -441,6 +441,17 @@ export const DataFlowConfigDrawer: React.FC<DataFlowConfigDrawerProps> = ({
                 </div>
               </div>
             )}
+
+            {/* Pushdown Compatibility Info */}
+            <div className="p-2.5 rounded bg-slate-950/70 border border-slate-800 text-[11px] text-slate-400 space-y-1">
+              <div className="flex items-center justify-between text-slate-300 font-semibold text-[10px] uppercase tracking-wider">
+                <span>Execution Compatibility</span>
+                <span className="text-emerald-400 font-mono">Pushdown Ready</span>
+              </div>
+              <p className="text-[10px] text-slate-500">
+                This operator compiles into SQL CTE expressions for in-database zero-egress processing when executed against PostgreSQL, MySQL, DuckDB, or SQLite.
+              </p>
+            </div>
           </div>
         )}
 

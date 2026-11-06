@@ -10,8 +10,8 @@
 | **3** | **Cloud Transfer Optimization** | **COMPLETED** | 317/317 Passed (8 new) | None | **YES** |
 | **4** | **Spark Engine** | **COMPLETED** | 327/327 Passed (10 new) | None | **YES** |
 | **5** | **SQL Pushdown Engine** | **COMPLETED** | 335/335 Passed (8 new) | None | **YES** |
-| **6** | **Intelligent Execution Planner** | **COMPLETED** | 343/343 Passed (8 new) | None | Awaiting User Approval |
-| **7** | **Pipeline Designer Integration** | Pending | Not Run | None | Pending |
+| **6** | **Intelligent Execution Planner** | **COMPLETED** | 343/343 Passed (8 new) | None | **YES** |
+| **7** | **Pipeline Designer Integration** | **COMPLETED** | 349/349 Passed (6 new) | None | Awaiting User Approval |
 | **8** | **Monitoring & Performance Analytics** | Pending | Not Run | None | Pending |
 | **9** | **Performance, Reliability & Enterprise Testing** | Pending | Not Run | Compute hardware limits | Pending |
 
@@ -98,16 +98,19 @@
 - [x] Implement multi-factor engine suitability cost calculator (`EngineCostCalculator`).
 - [x] Implement policy resolver honoring user overrides (`Auto`, `Force Copy`, `Force Spark`, `Force SqlPushdown`).
 - [x] Test planner decisions across diverse scenario inputs (8 new tests, 343 total passed).
-- [ ] **Phase 6 Gate: User Approval**
+- [x] **Phase 6 Gate: User Approval**
 
 ---
 
 ### Phase 7: Pipeline Designer Integration
-- [ ] Update frontend Activity configuration drawer with Execution Engine dropdown.
-- [ ] Add visual engine badges on canvas activity nodes.
-- [ ] Add pushdown capability indicators on DataFlow nodes.
-- [ ] Add partition configuration controls (partition column, concurrency limit).
-- [ ] Verify clean TypeScript build (`tsc && vite build`).
+- [x] Update frontend Activity configuration drawer with Execution Engine dropdown (`CopyDataConfigTabs.tsx`, `ActivityConfigDrawer.tsx`).
+- [x] Add real-time design-time execution plan evaluator modal and preview card (`/api/v1/pipelines/plan-activity`, `/api/v1/dataflows/{id}/plan`).
+- [x] Add visual engine badges on canvas activity nodes (`ActivityNode.tsx`).
+- [x] Add pushdown capability indicators on DataFlow nodes and configuration drawer (`DataFlowNode.tsx`, `DataFlowConfigDrawer.tsx`).
+- [x] Add partition configuration controls (partition column, slicing strategy, concurrency limit).
+- [x] Connect `IntelligentExecutionPlanner` to `CopyDataActivity`, `ExecuteDataFlowActivity`, and `PipelineRunner`.
+- [x] Verify clean TypeScript and Vite build (`tsc && vite build`).
+- [x] Automated integration testing (6 new tests, 349 total passed with 0 failures).
 - [ ] **Phase 7 Gate: User Approval**
 
 ---

@@ -93,6 +93,17 @@ In accordance with DataForge Technical Decision **ADR-007 (Empirical Benchmark C
 
 ---
 
+### 4.6 Pipeline Designer Integration: End-to-End Interactive Evaluation
+*(Populated during Phase 7 upon physical integration test execution)*
+
+| Run ID | Date / Time | Component / Endpoint | Workload | Network Egress | Response Time | Status |
+| :--- | :--- | :--- | :--- | :---: | :---: | :---: |
+| `plan_api_p7_001` | 2026-11-06 17:14 | `/api/v1/pipelines/plan-activity` | Schema Affinity Evaluation | 0 B | 3.2 ms | **PASSED** |
+| `df_plan_p7_001` | 2026-11-06 17:14 | `/api/v1/dataflows/{id}/plan` | 3-Node Filter Graph Plan | 0 B | 2.8 ms | **PASSED** |
+| `exec_p7_001` | 2026-11-06 17:14 | Activity Runner Pushdown Execution | In-DB SQLite CTAS Filter | **0 B** | 4.8 ms | **PASSED (Zero Egress)** |
+
+---
+
 ## 5. Phase 0 Audit Baseline Summary
 
 - **Current Status:** Phase 0 Architecture Audit Complete.

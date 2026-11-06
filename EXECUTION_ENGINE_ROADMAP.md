@@ -147,16 +147,18 @@ Phase 9: Performance, Reliability & Enterprise Testing (MB-to-TB Benchmarks, Cha
 
 ---
 
-### Phase 7: Pipeline Designer Integration
+### Phase 7: Pipeline Designer Integration (Completed)
 - **Objective:** Expose execution engine controls and hints in the visual frontend canvas.
 - **Key Deliverables:**
   - Canvas property drawer: Execution Engine selector dropdown (`Auto (Recommended)`, `Copy Engine`, `Spark Engine`, `SQL Pushdown`).
+  - Interactive design-time execution plan evaluator modal and preview card (`/api/v1/pipelines/plan-activity`, `/api/v1/dataflows/{id}/plan`).
   - Visual engine badges on pipeline and dataflow activity nodes.
   - Pushdown capability badge indicating whether DAG qualifies for in-DB execution.
-  - Partition configuration UI (partition column, concurrency limit, slice size).
+  - Partition configuration UI (partition column, concurrency limit, slicing strategy).
 - **Verification Criteria:**
   - Users can configure engine overrides and partition parameters on canvas.
   - Production build clean (`tsc && vite build` 0 errors).
+  - Automated integration suite passed (6 new tests, 349 total passed).
 
 ---
 

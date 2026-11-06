@@ -10,8 +10,16 @@ from backend.app.schemas.pipeline import (
     PipelineUpdate,
     PipelineResponse,
     PipelineRunRequest,
-    PipelineVersionResponse
+    PipelineVersionResponse,
+    PlanActivityRequest,
+    PlanActivityResponse
 )
+from backend.app.models.connection import Connection
+from backend.app.models.dataflow import DataFlow
+from backend.app.connectors.factory import get_connector
+from backend.app.core.security import decrypt_secret
+from backend.app.engine.planner.planner import IntelligentExecutionPlanner
+from backend.app.engine.planner.models import PlannerStrategy
 from backend.app.schemas.security import (
     PipelinePromoteRequest,
     PipelineRollbackRequest,
@@ -339,3 +347,74 @@ def import_pipeline_git_endpoint(
         return pipeline
     except ValueError as ve:
         raise HTTPException(status_code=400, detail=str(ve))
+
+
+@router.post("/plan-activity", response_model=PlanActivityResponse)
+def plan_pipeline_activity(
+    req: PlanActivityRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(["Viewer", "Contributor", "DataEngineer", "Admin"]))
+):
+    """
+    Evaluates an activity configuration (CopyData or ExecuteDataFlow) and returns
+    the optimal execution engine decision, multi-factor scores, and architectural explanation.
+    """
+    strat_key = (req.strategy or "AUTO").upper().replace(" ", "_")
+    strategy = getattr(PlannerStrategy, strat_key, PlannerStrategy.AUTO)
+
+    src_connector = None
+    dst_connector = None
+    cfg = req.activity_config or {}
+
+    src_conn_id = cfg.get("source", {}).get("connection_id")
+    dst_conn_id = cfg.get("destination", {}).get("connection_id") or cfg.get("sink", {}).get("connection_id")
+
+    if src_conn_id:
+        rec = db.query(Connection).filter(Connection.id == src_conn_id).first()
+        if rec:
+            try:
+                src_connector = get_connector(rec.connector_type, decrypt_secret(rec.config_encrypted))
+            except Exception:
+                pass
+
+    if dst_conn_id:
+        rec = db.query(Connection).filter(Connection.id == dst_conn_id).first()
+        if rec:
+            try:
+                dst_connector = get_connector(rec.connector_type, decrypt_secret(rec.config_encrypted))
+            except Exception:
+                pass
+
+    if req.activity_type in ("ExecuteDataFlow", "DataFlow"):
+        graph_json = cfg.get("graph_json")
+        dataflow_id = cfg.get("dataflow_id")
+        if not graph_json and dataflow_id:
+            df_rec = db.query(DataFlow).filter(DataFlow.id == dataflow_id).first()
+            if df_rec:
+                graph_json = df_rec.graph_json
+
+        decision = IntelligentExecutionPlanner.plan_dataflow(
+            graph_json=graph_json or {"nodes": [], "edges": []},
+            source_connector=src_connector,
+            target_connector=dst_connector,
+            strategy=strategy
+        )
+    else:
+        decision = IntelligentExecutionPlanner.plan_copy_activity(
+            activity_config=cfg,
+            source_connector=src_connector,
+            target_connector=dst_connector,
+            strategy=strategy
+        )
+
+    return PlanActivityResponse(
+        selected_engine=decision.selected_engine.value,
+        strategy_applied=decision.strategy_applied.value,
+        confidence_score=decision.confidence_score,
+        scores=decision.scores,
+        explanation=decision.explanation,
+        primary_reason=decision.primary_reason,
+        fallback_engine=decision.fallback_engine.value if decision.fallback_engine else None,
+        estimated_egress_bytes=decision.estimated_egress_bytes,
+        profile_summary=decision.profile_summary
+    )

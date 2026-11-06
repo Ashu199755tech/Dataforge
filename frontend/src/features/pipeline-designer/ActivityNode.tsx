@@ -198,6 +198,52 @@ export const ActivityNode: React.FC<NodeProps> = ({ id, data, selected }) => {
         </div>
       </div>
 
+      {/* Execution Engine & Partitioning Badges */}
+      {(activityData.activityType === 'CopyData' || activityData.activityType === 'ExecuteDataFlow' || activityData.config?.execution_engine_strategy) && (
+        <div className="pt-1.5 pb-1 flex flex-wrap items-center gap-1">
+          {(() => {
+            const strat = activityData.config?.execution_engine_strategy || 'AUTO';
+            if (strat === 'FORCE_SQL_PUSHDOWN' || strat === 'SQL_PUSHDOWN') {
+              return (
+                <span className="px-1.5 py-0.5 rounded text-[9px] bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 flex items-center gap-1 font-semibold" title="In-Database Pushdown (Zero Egress)">
+                  <Database className="h-2.5 w-2.5 text-emerald-400" />
+                  <span>SQL Pushdown</span>
+                </span>
+              );
+            }
+            if (strat === 'FORCE_SPARK' || strat === 'SPARK') {
+              return (
+                <span className="px-1.5 py-0.5 rounded text-[9px] bg-amber-500/15 text-amber-300 border border-amber-500/30 flex items-center gap-1 font-semibold" title="Apache Spark Distributed Engine">
+                  <Flame className="h-2.5 w-2.5 text-amber-400" />
+                  <span>Spark Engine</span>
+                </span>
+              );
+            }
+            if (strat === 'FORCE_COPY' || strat === 'COPY') {
+              return (
+                <span className="px-1.5 py-0.5 rounded text-[9px] bg-sky-500/15 text-sky-300 border border-sky-500/30 flex items-center gap-1 font-semibold" title="DataForge Standalone Copy Engine">
+                  <ArrowRightLeft className="h-2.5 w-2.5 text-sky-400" />
+                  <span>Copy Engine</span>
+                </span>
+              );
+            }
+            return (
+              <span className="px-1.5 py-0.5 rounded text-[9px] bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 flex items-center gap-1 font-semibold" title="Auto Intelligent Planner">
+                <Cpu className="h-2.5 w-2.5 text-indigo-400" />
+                <span>Auto Planner</span>
+              </span>
+            );
+          })()}
+
+          {activityData.config?.partitioning?.column && (
+            <span className="px-1.5 py-0.5 rounded text-[9px] bg-purple-500/15 text-purple-300 border border-purple-500/30 flex items-center gap-1 font-semibold" title={`Partitioned by ${activityData.config.partitioning.column}`}>
+              <Layers className="h-2.5 w-2.5 text-purple-400" />
+              <span>{activityData.config.partitioning.concurrency_limit || 4} Slices</span>
+            </span>
+          )}
+        </div>
+      )}
+
       {/* Node Body Details Preview */}
       <div className="py-2 space-y-1 text-[11px] font-mono text-slate-400">
         {activityData.config?.source?.table_name && activityData.config?.destination?.table_name && (

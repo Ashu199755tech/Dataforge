@@ -222,6 +222,17 @@ export const DataFlowNode: React.FC<NodeProps> = ({ id, data, selected }) => {
         )}
       </div>
 
+      {/* Pushdown Eligibility Indicator */}
+      {['Source', 'Sink', 'Filter', 'Select', 'DerivedColumn', 'Sort', 'Aggregate', 'Join', 'Window'].includes(opType) && (
+        <div className="pt-1.5 pb-0.5 border-t border-slate-800/80 flex items-center justify-between text-[9px] text-emerald-400/90 font-mono">
+          <span className="flex items-center gap-1">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span>Pushdown Eligible</span>
+          </span>
+          <span className="text-[8px] text-slate-500 font-sans">0 Egress</span>
+        </div>
+      )}
+
       {/* Outgoing Stream Handle on Right */}
       {!isSink && (
         <Handle

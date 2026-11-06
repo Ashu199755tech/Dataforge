@@ -8,6 +8,8 @@ from backend.app.core.database import SessionLocal
 from backend.app.models.dataflow import DataFlow
 from backend.app.models.workspace import Project
 from backend.app.dataflow.engine import DataFlowEngine
+from backend.app.engine.planner.planner import IntelligentExecutionPlanner
+from backend.app.engine.planner.models import PlannerStrategy
 
 router = APIRouter(prefix="/dataflows", tags=["DataFlows"])
 
@@ -172,3 +174,28 @@ def execute_dataflow(id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"Execution failed: {res.error_message}")
 
     return res.to_dict()
+
+
+class DataFlowPlanRequest(BaseModel):
+    strategy: Optional[str] = "AUTO"
+
+
+@router.post("/{id}/plan")
+def plan_dataflow_execution(
+    id: str,
+    req: Optional[DataFlowPlanRequest] = None,
+    db: Session = Depends(get_db)
+):
+    df = db.query(DataFlow).filter(DataFlow.id == id).first()
+    if not df:
+        raise HTTPException(status_code=404, detail="DataFlow not found")
+
+    strategy_str = req.strategy if req and req.strategy else "AUTO"
+    strat_key = strategy_str.upper().replace(" ", "_")
+    strategy = getattr(PlannerStrategy, strat_key, PlannerStrategy.AUTO)
+
+    decision = IntelligentExecutionPlanner.plan_dataflow(
+        graph_json=df.graph_json,
+        strategy=strategy
+    )
+    return decision.model_dump()
