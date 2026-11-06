@@ -2,9 +2,13 @@ import { create } from 'zustand';
 import { Workspace, Project, Connection, Pipeline } from '../types';
 import api from '../api/client';
 
+export type EnvironmentType = 'Development' | 'Testing' | 'Staging' | 'Production';
+
 interface AppState {
   currentTab: 'dashboard' | 'pipelines' | 'designer' | 'dataflows' | 'connections' | 'datasets' | 'triggers' | 'runs' | 'dq' | 'runtimes' | 'deployments' | 'lineage' | 'observability';
   selectedPipelineId: string | null;
+  selectedEnvironment: EnvironmentType;
+  isSidebarCollapsed: boolean;
   workspaces: Workspace[];
   activeWorkspace: Workspace | null;
   projects: Project[];
@@ -15,6 +19,11 @@ interface AppState {
   
   setCurrentTab: (tab: 'dashboard' | 'pipelines' | 'designer' | 'dataflows' | 'connections' | 'datasets' | 'triggers' | 'runs' | 'dq' | 'runtimes' | 'deployments' | 'lineage' | 'observability') => void;
   setSelectedPipelineId: (id: string | null) => void;
+  setSelectedEnvironment: (env: EnvironmentType) => void;
+  setSidebarCollapsed: (collapsed: boolean) => void;
+  toggleSidebar: () => void;
+  setActiveWorkspace: (ws: Workspace) => void;
+  setActiveProject: (proj: Project) => void;
   fetchInitialData: () => Promise<void>;
   fetchConnections: () => Promise<void>;
   fetchPipelines: () => Promise<void>;
@@ -23,6 +32,8 @@ interface AppState {
 export const useAppStore = create<AppState>((set, get) => ({
   currentTab: 'dashboard',
   selectedPipelineId: null,
+  selectedEnvironment: 'Development',
+  isSidebarCollapsed: typeof window !== 'undefined' ? localStorage.getItem('dataforge_sidebar_collapsed') === 'true' : false,
   workspaces: [],
   activeWorkspace: null,
   projects: [],
@@ -33,6 +44,26 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   setCurrentTab: (tab) => set({ currentTab: tab }),
   setSelectedPipelineId: (id) => set({ selectedPipelineId: id }),
+  setSelectedEnvironment: (env) => set({ selectedEnvironment: env }),
+  setSidebarCollapsed: (collapsed) => {
+    try {
+      localStorage.setItem('dataforge_sidebar_collapsed', String(collapsed));
+    } catch {}
+    set({ isSidebarCollapsed: collapsed });
+  },
+  toggleSidebar: () => {
+    const next = !get().isSidebarCollapsed;
+    try {
+      localStorage.setItem('dataforge_sidebar_collapsed', String(next));
+    } catch {}
+    set({ isSidebarCollapsed: next });
+  },
+  setActiveWorkspace: (ws) => set({ activeWorkspace: ws }),
+  setActiveProject: (proj) => {
+    set({ activeProject: proj });
+    get().fetchConnections();
+    get().fetchPipelines();
+  },
 
   fetchInitialData: async () => {
     try {

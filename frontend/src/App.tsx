@@ -1,8 +1,8 @@
 import React, { useEffect } from 'react';
 import { useAppStore } from './store/useAppStore';
-import { Navbar } from './components/layout/Navbar';
-import { Sidebar } from './components/layout/Sidebar';
-import { DashboardPage } from './pages/DashboardPage';
+import { StudioNavbar } from './components/layout/StudioNavbar';
+import { StudioSidebar } from './components/layout/StudioSidebar';
+import { DataForgeHomePage } from './pages/DataForgeHomePage';
 import { PipelinesListPage } from './pages/PipelinesListPage';
 import { PipelineDesignerPage } from './features/pipeline-designer/PipelineDesignerPage';
 import { ConnectionsPage } from './pages/ConnectionsPage';
@@ -26,7 +26,7 @@ export const App: React.FC = () => {
   const renderContent = () => {
     switch (currentTab) {
       case 'dashboard':
-        return <DashboardPage />;
+        return <DataForgeHomePage />;
       case 'pipelines':
         return <PipelinesListPage />;
       case 'designer':
@@ -52,15 +52,15 @@ export const App: React.FC = () => {
       case 'dq':
         return <DataQualityPage />;
       default:
-        return <DashboardPage />;
+        return <DataForgeHomePage />;
     }
   };
 
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col font-sans">
-      <Navbar />
+      <StudioNavbar />
       <div className="flex-1 flex overflow-hidden">
-        <Sidebar />
+        <StudioSidebar />
         <main className="flex-1 overflow-y-auto bg-slate-950/50">
           {renderContent()}
         </main>
