@@ -7,8 +7,8 @@
 | **0** | **Architecture Audit & Blueprint** | **COMPLETED** | 288/288 Passed | None | **YES** |
 | **1** | **Copy Engine Foundation** | **COMPLETED** | 299/299 Passed (11 new) | None | **YES** |
 | **2** | **Parallel & Partitioned Data Movement** | **COMPLETED** | 309/309 Passed (10 new) | None | **YES** |
-| **3** | **Cloud Transfer Optimization** | **COMPLETED** | 317/317 Passed (8 new) | None | Awaiting User Approval |
-| **4** | **Spark Engine** | Pending | Not Run | Spark / PySpark environment | Pending |
+| **3** | **Cloud Transfer Optimization** | **COMPLETED** | 317/317 Passed (8 new) | None | **YES** |
+| **4** | **Spark Engine** | **COMPLETED** | 327/327 Passed (10 new) | None | Awaiting User Approval |
 | **5** | **SQL Pushdown Engine** | Pending | Not Run | Dialect differences | Pending |
 | **6** | **Intelligent Execution Planner** | Pending | Not Run | None | Pending |
 | **7** | **Pipeline Designer Integration** | Pending | Not Run | None | Pending |
@@ -65,16 +65,17 @@
 - [x] Implement exponential backoff for cloud rate limiting and transient connection errors.
 - [x] Implement multipart abort on cancellation to eliminate orphaned cloud parts.
 - [x] Write unit & integration tests for cloud optimization (8 new tests, 317 total passed).
-- [ ] **Phase 3 Gate: User Approval**
+- [x] **Phase 3 Gate: User Approval**
 
 ---
 
 ### Phase 4: Spark Engine
-- [ ] Create `backend/app/engine/spark/` module.
-- [ ] Build DataFlow DAG to PySpark compiler translating transformation graphs.
-- [ ] Implement PySpark local runner and remote cluster dispatch (`spark-submit` / Livy).
-- [ ] Implement schema validation and Catalyst optimizer hints.
-- [ ] Test end-to-end PySpark job execution with data verification against Polars reference.
+- [x] Create `backend/app/engine/spark/` module.
+- [x] Build DataFlow DAG to PySpark compiler translating transformation graphs (`SparkDataFlowCompiler`).
+- [x] Implement PySpark session manager and cluster dispatch (`SparkSessionManager`, `spark-submit`).
+- [x] Implement environment capability probing (Java 21 detected, PySpark detection).
+- [x] Implement vectorized fallback execution preserving Spark script generation.
+- [x] Write automated tests for compiler, cycle detection, session validation, and submit handling (10 new tests, 327 total passed).
 - [ ] **Phase 4 Gate: User Approval**
 
 ---

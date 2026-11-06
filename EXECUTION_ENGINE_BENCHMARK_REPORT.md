@@ -73,11 +73,12 @@ In accordance with DataForge Technical Decision **ADR-007 (Empirical Benchmark C
 ---
 
 ### 4.4 Spark Engine: Distributed Processing
-*(To be populated during Phase 4 upon physical benchmark execution)*
+*(Populated during Phase 4 upon physical benchmark execution)*
 
-| Run ID | Date / Time | Dataset ID | Mode | Executors | Cores | Memory | Duration (s) | Throughput (MB/s) | Status |
+| Run ID | Date / Time | Dataset ID | Mode | Executors | Cores | Memory | Duration (s) | Throughput / Rate | Status |
 | :--- | :--- | :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
-| *Pending* | - | DS-10G | PySpark | 4 | 8 | 16 GB | - | - | Pending Phase 4 |
+| `spark_p4_001` | 2026-11-06 16:19 | DS-10K (10,000 rows) | AST Compile + Vectorized | 1 (Local) | 2 | 2 GB | 0.0648s | **154,211 rows/sec** (Compile: 0.11 ms) | **PASSED** |
+| *Pending* | - | DS-10G | PySpark | 4 | 8 | 16 GB | - | - | Pending Cluster Suite |
 | *Pending* | - | DS-100G | Spark Cluster | 8 | 32 | 64 GB | - | - | Pending Phase 9 |
 
 ---

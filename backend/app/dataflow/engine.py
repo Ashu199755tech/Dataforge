@@ -256,13 +256,25 @@ class DataFlowEngine:
         connection_id = config.get("connection_id")
         table_name = config.get("table_name") or config.get("dataset_name")
         raw_data = config.get("inline_data")
+        file_path = config.get("file_path") or config.get("path")
 
         # Inline mock/sample data
         if raw_data:
             return pl.DataFrame(raw_data)
 
+        # File-based source (Parquet, CSV, JSON)
+        if file_path:
+            import os
+            fmt = (config.get("format") or os.path.splitext(file_path)[1].lstrip(".") or "parquet").lower()
+            if fmt == "csv":
+                return pl.read_csv(file_path)
+            elif fmt == "json":
+                return pl.read_json(file_path)
+            else:
+                return pl.read_parquet(file_path)
+
         if not connection_id or not table_name:
-            raise ValueError("Source operator requires 'connection_id' and 'table_name'.")
+            raise ValueError("Source operator requires 'connection_id' and 'table_name', or 'file_path'.")
 
         connector = self._resolve_connector(connection_id)
         records = []
@@ -277,9 +289,20 @@ class DataFlowEngine:
     def _op_sink(self, node_id: str, df: pl.DataFrame, config: Dict[str, Any]) -> pl.DataFrame:
         connection_id = config.get("connection_id")
         table_name = config.get("table_name") or config.get("dataset_name")
+        file_path = config.get("file_path") or config.get("path")
         write_mode = config.get("write_mode", "append").lower()
 
-        if connection_id and table_name:
+        if file_path:
+            import os
+            fmt = (config.get("format") or os.path.splitext(file_path)[1].lstrip(".") or "parquet").lower()
+            if fmt == "csv":
+                df.write_csv(file_path)
+            elif fmt == "json":
+                df.write_json(file_path)
+            else:
+                df.write_parquet(file_path)
+            written = len(df)
+        elif connection_id and table_name:
             connector = self._resolve_connector(connection_id)
             records = df.to_dicts()
             written = connector.write_data_batch(table_name, records, write_mode=write_mode)
@@ -316,8 +339,28 @@ class DataFlowEngine:
 
     def _op_filter(self, df: pl.DataFrame, config: Dict[str, Any]) -> pl.DataFrame:
         col_name = config.get("column")
-        operator = config.get("operator", "==").strip()
+        operator = (config.get("operator") or "==").strip()
         val = config.get("value")
+
+        cond = config.get("condition") or config.get("filter_expression")
+        if not col_name and cond:
+            import re
+            m = re.match(r"^\s*([a-zA-Z0-9_]+)\s*(=|==|!=|<>|>=|<=|>|<)\s*(.+?)\s*$", cond)
+            if m:
+                col_name = m.group(1)
+                operator = m.group(2)
+                raw_val = m.group(3).strip()
+                if (raw_val.startswith("'") and raw_val.endswith("'")) or (raw_val.startswith('"') and raw_val.endswith('"')):
+                    val = raw_val[1:-1]
+                elif raw_val.lower() == "true":
+                    val = True
+                elif raw_val.lower() == "false":
+                    val = False
+                else:
+                    try:
+                        val = int(raw_val) if "." not in raw_val else float(raw_val)
+                    except ValueError:
+                        val = raw_val
 
         if not col_name or col_name not in df.columns:
             return df
