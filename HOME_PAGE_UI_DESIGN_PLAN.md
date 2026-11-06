@@ -211,10 +211,22 @@ Implementation will follow a strict phased sequence:
 | **2** | **Studio Home Page** | `DataForgeHomePage.tsx` (all 8 sections with live backend data) | Real API telemetry, quick actions, runs table, chart, onboarding checklist. | **COMPLETED** |
 | **3** | **Visual Design System** | Reusable components (`StatusBadge`, `MetricCard`, `QuickActionCard`, `StudioTable`, `StudioTabs`, `EmptyState`, `LoadingState`, `ErrorBanner`) | Clean enterprise styling, full extraction & integration into `DataForgeHomePage.tsx`. | **COMPLETED** |
 | **4** | **Navigation Integration** | Seamless routing across all 13 modules, deep links, modals | All buttons and navigation items open existing features with 0 broken links. | **COMPLETED** |
-| **5** | **Validation & Polish** | End-to-end tests, build verification, responsive checks | `tsc && vite build` clean, 288 backend tests pass, full functional verification. | Pending |
+| **5** | **Validation & Polish** | End-to-end tests, build verification, responsive checks | `tsc && vite build` clean (2116 modules), 288 backend tests pass, full functional verification. | **COMPLETED** |
 
 ---
 
-## 7. Approval Gate
+## 7. Phase 5 UX & Functional Validation Summary
 
-Phases 0, 1, 2, 3, and 4 have been completed and verified with clean production builds (`tsc && vite build` 0 errors, 2,116 modules transformed in 12.24s) and zero backend test regressions (288/288 tests passing). Awaiting user approval to proceed to **Phase 5: UX and Functional Validation**.
+All 12 validation criteria have been verified against the live environment:
+1. **Home page loads correctly:** Default landing route mounted cleanly with full telemetry integration.
+2. **Navigation works across all existing modules:** 13 views routed with zero dead ends.
+3. **Quick actions open correct workflows:** Direct routes to pipeline authoring, dataflows, connections, datasets, triggers, and monitoring.
+4. **Dashboard metrics load from real APIs:** Live queries to `/api/v1/dashboard/metrics`, `/api/v1/datasets`, `/api/v1/connections`, `/api/v1/triggers`, and `/api/v1/observability/fleet-health`.
+5. **Recent runs display actual execution data:** Live runs from `/api/v1/runs?limit=8` with runtime worker metadata, statuses, and durations.
+6. **Charts use actual backend statistics:** Historical execution trends rendered using dynamic Recharts area charts.
+7. **Runtime health uses real runtime information:** Live fleet telemetry from `/api/v1/observability/fleet-health` with CPU %, RAM %, and runtime nodes.
+8. **Search works across resources:** Global `Ctrl+K` search index queries all pipelines, datasets, connections, triggers, and data flows.
+9. **Loading and empty states work correctly:** Standardized `LoadingState`, skeletons, and `EmptyState` fallbacks.
+10. **Existing pipeline designer remains unaffected:** Full visual DAG authoring, drag-and-drop, and execution testing verified intact.
+11. **Responsive layout works across screen sizes:** Collapsible ADF-style sidebar rail (48px $\leftrightarrow$ 224px) with sticky top navigation.
+12. **Zero regressions:** Production build clean (`tsc && vite build` 0 errors), 288 backend tests passed.

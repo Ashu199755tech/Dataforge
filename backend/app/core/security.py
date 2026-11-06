@@ -49,8 +49,15 @@ def decrypt_secret(encrypted_token: str) -> Dict[str, Any]:
     """Decrypts a token back into credentials dict."""
     if not encrypted_token:
         return {}
-    decrypted = cipher_suite.decrypt(encrypted_token.encode("utf-8"))
-    return json.loads(decrypted.decode("utf-8"))
+    try:
+        decrypted = cipher_suite.decrypt(encrypted_token.encode("utf-8"))
+        return json.loads(decrypted.decode("utf-8"))
+    except Exception:
+        # Graceful fallback if stored as plaintext or encrypted under another key
+        try:
+            return json.loads(encrypted_token)
+        except Exception:
+            return {}
 
 
 def mask_secret_dict(data: Dict[str, Any]) -> Dict[str, Any]:
