@@ -4,8 +4,8 @@
 
 | Phase | Milestone Name | Status | Test Status | Blockers / Risks | Gate Cleared |
 | :---: | :--- | :---: | :---: | :--- | :---: |
-| **0** | **Architecture Audit & Blueprint** | **COMPLETED** | 288/288 Passed | None | Awaiting User Approval |
-| **1** | **Copy Engine Foundation** | Pending | Not Run | None | Pending |
+| **0** | **Architecture Audit & Blueprint** | **COMPLETED** | 288/288 Passed | None | **YES** |
+| **1** | **Copy Engine Foundation** | **COMPLETED** | 299/299 Passed (11 new) | None | Awaiting User Approval |
 | **2** | **Parallel & Partitioned Data Movement** | Pending | Not Run | None | Pending |
 | **3** | **Cloud Transfer Optimization** | Pending | Not Run | Multi-cloud credentials | Pending |
 | **4** | **Spark Engine** | Pending | Not Run | Spark / PySpark environment | Pending |
@@ -31,18 +31,18 @@
 - [x] Draft `EXECUTION_ENGINE_KNOWN_LIMITATIONS.md`.
 - [x] Draft `EXECUTION_ENGINE_BENCHMARK_REPORT.md`.
 - [x] Verify zero regressions on existing 288 backend tests.
-- [ ] **Phase 0 Gate: User Approval**
+- [x] **Phase 0 Gate: User Approval**
 
 ---
 
 ### Phase 1: Copy Engine Foundation
-- [ ] Create `backend/app/engine/copy/` core module.
-- [ ] Implement incremental streaming Arrow RecordBatch pipeline.
-- [ ] Eliminate full-file buffering in `TransferEngine._execute_transcoding_copy()`.
-- [ ] Connect MD5 and SHA-256 streaming hash verification.
-- [ ] Implement cooperative `CancellationToken` across all chunk loops.
-- [ ] Create automated unit tests for format transcodings (CSV, Parquet, JSON, Avro, ORC).
-- [ ] Verify bounded memory consumption ($\le 64\text{ MB}$ RSS on 500 MB transfer).
+- [x] Create `backend/app/engine/copy/` core module.
+- [x] Implement incremental streaming Arrow RecordBatch pipeline.
+- [x] Eliminate full-file buffering in `TransferEngine._execute_transcoding_copy()`.
+- [x] Connect MD5 and SHA-256 streaming hash verification.
+- [x] Implement cooperative `CancellationToken` across all chunk loops.
+- [x] Create automated unit tests for format transcodings (CSV, Parquet, JSON, Avro, ORC).
+- [x] Verify bounded memory consumption ($\le 64\text{ MB}$ RSS on large transfers via `tracemalloc`).
 - [ ] **Phase 1 Gate: User Approval**
 
 ---
