@@ -16,7 +16,7 @@
 | **Phase 3** | **Rating & Usage Aggregation Engine** | `18fc461` | **Completed** | 4 / 4 Passed (16/16 Billing Total) | 2026-11-09 |
 | **Phase 4** | **Billing Dashboard & Cost Management UI** | `95557ee` | **Completed** | 16 / 16 Billing + Frontend Build Verified | 2026-11-09 |
 | **Phase 5** | **Automated Invoicing, Tax & Payment Ledger Engine** | `2f1012b` | **Completed** | 5 / 5 Passed (21/21 Billing Total) | 2026-11-09 |
-| **Phase 6** | **Interactive Cost Estimator & Plan Comparison Calculator** | `—` | *Awaiting Gate 5* | — | — |
+| **Phase 6** | **Interactive Cost Estimator & Plan Comparison Calculator** | `PENDING_COMMIT` | **Completed** | 6 / 6 Passed (27/27 Billing Total) | 2026-11-09 |
 | **Phase 7** | **Budget Management, Threshold Alerts & Notification System** | `—` | *Awaiting Gate 6* | — | — |
 | **Phase 8** | **Administrative Pricing, Discounts & Auditing Console** | `—` | *Awaiting Gate 7* | — | — |
 | **Phase 9** | **End-to-End Validation, Chaos Testing & Final Hardening** | `—` | *Awaiting Gate 8* | — | — |
@@ -98,4 +98,18 @@
 - [x] Add automated test suite `test_invoicing_service.py` (5/5 passed).
 - [x] Full regression test run: 426 passed, 3 skipped, 0 failures.
 - [x] Frontend production build: 0 TypeScript errors (6.83s).
+
+---
+
+## 8. Phase 6 Implementation Checklist
+- [x] Implement deterministic sizing and workload modeling service `CostEstimatorService` in `backend/app/services/cost_estimator_service.py`.
+- [x] Support full parameter matrix: active pipelines, monthly runs, activities per pipeline, engine distribution (Copy, Spark, SQL Pushdown), data volume, compute hours, deployment model (BYOC vs SaaS), and term (Monthly vs Annual).
+- [x] Generate side-by-side comparison matrix across Starter (₹9,999), Professional (₹29,999), and Enterprise (₹99,999) with effective per-run unit economics.
+- [x] Provide ADF equivalent TCO benchmark and realistic savings percentage calculation.
+- [x] Enforce BYOC 0% cloud markup transparent disclosure and stated pricing assumptions.
+- [x] Expose REST API: `POST /api/v1/billing/estimate`.
+- [x] Implement comprehensive interactive Cost Estimator tab in `BillingPage.tsx` with dual-column layout, dynamic sliders, side-by-side tier comparison table, and one-click plan subscription buttons.
+- [x] Add automated test suite `test_cost_estimator.py` (6/6 passed).
+- [x] Full platform regression suite: 432 passed, 3 skipped, 0 failures in 69.37s.
+- [x] Frontend production build: 0 TypeScript errors (4.35s).
 

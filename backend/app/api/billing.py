@@ -8,6 +8,7 @@ from backend.app.services.billing_service import BillingService
 from backend.app.services.metering_service import UsageMeteringEngine
 from backend.app.services.rating_engine import RatingEngine
 from backend.app.services.invoicing_service import InvoiceService
+from backend.app.services.cost_estimator_service import CostEstimatorService
 from backend.app.schemas.billing import (
     SubscriptionPlanResponse,
     SubscriptionPlanCreate,
@@ -24,7 +25,9 @@ from backend.app.schemas.billing import (
     BillingInvoiceDetailResponse,
     InvoiceGenerateRequest,
     PaymentRecordCreate,
-    PaymentRecordResponse
+    PaymentRecordResponse,
+    CostEstimateRequest,
+    CostEstimateResponse
 )
 from backend.app.api.deps import get_current_user
 from backend.app.core.rbac import require_role
@@ -341,4 +344,31 @@ def record_invoice_payment(
         return payment
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+# ---------------------------------------------------------
+# Phase 6: Interactive Cost Estimator & Sizing API
+# ---------------------------------------------------------
+
+@router.post("/estimate", response_model=CostEstimateResponse)
+def estimate_dataforge_cost(
+    req: CostEstimateRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Calculates detailed workload sizing, plan recommendations,
+    overage estimates, and side-by-side plan comparisons (Starter vs Professional vs Enterprise).
+    """
+    return CostEstimatorService.estimate(
+        expected_pipelines=req.expected_pipelines,
+        monthly_pipeline_runs=req.monthly_pipeline_runs,
+        average_activities_per_pipeline=req.average_activities_per_pipeline,
+        copy_engine_pct=req.copy_engine_pct,
+        spark_engine_pct=req.spark_engine_pct,
+        sql_pushdown_pct=req.sql_pushdown_pct,
+        data_volume_gb=req.data_volume_gb,
+        runtime_hours_per_month=req.runtime_hours_per_month,
+        deployment_model=req.deployment_model,
+        billing_period=req.billing_period
+    )
 

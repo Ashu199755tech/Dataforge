@@ -685,4 +685,44 @@ export interface BillingInvoice {
   payments?: PaymentRecord[];
 }
 
+export interface PlanComparisonItem {
+  plan_code: string;
+  plan_name: string;
+  tier_level: number;
+  monthly_base_price: number;
+  included_runs: number;
+  overage_runs: number;
+  overage_cost: number;
+  spark_compute_cost: number;
+  software_subtotal: number;
+  estimated_gst_tax: number;
+  software_total: number;
+  is_recommended: boolean;
+  features_summary: string[];
+}
+
+export interface CostEstimateResult {
+  recommended_plan: string;
+  recommended_plan_name: string;
+  billing_period: string;
+  deployment_model: string;
+  expected_monthly_runs: number;
+  activity_classification: string;
+  rate_per_overage_run: number;
+  included_runs: number;
+  overage_runs: number;
+  base_subscription_cost: number;
+  overage_cost: number;
+  spark_compute_cost: number;
+  estimated_software_subtotal: number;
+  estimated_tax_gst: number;
+  estimated_software_total: number;
+  estimated_cloud_infrastructure_cost: number;
+  cloud_markup_percent: number;
+  estimated_adf_equivalent_cost: number;
+  estimated_savings_percent: number;
+  plan_comparison: PlanComparisonItem[];
+  assumptions_and_limitations: string[];
+}
+
 

@@ -54,7 +54,9 @@ import {
   ConsumptionSummary,
   BillingInvoice,
   InvoiceLineItem,
-  PaymentRecord
+  PaymentRecord,
+  CostEstimateResult,
+  PlanComparisonItem
 } from '../types';
 
 export const BillingPage: React.FC = () => {
@@ -98,9 +100,15 @@ export const BillingPage: React.FC = () => {
   const [consumptionChartMode, setConsumptionChartMode] = useState<'tiers' | 'engines'>('tiers');
 
   // Estimator State
+  const [estPipelines, setEstPipelines] = useState<number>(10);
   const [estRuns, setEstRuns] = useState<number>(35000);
   const [estActivities, setEstActivities] = useState<number>(8);
-  const [estSparkHours, setEstSparkHours] = useState<number>(20);
+  const [copyEnginePct, setCopyEnginePct] = useState<number>(60);
+  const [sparkEnginePct, setSparkEnginePct] = useState<number>(20);
+  const [sqlPushdownPct, setSqlPushdownPct] = useState<number>(20);
+  const [dataVolumeGB, setDataVolumeGB] = useState<number>(500);
+  const [runtimeHours, setRuntimeHours] = useState<number>(100);
+  const [deploymentModel, setDeploymentModel] = useState<'BYOC' | 'SaaS'>('BYOC');
   const [estPeriod, setEstPeriod] = useState<'Monthly' | 'Annual'>('Monthly');
 
   const fetchData = async () => {
@@ -398,50 +406,130 @@ export const BillingPage: React.FC = () => {
   const paginatedUsage = filteredUsage.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   // Estimator Calculations
-  const calculateEstimator = () => {
-    let recPlan = 'starter';
-    let basePrice = 9999;
-    let includedRuns = 10000;
-    let overageRate = 0.50;
+  const calculateEstimator = (): CostEstimateResult => {
+    let classification = 'Basic';
+    let ratePerRun = 0.50;
 
-    if (estActivities >= 2 && estActivities <= 5) overageRate = 0.50;
-    else if (estActivities <= 15) overageRate = 1.50;
-    else if (estActivities <= 30) overageRate = 3.00;
-    else overageRate = 5.00;
-
-    if (estRuns > 50000 || estActivities > 20 || estSparkHours > 50) {
-      recPlan = 'enterprise';
-      basePrice = estPeriod === 'Annual' ? 999990 / 12 : 99999;
-      includedRuns = 250000;
-    } else if (estRuns > 10000 || estSparkHours > 0 || estActivities > 5) {
-      recPlan = 'professional';
-      basePrice = estPeriod === 'Annual' ? 299990 / 12 : 29999;
-      includedRuns = 50000;
+    if (estActivities <= 5) {
+      classification = 'Basic';
+      ratePerRun = 0.50;
+    } else if (estActivities <= 15) {
+      classification = 'Standard';
+      ratePerRun = 1.50;
+    } else if (estActivities <= 30) {
+      classification = 'Advanced';
+      ratePerRun = 3.00;
     } else {
-      recPlan = 'starter';
-      basePrice = estPeriod === 'Annual' ? 99990 / 12 : 9999;
-      includedRuns = 10000;
+      classification = 'Complex';
+      ratePerRun = 5.00;
     }
 
-    const overageRuns = Math.max(0, estRuns - includedRuns);
-    const overageCost = overageRuns * overageRate;
-    const sparkCost = estSparkHours * 45;
-    const totalMonthly = basePrice + overageCost + sparkCost;
-    
-    // ADF comparison estimate (ADF charges ~$1 per 1000 runs + activity charges + SHIR VM costs)
-    const adfEquivalent = Math.max(14000, estRuns * 0.95 + (estActivities * estRuns * 0.05) + (estSparkHours * 85));
-    const savingsPercent = Math.max(25, Math.min(65, Math.round(((adfEquivalent - totalMonthly) / adfEquivalent) * 100)));
+    const isAnnual = estPeriod === 'Annual';
+
+    let recPlan = 'starter';
+    let recPlanName = 'Starter Plan';
+    if (estRuns <= 10000 && sparkEnginePct === 0) {
+      recPlan = 'starter';
+      recPlanName = 'Starter Plan';
+    } else if (estRuns <= 80000) {
+      recPlan = 'professional';
+      recPlanName = 'Professional Plan';
+    } else {
+      recPlan = 'enterprise';
+      recPlanName = 'Enterprise Plan';
+    }
+
+    const sparkHours = runtimeHours * (sparkEnginePct / 100);
+    const sparkCost = deploymentModel === 'SaaS' ? Math.round(sparkHours * 45) : 0;
+
+    const tierSpecs = [
+      {
+        plan_code: 'starter',
+        plan_name: 'Starter Plan',
+        tier_level: 1,
+        monthly_base_price: isAnnual ? 8332.50 : 9999,
+        included_runs: 10000,
+        features_summary: ['Basic Copy Engine', 'Database & Storage Connectors', 'Basic Data Quality', 'Standard Support']
+      },
+      {
+        plan_code: 'professional',
+        plan_name: 'Professional Plan',
+        tier_level: 2,
+        monthly_base_price: isAnnual ? 24999.17 : 29999,
+        included_runs: 50000,
+        features_summary: ['Advanced Copy Engine', 'Managed Spark Engine', 'SQL Pushdown Engine', 'Data Reconciliation', 'Git Integration', 'Priority Support']
+      },
+      {
+        plan_code: 'enterprise',
+        plan_name: 'Enterprise Plan',
+        tier_level: 3,
+        monthly_base_price: isAnnual ? 83332.50 : 99999,
+        included_runs: 250000,
+        features_summary: ['Self-Hosted Runtimes', 'Advanced Security & RBAC', 'Audit Logs & Governance', '24/7 Enterprise SLA', 'Custom Connectors']
+      }
+    ];
+
+    const planComparison: PlanComparisonItem[] = tierSpecs.map(spec => {
+      const overageRuns = Math.max(0, estRuns - spec.included_runs);
+      const overageCost = Math.round(overageRuns * ratePerRun);
+      const subtotal = spec.monthly_base_price + overageCost + sparkCost;
+      const gst = Math.round(subtotal * 0.18);
+      const total = subtotal + gst;
+      return {
+        ...spec,
+        overage_runs: overageRuns,
+        overage_cost: overageCost,
+        spark_compute_cost: sparkCost,
+        software_subtotal: subtotal,
+        estimated_gst_tax: gst,
+        software_total: total,
+        is_recommended: spec.plan_code === recPlan
+      };
+    });
+
+    const recItem = planComparison.find(p => p.plan_code === recPlan)!;
+
+    // Infrastructure estimates (Customer Cloud in BYOC)
+    const storageEst = Math.round(dataVolumeGB * 1.65);
+    const computeNodesEst = Math.round(Math.min(8000, Math.max(1200, (estRuns / 10000) * 1500)));
+    const infraTotal = storageEst + computeNodesEst;
+
+    // ADF Comparison
+    const adfActivityRuns = estRuns * estActivities;
+    const adfOrchestration = (adfActivityRuns / 1000) * 83;
+    const adfDataflow = sparkHours * 176;
+    const adfPipelinesFee = estPipelines * 125;
+    const adfTotal = Math.max(recItem.software_total * 1.45, Math.round(adfOrchestration + adfDataflow + adfPipelinesFee));
+    const savingsPercent = Math.max(10, Math.round(((adfTotal - recItem.software_total) / adfTotal) * 100));
 
     return {
-      recPlan,
-      basePrice,
-      includedRuns,
-      overageRuns,
-      overageCost,
-      sparkCost,
-      totalMonthly,
-      adfEquivalent,
-      savingsPercent
+      recommended_plan: recPlan,
+      recommended_plan_name: recPlanName,
+      billing_period: estPeriod,
+      deployment_model: deploymentModel,
+      expected_monthly_runs: estRuns,
+      activity_classification: classification,
+      rate_per_overage_run: ratePerRun,
+      included_runs: recItem.included_runs,
+      overage_runs: recItem.overage_runs,
+      base_subscription_cost: recItem.monthly_base_price,
+      overage_cost: recItem.overage_cost,
+      spark_compute_cost: sparkCost,
+      estimated_software_subtotal: recItem.software_subtotal,
+      estimated_tax_gst: recItem.estimated_gst_tax,
+      estimated_software_total: recItem.software_total,
+      estimated_cloud_infrastructure_cost: infraTotal,
+      cloud_markup_percent: 0.0,
+      estimated_adf_equivalent_cost: adfTotal,
+      estimated_savings_percent: savingsPercent,
+      plan_comparison: planComparison,
+      assumptions_and_limitations: [
+        `Pipeline complexity rated as '${classification}' based on ${estActivities} activities/pipeline (₹${ratePerRun.toFixed(2)}/run overage rate).`,
+        `Commitment: ${estPeriod} subscription (${isAnnual ? '17% annual prepayment discount included' : 'standard monthly'}).`,
+        'Taxes: Standard 18.00% Indian GST calculated on platform software subtotal.',
+        'BYOC Mode: DataForge charges 0% vendor markup on customer cloud compute or storage. Cloud infrastructure charges are estimates paid directly to your cloud provider.',
+        'SQL Pushdown Engine: Zero egress fees for ELT transformations executed natively inside your data warehouse.'
+      ]
     };
   };
 
@@ -1452,168 +1540,395 @@ export const BillingPage: React.FC = () => {
 
       {/* TAB 7: COST ESTIMATOR */}
       {activeTab === 'estimator' && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          <div className="lg:col-span-7 p-6 rounded-2xl bg-slate-900 border border-slate-800 space-y-6">
-            <div>
-              <h3 className="text-base font-bold text-white flex items-center gap-2">
-                <Sliders className="h-4 w-4 text-brand-400" />
-                DataForge Interactive Sizing & Cost Calculator
-              </h3>
-              <p className="text-xs text-slate-400 mt-1">
-                Model your workload requirements to calculate exact monthly subscription costs, overage surcharges, and ADF migration savings.
-              </p>
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            {/* Left Column: Sizing Workload Inputs */}
+            <div className="lg:col-span-7 p-6 rounded-2xl bg-slate-900 border border-slate-800 space-y-5">
+              <div>
+                <h3 className="text-base font-bold text-white flex items-center gap-2">
+                  <Sliders className="h-4 w-4 text-brand-400" />
+                  Workload Modeling & Sizing Calculator
+                </h3>
+                <p className="text-xs text-slate-400 mt-1">
+                  Adjust expected orchestration runs, pipeline complexity, execution engines, and cloud deployment model.
+                </p>
+              </div>
+
+              {/* Monthly Pipeline Runs */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-slate-200">Expected Monthly Pipeline Runs</label>
+                  <span className="text-sm font-bold text-brand-400 font-mono">{estRuns.toLocaleString()} runs/mo</span>
+                </div>
+                <input
+                  type="range"
+                  min={1000}
+                  max={300000}
+                  step={1000}
+                  value={estRuns}
+                  onChange={(e) => setEstRuns(Number(e.target.value))}
+                  className="w-full accent-brand-500 bg-slate-800 h-2 rounded-lg cursor-pointer"
+                />
+                <div className="flex justify-between text-[10px] text-slate-500 font-mono">
+                  <span>1k</span>
+                  <span>10k (Starter)</span>
+                  <span>50k (Pro)</span>
+                  <span>250k (Enterprise)</span>
+                  <span>300k+</span>
+                </div>
+              </div>
+
+              {/* Grid 2-col: Active Pipelines & Activities per Pipeline */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-semibold text-slate-200">Active Pipelines Count</label>
+                    <span className="text-xs font-bold text-white font-mono">{estPipelines} pipelines</span>
+                  </div>
+                  <input
+                    type="range"
+                    min={1}
+                    max={100}
+                    step={1}
+                    value={estPipelines}
+                    onChange={(e) => setEstPipelines(Number(e.target.value))}
+                    className="w-full accent-brand-500 bg-slate-800 h-2 rounded-lg cursor-pointer"
+                  />
+                  <div className="flex justify-between text-[10px] text-slate-500 font-mono">
+                    <span>1</span>
+                    <span>50</span>
+                    <span>100</span>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-semibold text-slate-200">Average Activities / DAG</label>
+                    <span className="text-xs font-bold text-white font-mono">
+                      {estActivities} acts ({estResult.activity_classification})
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min={1}
+                    max={50}
+                    step={1}
+                    value={estActivities}
+                    onChange={(e) => setEstActivities(Number(e.target.value))}
+                    className="w-full accent-brand-500 bg-slate-800 h-2 rounded-lg cursor-pointer"
+                  />
+                  <div className="flex justify-between text-[10px] text-slate-500 font-mono">
+                    <span>Basic (≤5)</span>
+                    <span>Std (6-15)</span>
+                    <span>Adv (16-30)</span>
+                    <span>Cmplx (31+)</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Execution Engine Distribution */}
+              <div className="space-y-2 pt-2 border-t border-slate-800">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-200">Engine Workload Share:</span>
+                  <span className="text-[10px] text-slate-400 font-mono">Copy: {copyEnginePct}% | Spark: {sparkEnginePct}% | Pushdown: {sqlPushdownPct}%</span>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <label className="text-[10px] text-slate-400 block mb-1">Copy Engine %</label>
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={copyEnginePct}
+                      onChange={(e) => setCopyEnginePct(Number(e.target.value))}
+                      className="w-full px-2.5 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-white font-mono text-xs focus:outline-none focus:border-brand-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-slate-400 block mb-1">Spark Engine %</label>
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={sparkEnginePct}
+                      onChange={(e) => setSparkEnginePct(Number(e.target.value))}
+                      className="w-full px-2.5 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-white font-mono text-xs focus:outline-none focus:border-brand-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-slate-400 block mb-1">SQL Pushdown %</label>
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={sqlPushdownPct}
+                      onChange={(e) => setSqlPushdownPct(Number(e.target.value))}
+                      className="w-full px-2.5 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-white font-mono text-xs focus:outline-none focus:border-brand-500"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Data Volume & Runtime Hours */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-semibold text-slate-200">Monthly Data Volume</label>
+                    <span className="text-xs font-bold text-white font-mono">{dataVolumeGB} GB/mo</span>
+                  </div>
+                  <input
+                    type="range"
+                    min={10}
+                    max={5000}
+                    step={50}
+                    value={dataVolumeGB}
+                    onChange={(e) => setDataVolumeGB(Number(e.target.value))}
+                    className="w-full accent-brand-500 bg-slate-800 h-2 rounded-lg cursor-pointer"
+                  />
+                  <div className="flex justify-between text-[10px] text-slate-500 font-mono">
+                    <span>10 GB</span>
+                    <span>1 TB</span>
+                    <span>5 TB</span>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-semibold text-slate-200">Execution Compute Hours</label>
+                    <span className="text-xs font-bold text-white font-mono">{runtimeHours} hrs/mo</span>
+                  </div>
+                  <input
+                    type="range"
+                    min={10}
+                    max={500}
+                    step={10}
+                    value={runtimeHours}
+                    onChange={(e) => setRuntimeHours(Number(e.target.value))}
+                    className="w-full accent-brand-500 bg-slate-800 h-2 rounded-lg cursor-pointer"
+                  />
+                  <div className="flex justify-between text-[10px] text-slate-500 font-mono">
+                    <span>10 hrs</span>
+                    <span>200 hrs</span>
+                    <span>500 hrs</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Deployment Model & Billing Commitment */}
+              <div className="pt-3 border-t border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-slate-300 font-medium">Deployment:</span>
+                  <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800">
+                    <button
+                      onClick={() => setDeploymentModel('BYOC')}
+                      className={`px-2.5 py-1 rounded text-xs transition ${
+                        deploymentModel === 'BYOC' ? 'bg-brand-600 text-white font-semibold' : 'text-slate-400'
+                      }`}
+                    >
+                      BYOC (0% Markup)
+                    </button>
+                    <button
+                      onClick={() => setDeploymentModel('SaaS')}
+                      className={`px-2.5 py-1 rounded text-xs transition ${
+                        deploymentModel === 'SaaS' ? 'bg-brand-600 text-white font-semibold' : 'text-slate-400'
+                      }`}
+                    >
+                      SaaS Managed
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-slate-300 font-medium">Term:</span>
+                  <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800">
+                    <button
+                      onClick={() => setEstPeriod('Monthly')}
+                      className={`px-2.5 py-1 rounded text-xs transition ${
+                        estPeriod === 'Monthly' ? 'bg-brand-600 text-white font-semibold' : 'text-slate-400'
+                      }`}
+                    >
+                      Monthly
+                    </button>
+                    <button
+                      onClick={() => setEstPeriod('Annual')}
+                      className={`px-2.5 py-1 rounded text-xs transition ${
+                        estPeriod === 'Annual' ? 'bg-brand-600 text-white font-semibold' : 'text-slate-400'
+                      }`}
+                    >
+                      Annual (-17%)
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-semibold text-slate-200">Expected Monthly Pipeline Executions</label>
-                <span className="text-sm font-bold text-brand-400 font-mono">{estRuns.toLocaleString()} runs</span>
-              </div>
-              <input
-                type="range"
-                min={1000}
-                max={200000}
-                step={1000}
-                value={estRuns}
-                onChange={(e) => setEstRuns(Number(e.target.value))}
-                className="w-full accent-brand-500 bg-slate-800 h-2 rounded-lg cursor-pointer"
-              />
-              <div className="flex justify-between text-[10px] text-slate-500 font-mono">
-                <span>1,000</span>
-                <span>50,000 (Pro Included)</span>
-                <span>200,000+</span>
-              </div>
-            </div>
+            {/* Right Column: Workload Recommendation & Sizing */}
+            <div className="lg:col-span-5 p-6 rounded-2xl bg-gradient-to-b from-slate-900 to-brand-950/30 border border-slate-800 flex flex-col justify-between space-y-6">
+              <div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-semibold text-brand-400 uppercase tracking-wider block">
+                    Recommended Plan Tier
+                  </span>
+                  <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-brand-500/10 text-brand-400 border border-brand-500/20 uppercase">
+                    {estResult.activity_classification} Tier
+                  </span>
+                </div>
 
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-semibold text-slate-200">Average Activities per Pipeline</label>
-                <span className="text-sm font-bold text-brand-400 font-mono">{estActivities} activities</span>
-              </div>
-              <input
-                type="range"
-                min={2}
-                max={40}
-                step={1}
-                value={estActivities}
-                onChange={(e) => setEstActivities(Number(e.target.value))}
-                className="w-full accent-brand-500 bg-slate-800 h-2 rounded-lg cursor-pointer"
-              />
-              <div className="flex justify-between text-[10px] text-slate-500 font-mono">
-                <span>2 (Basic ₹0.50)</span>
-                <span>8 (Standard ₹1.50)</span>
-                <span>20 (Adv ₹3.00)</span>
-                <span>40 (Complex ₹5.00)</span>
-              </div>
-            </div>
+                <h3 className="text-xl font-bold text-white capitalize mt-1.5 flex items-center gap-2">
+                  <Sparkles className="h-5 w-5 text-amber-400" />
+                  {estResult.recommended_plan_name}
+                </h3>
+                <p className="text-xs text-slate-400 mt-1">
+                  Provides {estResult.included_runs.toLocaleString()} included executions/month with ₹{estResult.rate_per_overage_run.toFixed(2)} rate per additional run.
+                </p>
 
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-semibold text-slate-200">Managed Spark Worker Node-Hours</label>
-                <span className="text-sm font-bold text-brand-400 font-mono">{estSparkHours} node-hrs/mo</span>
-              </div>
-              <input
-                type="range"
-                min={0}
-                max={200}
-                step={5}
-                value={estSparkHours}
-                onChange={(e) => setEstSparkHours(Number(e.target.value))}
-                className="w-full accent-brand-500 bg-slate-800 h-2 rounded-lg cursor-pointer"
-              />
-              <div className="flex justify-between text-[10px] text-slate-500 font-mono">
-                <span>0 (Pure Copy Engine)</span>
-                <span>50 hrs</span>
-                <span>200 hrs</span>
-              </div>
-            </div>
+                <div className="mt-5 space-y-2.5 text-xs">
+                  <div className="flex justify-between py-1.5 border-b border-slate-800">
+                    <span className="text-slate-400">Base Subscription ({estPeriod})</span>
+                    <span className="text-white font-mono font-semibold">₹{Math.round(estResult.base_subscription_cost).toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between py-1.5 border-b border-slate-800">
+                    <span className="text-slate-400">Included Executions Allowance</span>
+                    <span className="text-emerald-400 font-mono">{estResult.included_runs.toLocaleString()} runs</span>
+                  </div>
+                  <div className="flex justify-between py-1.5 border-b border-slate-800">
+                    <span className="text-slate-400">Estimated Overage ({estResult.overage_runs.toLocaleString()} runs)</span>
+                    <span className="text-white font-mono font-semibold">₹{Math.round(estResult.overage_cost).toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between py-1.5 border-b border-slate-800">
+                    <span className="text-slate-400">Managed Spark Compute ({deploymentModel})</span>
+                    <span className="text-white font-mono font-semibold">₹{Math.round(estResult.spark_compute_cost).toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between py-1.5 border-b border-slate-800">
+                    <span className="text-slate-400">Indian GST (18.0%)</span>
+                    <span className="text-slate-300 font-mono">₹{Math.round(estResult.estimated_tax_gst).toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between py-2 pt-3 font-bold text-white text-base">
+                    <span>Total Estimated DataForge Cost</span>
+                    <span className="text-brand-400 font-mono">₹{Math.round(estResult.estimated_software_total).toLocaleString()}<span className="text-xs text-slate-400">/mo</span></span>
+                  </div>
+                </div>
 
-            <div className="pt-2 border-t border-slate-800 flex items-center justify-between">
-              <span className="text-xs text-slate-300 font-medium">Billing Commitment:</span>
-              <div className="flex items-center gap-2 bg-slate-950 p-1 rounded-lg border border-slate-800">
-                <button
-                  onClick={() => setEstPeriod('Monthly')}
-                  className={`px-3 py-1 rounded text-xs transition ${
-                    estPeriod === 'Monthly' ? 'bg-brand-600 text-white font-semibold' : 'text-slate-400'
-                  }`}
-                >
-                  Monthly
-                </button>
-                <button
-                  onClick={() => setEstPeriod('Annual')}
-                  className={`px-3 py-1 rounded text-xs transition ${
-                    estPeriod === 'Annual' ? 'bg-brand-600 text-white font-semibold' : 'text-slate-400'
-                  }`}
-                >
-                  Annual (-17%)
-                </button>
+                {/* Cloud & ADF Comparison */}
+                <div className="mt-4 p-4 rounded-xl bg-slate-950/80 border border-slate-800 space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-slate-400">Estimated Cloud Infra ({deploymentModel}):</span>
+                    <span className="text-slate-300 font-mono">~₹{Math.round(estResult.estimated_cloud_infrastructure_cost).toLocaleString()}/mo</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-slate-400">Azure Data Factory Equivalent:</span>
+                    <span className="text-slate-300 font-mono line-through">₹{Math.round(estResult.estimated_adf_equivalent_cost).toLocaleString()}/mo</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs pt-1 border-t border-slate-800">
+                    <span className="text-emerald-400 font-semibold flex items-center gap-1">
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                      Estimated Savings vs ADF:
+                    </span>
+                    <span className="text-emerald-400 font-bold font-mono text-sm">~{estResult.estimated_savings_percent}% lower</span>
+                  </div>
+                </div>
               </div>
+
+              <button
+                onClick={() => {
+                  const targetPlan = plans.find(p => p.plan_code === estResult.recommended_plan);
+                  if (targetPlan) {
+                    handlePlanSwitch(targetPlan.id, estPeriod);
+                  }
+                }}
+                disabled={isUpdatingSub}
+                className="w-full py-3 rounded-xl text-xs font-bold text-white bg-brand-600 hover:bg-brand-500 shadow-lg shadow-brand-600/30 transition flex items-center justify-center gap-2"
+              >
+                <Sparkles className="h-4 w-4" />
+                Subscribe to {estResult.recommended_plan_name.toUpperCase()}
+              </button>
             </div>
           </div>
 
-          <div className="lg:col-span-5 p-6 rounded-2xl bg-gradient-to-b from-slate-900 to-brand-950/30 border border-slate-800 flex flex-col justify-between space-y-6">
+          {/* Side-by-Side 3-Tier Plan Comparison Matrix */}
+          <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 space-y-4">
             <div>
-              <span className="text-[11px] font-semibold text-brand-400 uppercase tracking-wider block">
-                Workload Recommendation
-              </span>
-              <h3 className="text-xl font-bold text-white capitalize mt-1">
-                {estResult.recPlan} Plan
-              </h3>
-              <p className="text-xs text-slate-400 mt-1">
-                Includes {estResult.includedRuns.toLocaleString()} monthly pipeline executions.
+              <h3 className="text-sm font-bold text-white">Side-by-Side Commercial Plan Comparison</h3>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Compare Starter, Professional, and Enterprise options for your simulated workload of {estRuns.toLocaleString()} runs.
               </p>
-
-              <div className="mt-6 space-y-3 text-xs">
-                <div className="flex justify-between py-1.5 border-b border-slate-800">
-                  <span className="text-slate-400">Base Subscription</span>
-                  <span className="text-white font-mono font-semibold">₹{Math.round(estResult.basePrice).toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between py-1.5 border-b border-slate-800">
-                  <span className="text-slate-400">Included Executions</span>
-                  <span className="text-emerald-400 font-mono">{estResult.includedRuns.toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between py-1.5 border-b border-slate-800">
-                  <span className="text-slate-400">Estimated Overage ({estResult.overageRuns.toLocaleString()} runs)</span>
-                  <span className="text-white font-mono font-semibold">₹{Math.round(estResult.overageCost).toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between py-1.5 border-b border-slate-800">
-                  <span className="text-slate-400">Spark Compute ({estSparkHours} hrs)</span>
-                  <span className="text-white font-mono font-semibold">₹{Math.round(estResult.sparkCost).toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between py-3 font-bold text-white text-base">
-                  <span>Total Estimated Cost</span>
-                  <span className="text-brand-400 font-mono">₹{Math.round(estResult.totalMonthly).toLocaleString()}<span className="text-xs text-slate-400">/mo</span></span>
-                </div>
-              </div>
-
-              <div className="mt-5 p-4 rounded-xl bg-slate-950/80 border border-slate-800 space-y-2">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-slate-400">Azure Data Factory Equivalent:</span>
-                  <span className="text-slate-300 font-mono line-through">₹{Math.round(estResult.adfEquivalent).toLocaleString()}/mo</span>
-                </div>
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-emerald-400 font-semibold flex items-center gap-1">
-                    <CheckCircle2 className="h-3.5 w-3.5" />
-                    Estimated Savings vs ADF:
-                  </span>
-                  <span className="text-emerald-400 font-bold font-mono text-sm">~{estResult.savingsPercent}% lower</span>
-                </div>
-              </div>
             </div>
 
-            <button
-              onClick={() => {
-                const targetPlan = plans.find(p => p.plan_code === estResult.recPlan);
-                if (targetPlan) {
-                  handlePlanSwitch(targetPlan.id, estPeriod);
-                }
-              }}
-              disabled={isUpdatingSub}
-              className="w-full py-3 rounded-xl text-xs font-bold text-white bg-brand-600 hover:bg-brand-500 shadow-lg shadow-brand-600/30 transition flex items-center justify-center gap-2"
-            >
-              <Sparkles className="h-4 w-4" />
-              Subscribe to {estResult.recPlan.toUpperCase()} Plan
-            </button>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="border-b border-slate-800 text-slate-400 text-[11px] uppercase tracking-wider">
+                    <th className="py-3 px-3">Plan Tier</th>
+                    <th className="py-3 px-3">Base Subscription</th>
+                    <th className="py-3 px-3">Included Allowance</th>
+                    <th className="py-3 px-3">Simulated Overages</th>
+                    <th className="py-3 px-3">Overage Surcharge</th>
+                    <th className="py-3 px-3">Total Monthly (incl. GST)</th>
+                    <th className="py-3 px-3">Effective Rate / Run</th>
+                    <th className="py-3 px-3 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/60 font-mono">
+                  {estResult.plan_comparison.map((tier) => {
+                    const effectiveRate = tier.software_total / estRuns;
+                    return (
+                      <tr
+                        key={tier.plan_code}
+                        className={`transition ${tier.is_recommended ? 'bg-brand-500/5 hover:bg-brand-500/10' : 'hover:bg-slate-800/30'}`}
+                      >
+                        <td className="py-3 px-3 font-sans">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-white text-sm">{tier.plan_name}</span>
+                            {tier.is_recommended && (
+                              <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                                RECOMMENDED
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-[10px] text-slate-400 block mt-0.5 font-sans">
+                            {tier.features_summary.slice(0, 2).join(' • ')}
+                          </span>
+                        </td>
+                        <td className="py-3 px-3 text-slate-300">₹{Math.round(tier.monthly_base_price).toLocaleString()}/mo</td>
+                        <td className="py-3 px-3 text-emerald-400">{tier.included_runs.toLocaleString()} runs</td>
+                        <td className="py-3 px-3 text-slate-300">{tier.overage_runs.toLocaleString()} runs</td>
+                        <td className="py-3 px-3 text-slate-300">₹{tier.overage_cost.toLocaleString()}</td>
+                        <td className="py-3 px-3 text-brand-400 font-bold text-sm">₹{tier.software_total.toLocaleString()}</td>
+                        <td className="py-3 px-3 text-slate-300">₹{effectiveRate.toFixed(2)} / run</td>
+                        <td className="py-3 px-3 text-right font-sans">
+                          <button
+                            onClick={() => {
+                              const target = plans.find(p => p.plan_code === tier.plan_code);
+                              if (target) handlePlanSwitch(target.id, estPeriod);
+                            }}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+                              tier.is_recommended
+                                ? 'bg-brand-600 hover:bg-brand-500 text-white shadow-md shadow-brand-600/30'
+                                : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700'
+                            }`}
+                          >
+                            Select Plan
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Stated Assumptions & Limitations */}
+          <div className="p-5 rounded-2xl bg-slate-950/60 border border-slate-800 space-y-2.5">
+            <h4 className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+              <Info className="h-4 w-4 text-slate-400" />
+              Transparent Pricing Model Assumptions & Limitations
+            </h4>
+            <ul className="text-xs text-slate-400 space-y-1 list-disc list-inside">
+              {estResult.assumptions_and_limitations.map((a, i) => (
+                <li key={i}>{a}</li>
+              ))}
+            </ul>
           </div>
         </div>
       )}

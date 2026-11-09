@@ -314,3 +314,56 @@ class InvoiceGenerateRequest(BaseModel):
     notes: Optional[str] = None
 
 
+class CostEstimateRequest(BaseModel):
+    expected_pipelines: int = Field(default=10, ge=1, le=500, description="Expected total active pipelines")
+    monthly_pipeline_runs: int = Field(default=35000, ge=100, le=5000000, description="Monthly total execution runs")
+    average_activities_per_pipeline: int = Field(default=8, ge=1, le=100, description="Average activities per pipeline")
+    copy_engine_pct: float = Field(default=60.0, ge=0.0, le=100.0, description="Copy engine share (%)")
+    spark_engine_pct: float = Field(default=20.0, ge=0.0, le=100.0, description="Managed Spark engine share (%)")
+    sql_pushdown_pct: float = Field(default=20.0, ge=0.0, le=100.0, description="SQL pushdown engine share (%)")
+    data_volume_gb: float = Field(default=500.0, ge=0.0, description="Estimated total monthly data volume in GB")
+    runtime_hours_per_month: float = Field(default=100.0, ge=0.0, description="Total active execution compute hours")
+    deployment_model: str = Field(default="BYOC", description="BYOC (Bring Your Own Cloud) or SaaS")
+    billing_period: str = Field(default="Monthly", description="Monthly or Annual")
+
+
+class PlanComparisonItemResponse(BaseModel):
+    plan_code: str
+    plan_name: str
+    tier_level: int
+    monthly_base_price: float
+    included_runs: int
+    overage_runs: int
+    overage_cost: float
+    spark_compute_cost: float
+    software_subtotal: float
+    estimated_gst_tax: float
+    software_total: float
+    is_recommended: bool
+    features_summary: List[str]
+
+
+class CostEstimateResponse(BaseModel):
+    recommended_plan: str
+    recommended_plan_name: str
+    billing_period: str
+    deployment_model: str
+    expected_monthly_runs: int
+    activity_classification: str
+    rate_per_overage_run: float
+    included_runs: int
+    overage_runs: int
+    base_subscription_cost: float
+    overage_cost: float
+    spark_compute_cost: float
+    estimated_software_subtotal: float
+    estimated_tax_gst: float
+    estimated_software_total: float
+    estimated_cloud_infrastructure_cost: float
+    cloud_markup_percent: float
+    estimated_adf_equivalent_cost: float
+    estimated_savings_percent: float
+    plan_comparison: List[PlanComparisonItemResponse]
+    assumptions_and_limitations: List[str]
+
+
