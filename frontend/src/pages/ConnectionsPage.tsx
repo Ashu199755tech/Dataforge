@@ -250,6 +250,30 @@ export const ConnectionsPage: React.FC = () => {
             <Database className="h-4 w-4" />
           </div>
         );
+      case 'snowflake':
+        return (
+          <div className="p-2 rounded-lg border bg-cyan-500/10 border-cyan-500/30 text-cyan-400">
+            <Database className="h-4 w-4" />
+          </div>
+        );
+      case 'duckdb':
+        return (
+          <div className="p-2 rounded-lg border bg-yellow-500/10 border-yellow-500/30 text-yellow-400">
+            <Database className="h-4 w-4" />
+          </div>
+        );
+      case 'bigquery':
+        return (
+          <div className="p-2 rounded-lg border bg-blue-600/10 border-blue-600/30 text-blue-400">
+            <Database className="h-4 w-4" />
+          </div>
+        );
+      case 'redshift':
+        return (
+          <div className="p-2 rounded-lg border bg-red-500/10 border-red-500/30 text-red-400">
+            <Database className="h-4 w-4" />
+          </div>
+        );
       default:
         return (
           <div className="p-2 rounded-lg border bg-emerald-500/10 border-emerald-500/30 text-emerald-400">
@@ -477,6 +501,12 @@ export const ConnectionsPage: React.FC = () => {
                     <option value="azure_adls">Azure Data Lake Storage Gen2 (ADLS)</option>
                     <option value="azure_blob">Azure Blob Storage</option>
                     <option value="local_storage">Local Filesystem / Mounted Volume</option>
+                  </optgroup>
+                  <optgroup label="Data Warehouses & Analytical Engines">
+                    <option value="snowflake">Snowflake Virtual Warehouse</option>
+                    <option value="duckdb">DuckDB (In-Process OLAP)</option>
+                    <option value="bigquery">Google BigQuery</option>
+                    <option value="redshift">Amazon Redshift</option>
                   </optgroup>
                   <optgroup label="Relational Databases">
                     <option value="postgres">PostgreSQL</option>

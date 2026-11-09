@@ -39,7 +39,7 @@ class SQLPushdownAnalyzer:
         cfg_type = (connector.config.get("connector_type") or connector.config.get("type") or "").lower()
 
         combined = f"{conn_name}_{cfg_type}"
-        if "postgres" in combined:
+        if "postgres" in combined or "redshift" in combined:
             return SQLDialect.POSTGRESQL
         elif "mysql" in combined:
             return SQLDialect.MYSQL

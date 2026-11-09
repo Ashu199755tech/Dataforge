@@ -137,7 +137,7 @@ export const CopyDataConfigTabs: React.FC<CopyDataConfigTabsProps> = ({
   const isDatabaseConnector = (connectorType?: string) => {
     if (!connectorType) return false;
     const t = connectorType.toLowerCase();
-    return ['postgres', 'postgresql', 'pg', 'mysql', 'mariadb', 'sqlite', 'sqlite3'].includes(t);
+    return ['postgres', 'postgresql', 'pg', 'mysql', 'mariadb', 'sqlite', 'sqlite3', 'snowflake', 'sf', 'duckdb', 'bigquery', 'bq', 'redshift'].includes(t);
   };
 
   const isSrcStorage = isStorageConnector(srcConn?.connector_type) || Boolean(source.container || source.bucket);

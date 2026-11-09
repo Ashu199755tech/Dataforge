@@ -43,7 +43,7 @@
 
 ---
 
-### Section III: Modern Data Stack & Ecosystem Expansion (ADR 024 – ADR 025)
+### Section III: Modern Data Stack & Ecosystem Expansion (ADR 024 – ADR 026)
 
 24. **ADR 024: SQL-Context Vectorized Data Quality & Declarative Rulebook Evaluation**:
     - **Context:** Enterprise users required evaluating custom multi-column SQL predicates and running declarative YAML/JSON data quality rulebooks against any dataset.
@@ -51,3 +51,6 @@
 25. **ADR 025: Snowflake SQL REST v2 Connector & Enterprise dbt Orchestration**:
     - **Context:** Modern data stack integration necessitated direct Snowflake virtual warehouse connectivity without fragile binary driver compilation, and dual-mode dbt transformation support (dbt Core CLI + dbt Cloud API).
     - **Decision:** Created dedicated `SnowflakeConnector` supporting streaming chunked reads, append/overwrite/merge writes, metadata auto-discovery, and mock verification via official Snowflake SQL REST API v2. Created dedicated `DbtActivity` supporting sandboxed local CLI subprocess execution with regex log telemetry extraction and dbt Cloud REST API v2 triggering and polling.
+26. **ADR 026: Universal Analytical Warehouses & Embedded OLAP (DuckDB, BigQuery, Redshift)**:
+    - **Context:** Enterprise pipelines required embedded zero-egress analytical querying on Parquet/Arrow files alongside managed multi-cloud analytical warehouses (BigQuery and Amazon Redshift).
+    - **Decision:** Built `DuckDBConnector` for in-process OLAP and direct file querying (`read_parquet`), `BigQueryConnector` using official BigQuery REST API v2 with OAuth2 / service account keys, and `RedshiftConnector` with transactional staging merges via PostgreSQL wire protocol. Registered all three in the connector factory and frontend connection designer.
