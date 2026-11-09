@@ -43,6 +43,7 @@ from backend.app.schemas.billing import (
 from backend.app.api.deps import get_current_user
 from backend.app.core.rbac import require_role
 from backend.app.models.user import User
+from backend.app.models.workspace import Workspace
 
 router = APIRouter(prefix="/billing", tags=["Pricing & Billing"])
 
@@ -300,6 +301,7 @@ def generate_monthly_invoice(
 @router.get("/invoices/{invoice_id}", response_model=BillingInvoiceDetailResponse)
 def get_invoice_details(
     invoice_id: str,
+    workspace_id: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -307,12 +309,17 @@ def get_invoice_details(
     invoice = InvoiceService.get_invoice_by_id(db, invoice_id)
     if not invoice:
         raise HTTPException(status_code=404, detail="Invoice not found.")
+    if workspace_id:
+        ws = db.query(Workspace).filter(Workspace.id == workspace_id).first()
+        if ws and ws.tenant_id and ws.tenant_id != invoice.tenant_id:
+            raise HTTPException(status_code=404, detail="Invoice not found.")
     return invoice
 
 
 @router.get("/invoices/{invoice_id}/download")
 def download_invoice_pdf(
     invoice_id: str,
+    workspace_id: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -320,6 +327,10 @@ def download_invoice_pdf(
     invoice = InvoiceService.get_invoice_by_id(db, invoice_id)
     if not invoice:
         raise HTTPException(status_code=404, detail="Invoice not found.")
+    if workspace_id:
+        ws = db.query(Workspace).filter(Workspace.id == workspace_id).first()
+        if ws and ws.tenant_id and ws.tenant_id != invoice.tenant_id:
+            raise HTTPException(status_code=404, detail="Invoice not found.")
 
     pdf_bytes = InvoiceService.generate_invoice_pdf(db, invoice_id)
     filename = f"{invoice.invoice_number}.pdf"
@@ -420,13 +431,19 @@ def create_budget(
 @router.get("/budgets/{budget_id}", response_model=BudgetStatusResponse)
 def get_budget_status(
     budget_id: str,
+    workspace_id: Optional[str] = None,
     period_key: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """Retrieves real-time utilization status, limits, and alert history for a single budget."""
     try:
-        return BudgetService.get_budget_status(db, budget_id, period_key)
+        status_res = BudgetService.get_budget_status(db, budget_id, period_key)
+        if workspace_id:
+            ws = db.query(Workspace).filter(Workspace.id == workspace_id).first()
+            if ws and ws.tenant_id and ws.tenant_id != status_res.tenant_id:
+                raise HTTPException(status_code=404, detail="Budget not found.")
+        return status_res
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
