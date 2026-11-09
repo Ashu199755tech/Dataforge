@@ -725,4 +725,55 @@ export interface CostEstimateResult {
   assumptions_and_limitations: string[];
 }
 
+export interface BudgetAlertRecipient {
+  channel: 'email' | 'slack' | 'webhook';
+  target: string;
+}
+
+export interface BudgetAlertRecord {
+  id: string;
+  budget_id: string;
+  period_key: string;
+  threshold_percent: number;
+  current_spend: number;
+  budget_limit: number;
+  current_runs: number;
+  run_limit: number;
+  notification_channel: string;
+  dispatched_to: string;
+  status: string;
+  triggered_at: string;
+}
+
+export interface BudgetStatus {
+  id: string;
+  tenant_id: string;
+  workspace_id?: string;
+  project_id?: string;
+  name: string;
+  period_type: string;
+  monthly_limit_amount: number;
+  monthly_run_limit: number;
+  enforce_hard_limit: boolean;
+  alert_recipients: BudgetAlertRecipient[];
+  threshold_percents: number[];
+  is_active: boolean;
+  current_spend: number;
+  current_runs: number;
+  spend_utilization_pct: number;
+  run_utilization_pct: number;
+  is_hard_limit_breached: boolean;
+  recent_alerts: BudgetAlertRecord[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BudgetEvaluationResult {
+  period_key: string;
+  evaluated_budgets: number;
+  triggered_alerts_count: number;
+  alerts_dispatched: BudgetAlertRecord[];
+}
+
+
 

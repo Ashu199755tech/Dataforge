@@ -35,6 +35,7 @@ class Tenant(Base):
 
     subscriptions = relationship("CustomerSubscription", back_populates="tenant", cascade="all, delete-orphan")
     invoices = relationship("BillingInvoice", back_populates="tenant", cascade="all, delete-orphan")
+    budgets = relationship("BudgetConfiguration", back_populates="tenant", cascade="all, delete-orphan")
 
 
 class SubscriptionPlan(Base):
@@ -265,5 +266,55 @@ class PaymentRecord(Base):
 
     invoice = relationship("BillingInvoice", back_populates="payments")
     tenant = relationship("Tenant")
+
+
+class BudgetConfiguration(Base):
+    """
+    Spending and Execution Run Budget Limits.
+    Allows workspace- and project-level caps with automated threshold notifications (50%, 75%, 90%, 100%)
+    and optional hard execution stoppage.
+    """
+    __tablename__ = "budget_configurations"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(String(36), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+    workspace_id = Column(String(36), nullable=True, index=True)
+    project_id = Column(String(36), nullable=True, index=True)
+    name = Column(String(150), nullable=False)
+    period_type = Column(String(20), default="Monthly", nullable=False)  # Monthly, Quarterly, Annual
+    monthly_limit_amount = Column(Numeric(12, 2), default=0.00, nullable=False)  # Currency limit (0 = uncapped)
+    monthly_run_limit = Column(Integer, default=0, nullable=False)               # Run count limit (0 = uncapped)
+    enforce_hard_limit = Column(Boolean, default=False, nullable=False)          # If true, block new executions at 100%
+    alert_recipients = Column(JSON, default=list, nullable=False)                # [{"channel": "email", "target": "..."}, {"channel": "slack", "target": "..."}]
+    threshold_percents = Column(JSON, default=lambda: [50, 75, 90, 100], nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False, index=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
+
+    tenant = relationship("Tenant", back_populates="budgets")
+    alerts = relationship("BudgetAlertRecord", back_populates="budget", cascade="all, delete-orphan", order_by="BudgetAlertRecord.triggered_at.desc()")
+
+
+class BudgetAlertRecord(Base):
+    """
+    Immutable audit record of dispatched budget threshold notifications.
+    Guarantees that a threshold (e.g. 75%) is alerted at most once per billing period.
+    """
+    __tablename__ = "budget_alert_records"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    budget_id = Column(String(36), ForeignKey("budget_configurations.id", ondelete="CASCADE"), nullable=False, index=True)
+    period_key = Column(String(7), nullable=False, index=True)  # 'YYYY-MM'
+    threshold_percent = Column(Integer, nullable=False)         # 50, 75, 90, 100
+    current_spend = Column(Numeric(12, 2), nullable=False)
+    budget_limit = Column(Numeric(12, 2), nullable=False)
+    current_runs = Column(Integer, nullable=False)
+    run_limit = Column(Integer, nullable=False)
+    notification_channel = Column(String(50), default="email", nullable=False)
+    dispatched_to = Column(String(255), nullable=False)
+    status = Column(String(30), default="Delivered", nullable=False)  # Delivered, Triggered, Failed
+    triggered_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    budget = relationship("BudgetConfiguration", back_populates="alerts")
 
 

@@ -367,3 +367,78 @@ class CostEstimateResponse(BaseModel):
     assumptions_and_limitations: List[str]
 
 
+class BudgetConfigurationBase(BaseModel):
+    name: str = Field(..., description="Budget name e.g. 'Production Workspace Monthly Limit'")
+    period_type: str = Field(default="Monthly", description="Budget period: Monthly, Quarterly, Annual")
+    monthly_limit_amount: float = Field(default=0.0, ge=0.0, description="Monthly spending limit in INR (0 = uncapped)")
+    monthly_run_limit: int = Field(default=0, ge=0, description="Monthly run count limit (0 = uncapped)")
+    enforce_hard_limit: bool = Field(default=False, description="If true, hard stop executions when 100% reached")
+    alert_recipients: List[Dict[str, str]] = Field(default_factory=list, description="Alert channels: [{'channel': 'email', 'target': 'ops@co.com'}]")
+    threshold_percents: List[int] = Field(default_factory=lambda: [50, 75, 90, 100], description="Alert percentage triggers")
+    is_active: bool = True
+
+
+class BudgetConfigurationCreate(BudgetConfigurationBase):
+    workspace_id: Optional[str] = None
+    project_id: Optional[str] = None
+
+
+class BudgetConfigurationUpdate(BaseModel):
+    name: Optional[str] = None
+    monthly_limit_amount: Optional[float] = None
+    monthly_run_limit: Optional[int] = None
+    enforce_hard_limit: Optional[bool] = None
+    alert_recipients: Optional[List[Dict[str, str]]] = None
+    threshold_percents: Optional[List[int]] = None
+    is_active: Optional[bool] = None
+
+
+class BudgetAlertRecordResponse(BaseModel):
+    id: str
+    budget_id: str
+    period_key: str
+    threshold_percent: int
+    current_spend: float
+    budget_limit: float
+    current_runs: int
+    run_limit: int
+    notification_channel: str
+    dispatched_to: str
+    status: str
+    triggered_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class BudgetStatusResponse(BaseModel):
+    id: str
+    tenant_id: str
+    workspace_id: Optional[str] = None
+    project_id: Optional[str] = None
+    name: str
+    period_type: str
+    monthly_limit_amount: float
+    monthly_run_limit: int
+    enforce_hard_limit: bool
+    alert_recipients: List[Dict[str, str]]
+    threshold_percents: List[int]
+    is_active: bool
+    current_spend: float
+    current_runs: int
+    spend_utilization_pct: float
+    run_utilization_pct: float
+    is_hard_limit_breached: bool
+    recent_alerts: List[BudgetAlertRecordResponse] = []
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class BudgetEvaluationResult(BaseModel):
+    period_key: str
+    evaluated_budgets: int
+    triggered_alerts_count: int
+    alerts_dispatched: List[BudgetAlertRecordResponse] = []
+
+

@@ -45,6 +45,20 @@ class PipelineRunner:
                 db.commit()
                 return
 
+            # Check hard limit budget enforcement if enabled for this workspace
+            ws_id = getattr(pipeline.project, "workspace_id", None) if pipeline.project else None
+            try:
+                from backend.app.services.budget_service import BudgetService
+                allowed, block_reason = BudgetService.check_execution_allowed(db, ws_id)
+                if not allowed:
+                    pipeline_run.status = "Failed"
+                    pipeline_run.error_summary = block_reason
+                    pipeline_run.ended_at = datetime.now(timezone.utc)
+                    db.commit()
+                    return
+            except Exception as e:
+                print(f"[WARN] Budget hard-limit evaluation check failed (non-blocking): {e}")
+
             pipeline_def = pipeline.definition_json or {}
             activities_list = pipeline_def.get("activities", [])
 

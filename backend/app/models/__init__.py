@@ -29,7 +29,9 @@ from backend.app.models.billing import (
     UsageAggregation,
     BillingInvoice,
     InvoiceLineItem,
-    PaymentRecord
+    PaymentRecord,
+    BudgetConfiguration,
+    BudgetAlertRecord
 )
 
 __all__ = [
@@ -73,5 +75,7 @@ __all__ = [
     "UsageAggregation",
     "BillingInvoice",
     "InvoiceLineItem",
-    "PaymentRecord"
+    "PaymentRecord",
+    "BudgetConfiguration",
+    "BudgetAlertRecord"
 ]

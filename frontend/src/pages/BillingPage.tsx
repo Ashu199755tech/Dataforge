@@ -32,7 +32,13 @@ import {
   Copy,
   ExternalLink,
   BarChart3,
-  PieChart
+  PieChart,
+  Bell,
+  Plus,
+  Trash2,
+  Edit3,
+  ShieldAlert,
+  Target
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -56,12 +62,16 @@ import {
   InvoiceLineItem,
   PaymentRecord,
   CostEstimateResult,
-  PlanComparisonItem
+  PlanComparisonItem,
+  BudgetStatus,
+  BudgetAlertRecipient,
+  BudgetAlertRecord,
+  BudgetEvaluationResult
 } from '../types';
 
 export const BillingPage: React.FC = () => {
   const { activeWorkspace } = useAppStore();
-  const [activeTab, setActiveTab] = useState<'overview' | 'plans' | 'usage' | 'consumption' | 'breakdown' | 'invoices' | 'estimator'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'plans' | 'usage' | 'consumption' | 'breakdown' | 'invoices' | 'estimator' | 'budgets'>('overview');
   const [overview, setOverview] = useState<BillingOverview | null>(null);
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [recentRuns, setRecentRuns] = useState<any[]>([]);
@@ -72,6 +82,22 @@ export const BillingPage: React.FC = () => {
   const [billingPeriodToggle, setBillingPeriodToggle] = useState<'Monthly' | 'Annual'>('Monthly');
   const [actionSuccessMsg, setActionSuccessMsg] = useState<string | null>(null);
   const [actionErrorMsg, setActionErrorMsg] = useState<string | null>(null);
+
+  // Budget Management & Alerts State
+  const [budgets, setBudgets] = useState<BudgetStatus[]>([]);
+  const [isLoadingBudgets, setIsLoadingBudgets] = useState<boolean>(false);
+  const [isEvaluatingBudgets, setIsEvaluatingBudgets] = useState<boolean>(false);
+  const [isBudgetModalOpen, setIsBudgetModalOpen] = useState<boolean>(false);
+  const [editingBudget, setEditingBudget] = useState<BudgetStatus | null>(null);
+  const [budgetFormName, setBudgetFormName] = useState<string>('');
+  const [budgetFormSpendLimit, setBudgetFormSpendLimit] = useState<string>('25000');
+  const [budgetFormRunLimit, setBudgetFormRunLimit] = useState<string>('10000');
+  const [budgetFormHardLimit, setBudgetFormHardLimit] = useState<boolean>(false);
+  const [budgetFormThresholds, setBudgetFormThresholds] = useState<number[]>([50, 75, 90, 100]);
+  const [budgetFormRecipients, setBudgetFormRecipients] = useState<BudgetAlertRecipient[]>([]);
+  const [recipientChannel, setRecipientChannel] = useState<'email' | 'slack' | 'webhook'>('email');
+  const [recipientTarget, setRecipientTarget] = useState<string>('');
+  const [isSavingBudget, setIsSavingBudget] = useState<boolean>(false);
 
   // Drawer state for run details
   const [selectedRunForDrawer, setSelectedRunForDrawer] = useState<PipelineUsageLedgerEntry | null>(null);
@@ -115,13 +141,14 @@ export const BillingPage: React.FC = () => {
     setIsLoading(true);
     setActionErrorMsg(null);
     try {
-      const [overviewRes, plansRes, runsRes, usageRes, summaryRes, invoicesRes] = await Promise.all([
+      const [overviewRes, plansRes, runsRes, usageRes, summaryRes, invoicesRes, budgetsRes] = await Promise.all([
         api.get('/billing/overview'),
         api.get('/billing/plans'),
         api.get('/runs?limit=15').catch(() => ({ data: [] })),
         api.get('/billing/usage?limit=100').catch(() => ({ data: [] })),
         api.get('/billing/usage/summary').catch(() => ({ data: null })),
-        api.get('/billing/invoices').catch(() => ({ data: [] }))
+        api.get('/billing/invoices').catch(() => ({ data: [] })),
+        api.get(`/billing/budgets${activeWorkspace ? `?workspace_id=${activeWorkspace.id}` : ''}`).catch(() => ({ data: [] }))
       ]);
 
       setOverview(overviewRes.data);
@@ -130,6 +157,7 @@ export const BillingPage: React.FC = () => {
       setUsageLedger(usageRes.data || []);
       setConsumptionSummary(summaryRes.data);
       setInvoices(invoicesRes.data || []);
+      setBudgets(budgetsRes.data || []);
       if (overviewRes.data?.billing_period) {
         setBillingPeriodToggle(overviewRes.data.billing_period as 'Monthly' | 'Annual');
       }
@@ -341,6 +369,128 @@ export const BillingPage: React.FC = () => {
       setActionErrorMsg(err.response?.data?.detail || 'Failed to record payment.');
     } finally {
       setIsRecordingPayment(false);
+    }
+  };
+
+  const handleOpenCreateBudgetModal = () => {
+    setEditingBudget(null);
+    setBudgetFormName('Production Monthly Spend Cap');
+    setBudgetFormSpendLimit('25000');
+    setBudgetFormRunLimit('10000');
+    setBudgetFormHardLimit(false);
+    setBudgetFormThresholds([50, 75, 90, 100]);
+    setBudgetFormRecipients([{ channel: 'email', target: 'finops@dataforge.test' }]);
+    setRecipientChannel('email');
+    setRecipientTarget('');
+    setIsBudgetModalOpen(true);
+  };
+
+  const handleOpenEditBudgetModal = (b: BudgetStatus) => {
+    setEditingBudget(b);
+    setBudgetFormName(b.name);
+    setBudgetFormSpendLimit(b.monthly_limit_amount.toString());
+    setBudgetFormRunLimit(b.monthly_run_limit.toString());
+    setBudgetFormHardLimit(b.enforce_hard_limit);
+    setBudgetFormThresholds(b.threshold_percents || [50, 75, 90, 100]);
+    setBudgetFormRecipients(b.alert_recipients || []);
+    setRecipientChannel('email');
+    setRecipientTarget('');
+    setIsBudgetModalOpen(true);
+  };
+
+  const handleAddRecipient = () => {
+    if (!recipientTarget.trim()) return;
+    setBudgetFormRecipients([...budgetFormRecipients, { channel: recipientChannel, target: recipientTarget.trim() }]);
+    setRecipientTarget('');
+  };
+
+  const handleRemoveRecipient = (index: number) => {
+    setBudgetFormRecipients(budgetFormRecipients.filter((_, idx) => idx !== index));
+  };
+
+  const handleToggleThreshold = (pct: number) => {
+    if (budgetFormThresholds.includes(pct)) {
+      setBudgetFormThresholds(budgetFormThresholds.filter(p => p !== pct));
+    } else {
+      setBudgetFormThresholds([...budgetFormThresholds, pct].sort((a, b) => a - b));
+    }
+  };
+
+  const handleSaveBudget = async () => {
+    if (!budgetFormName.trim()) {
+      setActionErrorMsg('Budget name is required.');
+      return;
+    }
+    setIsSavingBudget(true);
+    setActionSuccessMsg(null);
+    setActionErrorMsg(null);
+    try {
+      if (editingBudget) {
+        await api.put(`/billing/budgets/${editingBudget.id}`, {
+          name: budgetFormName,
+          monthly_limit_amount: parseFloat(budgetFormSpendLimit) || 0.0,
+          monthly_run_limit: parseInt(budgetFormRunLimit) || 0,
+          enforce_hard_limit: budgetFormHardLimit,
+          threshold_percents: budgetFormThresholds,
+          alert_recipients: budgetFormRecipients
+        });
+        setActionSuccessMsg(`Budget policy '${budgetFormName}' updated successfully.`);
+      } else {
+        await api.post(`/billing/budgets${activeWorkspace ? `?workspace_id=${activeWorkspace.id}` : ''}`, {
+          name: budgetFormName,
+          period_type: 'Monthly',
+          monthly_limit_amount: parseFloat(budgetFormSpendLimit) || 0.0,
+          monthly_run_limit: parseInt(budgetFormRunLimit) || 0,
+          enforce_hard_limit: budgetFormHardLimit,
+          threshold_percents: budgetFormThresholds,
+          alert_recipients: budgetFormRecipients,
+          workspace_id: activeWorkspace?.id
+        });
+        setActionSuccessMsg(`Budget policy '${budgetFormName}' created successfully.`);
+      }
+      setIsBudgetModalOpen(false);
+      await fetchData();
+      setTimeout(() => setActionSuccessMsg(null), 4000);
+    } catch (err: any) {
+      console.error('Failed to save budget', err);
+      setActionErrorMsg(err.response?.data?.detail || 'Failed to save budget configuration.');
+    } finally {
+      setIsSavingBudget(false);
+    }
+  };
+
+  const handleDeleteBudget = async (budgetId: string, name: string) => {
+    if (!window.confirm(`Are you sure you want to delete budget policy '${name}'?`)) return;
+    try {
+      await api.delete(`/billing/budgets/${budgetId}`);
+      setActionSuccessMsg(`Budget policy '${name}' deleted.`);
+      await fetchData();
+      setTimeout(() => setActionSuccessMsg(null), 4000);
+    } catch (err: any) {
+      console.error('Failed to delete budget', err);
+      setActionErrorMsg(err.response?.data?.detail || 'Failed to delete budget.');
+    }
+  };
+
+  const handleEvaluateBudgets = async () => {
+    setIsEvaluatingBudgets(true);
+    setActionSuccessMsg(null);
+    setActionErrorMsg(null);
+    try {
+      const res = await api.post(`/billing/budgets/evaluate${activeWorkspace ? `?workspace_id=${activeWorkspace.id}` : ''}`);
+      const data: BudgetEvaluationResult = res.data;
+      if (data.triggered_alerts_count > 0) {
+        setActionSuccessMsg(`Budget evaluation complete: ${data.triggered_alerts_count} new threshold alerts dispatched.`);
+      } else {
+        setActionSuccessMsg(`Budget evaluation complete: all ${data.evaluated_budgets} active budgets are within current thresholds.`);
+      }
+      await fetchData();
+      setTimeout(() => setActionSuccessMsg(null), 5000);
+    } catch (err: any) {
+      console.error('Failed to evaluate budgets', err);
+      setActionErrorMsg(err.response?.data?.detail || 'Failed to evaluate budgets.');
+    } finally {
+      setIsEvaluatingBudgets(false);
     }
   };
 
@@ -614,6 +764,7 @@ export const BillingPage: React.FC = () => {
           { id: 'breakdown', label: 'Software vs Cloud Cost', icon: DollarSign },
           { id: 'invoices', label: 'Invoices & Tax History', icon: FileText },
           { id: 'estimator', label: 'Cost Estimator', icon: Sliders },
+          { id: 'budgets', label: 'Budgets & Threshold Alerts', icon: Bell },
         ].map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -1933,6 +2084,312 @@ export const BillingPage: React.FC = () => {
         </div>
       )}
 
+      {/* TAB 8: BUDGETS & THRESHOLD ALERTS */}
+      {activeTab === 'budgets' && (
+        <div className="space-y-6">
+          {/* Header Action & Summary KPIs */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl bg-slate-900 border border-slate-800">
+            <div>
+              <h2 className="text-base font-bold text-white flex items-center gap-2">
+                <Bell className="h-5 w-5 text-brand-400" />
+                Budget Controls & Automated Threshold Alerts
+              </h2>
+              <p className="text-xs text-slate-400 mt-1">
+                Configure spending and execution caps, automated alerts (50%, 75%, 90%, 100%), and optional hard-stop execution prevention.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleEvaluateBudgets}
+                disabled={isEvaluatingBudgets || budgets.length === 0}
+                className="px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-300 bg-slate-800 hover:bg-slate-700 border border-slate-700 transition flex items-center gap-1.5 disabled:opacity-50"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${isEvaluatingBudgets ? 'animate-spin' : ''}`} />
+                {isEvaluatingBudgets ? 'Evaluating...' : 'Evaluate All Budgets'}
+              </button>
+              <button
+                onClick={handleOpenCreateBudgetModal}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-white bg-brand-600 hover:bg-brand-500 shadow-lg shadow-brand-500/20 transition flex items-center gap-1.5"
+              >
+                <Plus className="h-4 w-4" />
+                Create Budget Policy
+              </button>
+            </div>
+          </div>
+
+          {/* Hard Limit Warning Banner (If breached) */}
+          {budgets.some(b => b.is_hard_limit_breached) && (
+            <div className="p-4 rounded-xl bg-red-950/70 border border-red-700/80 flex items-start gap-3 text-red-200 text-xs animate-in fade-in">
+              <ShieldAlert className="h-5 w-5 text-red-400 shrink-0 mt-0.5" />
+              <div>
+                <span className="font-bold text-red-100">Execution Prevention Safeguard Triggered:</span>{' '}
+                One or more workspace budgets have reached 100% of their configured limits with hard stop enforcement active. 
+                New pipeline executions are temporarily blocked until limits are adjusted or next billing period commences.
+              </div>
+            </div>
+          )}
+
+          {/* KPI Stat Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 space-y-1">
+              <div className="flex items-center justify-between text-slate-400 text-xs">
+                <span>Active Budget Policies</span>
+                <Target className="h-4 w-4 text-brand-400" />
+              </div>
+              <div className="text-xl font-bold text-white font-mono">{budgets.length}</div>
+              <div className="text-[11px] text-slate-400">
+                {budgets.some(b => b.enforce_hard_limit) ? (
+                  <span className="text-rose-400 font-medium">Hard Stop Enabled</span>
+                ) : (
+                  <span className="text-emerald-400 font-medium">Warn-Only Telemetry</span>
+                )}
+              </div>
+            </div>
+
+            <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 space-y-1">
+              <div className="flex items-center justify-between text-slate-400 text-xs">
+                <span>Monthly Spending Cap</span>
+                <DollarSign className="h-4 w-4 text-emerald-400" />
+              </div>
+              <div className="text-xl font-bold text-white font-mono">
+                ₹{budgets.reduce((acc, b) => acc + (b.monthly_limit_amount || 0), 0).toLocaleString()}
+              </div>
+              <div className="text-[11px] text-slate-400">
+                Current Spend: <span className="font-mono text-white">₹{Math.round(budgets.length > 0 ? budgets.reduce((acc, b) => Math.max(acc, b.current_spend || 0), 0) : (overview?.estimated_total_software_charges || 0)).toLocaleString()}</span>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 space-y-1">
+              <div className="flex items-center justify-between text-slate-400 text-xs">
+                <span>Monthly Pipeline Run Cap</span>
+                <Layers className="h-4 w-4 text-blue-400" />
+              </div>
+              <div className="text-xl font-bold text-white font-mono">
+                {budgets.reduce((acc, b) => acc + (b.monthly_run_limit || 0), 0) > 0 
+                  ? budgets.reduce((acc, b) => acc + (b.monthly_run_limit || 0), 0).toLocaleString() 
+                  : 'Uncapped'}
+              </div>
+              <div className="text-[11px] text-slate-400">
+                Current Runs: <span className="font-mono text-white">{(budgets.length > 0 ? budgets.reduce((acc, b) => Math.max(acc, b.current_runs || 0), 0) : (overview?.consumed_runs || 0)).toLocaleString()}</span>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 space-y-1">
+              <div className="flex items-center justify-between text-slate-400 text-xs">
+                <span>Alerts Triggered (This Month)</span>
+                <Bell className="h-4 w-4 text-amber-400" />
+              </div>
+              <div className="text-xl font-bold text-white font-mono">
+                {budgets.reduce((acc, b) => acc + (b.recent_alerts ? b.recent_alerts.length : 0), 0)}
+              </div>
+              <div className="text-[11px] text-slate-400">
+                Threshold triggers (50%, 75%, 90%, 100%)
+              </div>
+            </div>
+          </div>
+
+          {/* Budget Policy List */}
+          <div className="space-y-4">
+            <h3 className="text-sm font-bold text-slate-200">Configured Budget Guardrails</h3>
+            {budgets.length === 0 ? (
+              <div className="p-10 rounded-2xl bg-slate-900 border border-slate-800 text-center space-y-3">
+                <Target className="h-10 w-10 text-slate-600 mx-auto" />
+                <h4 className="text-sm font-bold text-white">No Budget Policies Configured</h4>
+                <p className="text-xs text-slate-400 max-w-md mx-auto">
+                  Set up monthly spending or pipeline run limits to receive automated notifications when 50%, 75%, 90%, and 100% of your budget is reached.
+                </p>
+                <button
+                  onClick={handleOpenCreateBudgetModal}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-white bg-brand-600 hover:bg-brand-500 transition shadow-lg shadow-brand-500/20"
+                >
+                  Configure Initial Budget
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {budgets.map((b) => {
+                  const spendPct = Math.min(100, Math.round(b.spend_utilization_pct || 0));
+                  const runPct = Math.min(100, Math.round(b.run_utilization_pct || 0));
+                  const isHigh = spendPct >= 90 || runPct >= 90;
+                  const isMid = (spendPct >= 75 || runPct >= 75) && !isHigh;
+
+                  return (
+                    <div
+                      key={b.id}
+                      className={`p-6 rounded-2xl bg-slate-900 border transition-all ${
+                        b.is_hard_limit_breached
+                          ? 'border-red-600 shadow-lg shadow-red-900/20'
+                          : isHigh
+                          ? 'border-amber-600/60'
+                          : 'border-slate-800 hover:border-slate-700'
+                      }`}
+                    >
+                      {/* Card Header */}
+                      <div className="flex items-start justify-between gap-3 mb-4">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h4 className="text-sm font-bold text-white">{b.name}</h4>
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
+                              b.enforce_hard_limit
+                                ? 'bg-red-500/10 text-red-400 border border-red-500/20'
+                                : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
+                            }`}>
+                              {b.enforce_hard_limit ? 'Hard Stop Protection' : 'Warn-Only'}
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-400 mt-1">
+                            Scope: {b.workspace_id ? 'Workspace Specific' : 'Global Tenant-Wide'} • Period: {b.period_type}
+                          </p>
+                        </div>
+
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            onClick={() => handleOpenEditBudgetModal(b)}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"
+                            title="Edit Budget"
+                          >
+                            <Edit3 className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteBudget(b.id, b.name)}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-slate-800 transition"
+                            title="Delete Budget"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Spend Utilization Gauge */}
+                      <div className="space-y-2 mb-4">
+                        <div className="flex justify-between text-xs">
+                          <span className="text-slate-400">Monthly Spend Utilization</span>
+                          <span className="font-mono text-white font-semibold">
+                            ₹{b.current_spend.toLocaleString()} / ₹{b.monthly_limit_amount.toLocaleString()}{' '}
+                            <span className={isHigh ? 'text-rose-400' : isMid ? 'text-amber-400' : 'text-emerald-400'}>
+                              ({b.spend_utilization_pct.toFixed(1)}%)
+                            </span>
+                          </span>
+                        </div>
+                        <div className="w-full h-2.5 bg-slate-950 rounded-full overflow-hidden p-0.5 border border-slate-800">
+                          <div
+                            className={`h-full rounded-full transition-all duration-500 ${
+                              spendPct >= 90
+                                ? 'bg-gradient-to-r from-red-600 to-rose-400'
+                                : spendPct >= 75
+                                ? 'bg-gradient-to-r from-amber-600 to-yellow-400'
+                                : 'bg-gradient-to-r from-emerald-600 to-emerald-400'
+                            }`}
+                            style={{ width: `${spendPct}%` }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Run Count Utilization Gauge */}
+                      {b.monthly_run_limit > 0 && (
+                        <div className="space-y-2 mb-4">
+                          <div className="flex justify-between text-xs">
+                            <span className="text-slate-400">Pipeline Run Limit</span>
+                            <span className="font-mono text-white font-semibold">
+                              {b.current_runs.toLocaleString()} / {b.monthly_run_limit.toLocaleString()} runs{' '}
+                              <span className={runPct >= 90 ? 'text-rose-400' : runPct >= 75 ? 'text-amber-400' : 'text-blue-400'}>
+                                ({b.run_utilization_pct.toFixed(1)}%)
+                              </span>
+                            </span>
+                          </div>
+                          <div className="w-full h-2 bg-slate-950 rounded-full overflow-hidden p-0.5 border border-slate-800">
+                            <div
+                              className="h-full rounded-full bg-gradient-to-r from-blue-600 to-cyan-400 transition-all duration-500"
+                              style={{ width: `${runPct}%` }}
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Threshold Pills */}
+                      <div className="pt-3 border-t border-slate-800/80 mb-4">
+                        <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+                          Configured Alert Triggers
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {[50, 75, 90, 100].map((threshold) => {
+                            const isConfigured = (b.threshold_percents || []).includes(threshold);
+                            const hasTriggered = b.recent_alerts?.some(a => a.threshold_percent === threshold);
+                            return (
+                              <span
+                                key={threshold}
+                                className={`px-2.5 py-1 rounded-lg text-[11px] font-mono font-semibold flex items-center gap-1 ${
+                                  hasTriggered
+                                    ? 'bg-red-500/10 text-red-400 border border-red-500/30'
+                                    : isConfigured
+                                    ? 'bg-slate-800 text-slate-300 border border-slate-700'
+                                    : 'bg-slate-950 text-slate-600 border border-slate-900 line-through'
+                                }`}
+                              >
+                                {threshold}% Cap
+                                {hasTriggered && <AlertTriangle className="h-3 w-3 text-red-400" />}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Notification Recipients */}
+                      <div className="pt-3 border-t border-slate-800/80 mb-4">
+                        <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+                          Alert Notification Targets
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {b.alert_recipients && b.alert_recipients.length > 0 ? (
+                            b.alert_recipients.map((rec, i) => (
+                              <span
+                                key={i}
+                                className="px-2 py-0.5 rounded text-[11px] bg-slate-800 border border-slate-700 text-slate-300 flex items-center gap-1 font-mono"
+                              >
+                                <span className="uppercase text-[9px] text-brand-400 font-bold">{rec.channel}:</span>
+                                {rec.target}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="text-slate-500 text-xs italic">No recipients registered</span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Recent Alert Audit Log */}
+                      {b.recent_alerts && b.recent_alerts.length > 0 && (
+                        <div className="pt-3 border-t border-slate-800/80 space-y-2">
+                          <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                            Recent Dispatches
+                          </div>
+                          <div className="space-y-1.5 max-h-32 overflow-y-auto pr-1">
+                            {b.recent_alerts.map((alert) => (
+                              <div
+                                key={alert.id}
+                                className="p-2 rounded-lg bg-slate-950/60 border border-slate-800/80 flex items-center justify-between text-[11px]"
+                              >
+                                <div className="flex items-center gap-2">
+                                  <span className="font-mono text-red-400 font-bold">{alert.threshold_percent}%</span>
+                                  <span className="text-slate-300 font-mono">₹{alert.current_spend.toLocaleString()}</span>
+                                  <span className="text-slate-500">via {alert.notification_channel}</span>
+                                </div>
+                                <span className="text-[10px] text-slate-500 font-mono">
+                                  {new Date(alert.triggered_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Slide-Over Drawer: Usage Breakdown Details */}
       {selectedRunForDrawer && (
         <div className="fixed inset-0 z-50 overflow-hidden flex justify-end bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200">
@@ -2318,6 +2775,183 @@ export const BillingPage: React.FC = () => {
                 className="px-4 py-2 rounded-xl text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 transition shadow-lg shadow-emerald-500/20 disabled:opacity-50"
               >
                 {isRecordingPayment ? 'Recording...' : 'Confirm Verified Payment'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CREATE / EDIT BUDGET MODAL */}
+      {isBudgetModalOpen && (
+        <div className="fixed inset-0 z-50 overflow-hidden bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-lg bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-950/60">
+              <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                <Target className="h-4 w-4 text-brand-400" />
+                {editingBudget ? 'Edit Budget Policy' : 'Create Budget Control Policy'}
+              </h3>
+              <button
+                onClick={() => setIsBudgetModalOpen(false)}
+                className="text-slate-400 hover:text-white"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4 text-xs max-h-[75vh] overflow-y-auto">
+              <div>
+                <label className="text-slate-400 block mb-1">Policy Name</label>
+                <input
+                  type="text"
+                  value={budgetFormName}
+                  onChange={(e) => setBudgetFormName(e.target.value)}
+                  placeholder="e.g. Production Monthly Spend Cap"
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-white focus:border-brand-500 focus:outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-slate-400 block mb-1">Monthly Spending Cap (INR)</label>
+                  <input
+                    type="number"
+                    value={budgetFormSpendLimit}
+                    onChange={(e) => setBudgetFormSpendLimit(e.target.value)}
+                    placeholder="25000"
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-white font-mono focus:border-brand-500 focus:outline-none"
+                  />
+                  <span className="text-[10px] text-slate-500 mt-0.5 block">0 = Uncapped spend</span>
+                </div>
+                <div>
+                  <label className="text-slate-400 block mb-1">Monthly Run Count Limit</label>
+                  <input
+                    type="number"
+                    value={budgetFormRunLimit}
+                    onChange={(e) => setBudgetFormRunLimit(e.target.value)}
+                    placeholder="10000"
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-white font-mono focus:border-brand-500 focus:outline-none"
+                  />
+                  <span className="text-[10px] text-slate-500 mt-0.5 block">0 = Uncapped runs</span>
+                </div>
+              </div>
+
+              {/* Hard Limit Toggle */}
+              <div className="p-3.5 rounded-xl bg-slate-950/70 border border-slate-800 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <ShieldAlert className="h-4 w-4 text-amber-400" />
+                    <span className="font-semibold text-white">Enforce Hard Execution Limit</span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={budgetFormHardLimit}
+                    onChange={(e) => setBudgetFormHardLimit(e.target.checked)}
+                    className="h-4 w-4 rounded border-slate-700 text-brand-600 focus:ring-brand-500"
+                  />
+                </div>
+                <p className="text-[11px] text-slate-400 leading-relaxed">
+                  When enabled, pipeline runs will be automatically blocked upon reaching 100% of spending cap or run limit. 
+                  When disabled (default), DataForge operates in warn-only mode, dispatching alerts without disrupting workloads.
+                </p>
+              </div>
+
+              {/* Alert Thresholds */}
+              <div>
+                <label className="text-slate-400 block mb-1.5">Alert Trigger Thresholds</label>
+                <div className="grid grid-cols-4 gap-2">
+                  {[50, 75, 90, 100].map((pct) => (
+                    <button
+                      type="button"
+                      key={pct}
+                      onClick={() => handleToggleThreshold(pct)}
+                      className={`py-2 px-3 rounded-lg border font-mono text-xs font-semibold transition ${
+                        budgetFormThresholds.includes(pct)
+                          ? 'bg-brand-600/20 border-brand-500 text-brand-300'
+                          : 'bg-slate-950 border-slate-800 text-slate-500 hover:text-slate-300'
+                      }`}
+                    >
+                      {pct}%
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Notification Recipients */}
+              <div className="space-y-2">
+                <label className="text-slate-400 block">Notification Channels & Recipients</label>
+                
+                {/* Add Recipient Row */}
+                <div className="flex items-center gap-2">
+                  <select
+                    value={recipientChannel}
+                    onChange={(e: any) => setRecipientChannel(e.target.value)}
+                    className="w-28 px-2 py-2 bg-slate-950 border border-slate-800 rounded-lg text-white text-xs focus:border-brand-500 focus:outline-none"
+                  >
+                    <option value="email">Email</option>
+                    <option value="slack">Slack</option>
+                    <option value="webhook">Webhook</option>
+                  </select>
+                  <input
+                    type="text"
+                    value={recipientTarget}
+                    onChange={(e) => setRecipientTarget(e.target.value)}
+                    placeholder={recipientChannel === 'email' ? 'ops@company.com' : recipientChannel === 'slack' ? '#data-alerts' : 'https://api.internal/hook'}
+                    className="flex-1 px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-white font-mono text-xs focus:border-brand-500 focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddRecipient}
+                    disabled={!recipientTarget.trim()}
+                    className="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-medium text-xs disabled:opacity-50"
+                  >
+                    Add
+                  </button>
+                </div>
+
+                {/* Recipient Pills */}
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {budgetFormRecipients.map((rec, idx) => (
+                    <span
+                      key={idx}
+                      className="px-2 py-1 rounded bg-slate-800 border border-slate-700 text-slate-300 text-[11px] flex items-center gap-1.5"
+                    >
+                      <span className="text-[9px] uppercase font-bold text-brand-400">{rec.channel}:</span>
+                      <span className="font-mono">{rec.target}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveRecipient(idx)}
+                        className="text-slate-500 hover:text-red-400 ml-1"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="p-4 border-t border-slate-800 flex justify-end gap-3 bg-slate-950/50">
+              <button
+                type="button"
+                onClick={() => setIsBudgetModalOpen(false)}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-white transition"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveBudget}
+                disabled={isSavingBudget || !budgetFormName.trim()}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-white bg-brand-600 hover:bg-brand-500 transition shadow-lg shadow-brand-500/20 disabled:opacity-50 flex items-center gap-1.5"
+              >
+                {isSavingBudget ? (
+                  <>
+                    <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  'Save Budget Policy'
+                )}
               </button>
             </div>
           </div>

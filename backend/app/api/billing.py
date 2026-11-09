@@ -9,6 +9,7 @@ from backend.app.services.metering_service import UsageMeteringEngine
 from backend.app.services.rating_engine import RatingEngine
 from backend.app.services.invoicing_service import InvoiceService
 from backend.app.services.cost_estimator_service import CostEstimatorService
+from backend.app.services.budget_service import BudgetService
 from backend.app.schemas.billing import (
     SubscriptionPlanResponse,
     SubscriptionPlanCreate,
@@ -27,7 +28,11 @@ from backend.app.schemas.billing import (
     PaymentRecordCreate,
     PaymentRecordResponse,
     CostEstimateRequest,
-    CostEstimateResponse
+    CostEstimateResponse,
+    BudgetConfigurationCreate,
+    BudgetConfigurationUpdate,
+    BudgetStatusResponse,
+    BudgetEvaluationResult
 )
 from backend.app.api.deps import get_current_user
 from backend.app.core.rbac import require_role
@@ -371,4 +376,91 @@ def estimate_dataforge_cost(
         deployment_model=req.deployment_model,
         billing_period=req.billing_period
     )
+
+
+# ---------------------------------------------------------
+# Phase 7: Budget Management & Threshold Alerts Endpoints
+# ---------------------------------------------------------
+
+@router.get("/budgets", response_model=List[BudgetStatusResponse])
+def list_budgets(
+    workspace_id: Optional[str] = None,
+    period_key: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Lists budget configurations and their real-time consumption status for the tenant/workspace."""
+    tenant = BillingService.get_or_create_default_tenant(db, workspace_id)
+    budgets = BudgetService.list_budgets(db, tenant.id, workspace_id)
+    return [BudgetService.get_budget_status(db, b.id, period_key) for b in budgets]
+
+
+@router.post("/budgets", response_model=BudgetStatusResponse)
+def create_budget(
+    budget_in: BudgetConfigurationCreate,
+    workspace_id: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(["Admin", "Owner"]))
+):
+    """Creates a new spending limit and pipeline execution budget with threshold alerts."""
+    tenant = BillingService.get_or_create_default_tenant(db, workspace_id or budget_in.workspace_id)
+    try:
+        budget = BudgetService.create_budget(db, tenant.id, budget_in)
+        return BudgetService.get_budget_status(db, budget.id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/budgets/{budget_id}", response_model=BudgetStatusResponse)
+def get_budget_status(
+    budget_id: str,
+    period_key: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Retrieves real-time utilization status, limits, and alert history for a single budget."""
+    try:
+        return BudgetService.get_budget_status(db, budget_id, period_key)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.put("/budgets/{budget_id}", response_model=BudgetStatusResponse)
+def update_budget(
+    budget_id: str,
+    budget_update: BudgetConfigurationUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(["Admin", "Owner"]))
+):
+    """Updates an existing budget limit configuration."""
+    try:
+        budget = BudgetService.update_budget(db, budget_id, budget_update)
+        return BudgetService.get_budget_status(db, budget.id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.delete("/budgets/{budget_id}")
+def delete_budget(
+    budget_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(["Admin", "Owner"]))
+):
+    """Deletes a budget limit configuration."""
+    success = BudgetService.delete_budget(db, budget_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Budget not found.")
+    return {"message": "Budget configuration deleted successfully."}
+
+
+@router.post("/budgets/evaluate", response_model=BudgetEvaluationResult)
+def evaluate_budgets(
+    workspace_id: Optional[str] = None,
+    period_key: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(["Admin", "Owner"]))
+):
+    """Triggers on-demand evaluation of all tenant budgets and dispatches alerts for breached thresholds."""
+    tenant = BillingService.get_or_create_default_tenant(db, workspace_id)
+    return BudgetService.evaluate_budgets_for_tenant(db, tenant.id, period_key)
 
