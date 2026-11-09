@@ -77,12 +77,27 @@ export const ActivityConfigDrawer: React.FC<ConfigDrawerProps> = ({
   const { id } = selectedNode;
   const data = (selectedNode.data as any) || {};
   const config = data.config || {};
-  const activityType = data.activityType || 'CopyData';
+  const rawActivityType = String(data.activityType || data.type || data.activity_type || data.label || '').trim();
+  const normalizedType = rawActivityType.toLowerCase().replace(/[\s_-]/g, '');
+  const isSqlScript = 
+    normalizedType === 'sqlscript' || 
+    normalizedType === 'sql' || 
+    normalizedType === 'sqlquery' ||
+    rawActivityType.toLowerCase().includes('sql') ||
+    Boolean(config.sql !== undefined);
+  const activityType = isSqlScript ? 'SqlScript' : (data.activityType || data.type || 'CopyData');
   const state = data.state || 'Active';
   const retryPolicy = data.retry_policy || { max_retries: 0, retry_interval_seconds: 2 };
-  const [isExpanded, setIsExpanded] = useState(activityType === 'CopyData' || activityType === 'SqlScript');
+  const [isExpanded, setIsExpanded] = useState(activityType === 'CopyData' || isSqlScript);
   const [availableRuntimes, setAvailableRuntimes] = useState<any[]>([]);
   const [availableDataflows, setAvailableDataflows] = useState<any[]>([]);
+
+  useEffect(() => {
+    setActiveTab('config');
+    if (isSqlScript || activityType === 'CopyData') {
+      setIsExpanded(true);
+    }
+  }, [id, isSqlScript, activityType]);
 
   useEffect(() => {
     api.get('/runtimes')
@@ -219,8 +234,22 @@ export const ActivityConfigDrawer: React.FC<ConfigDrawerProps> = ({
                 : 'text-slate-400 hover:text-slate-200'
             }`}
           >
-            <Sliders className="h-3.5 w-3.5" />
-            <span>Settings</span>
+            {isSqlScript ? (
+              <>
+                <FileCode className="h-3.5 w-3.5 text-emerald-400" />
+                <span className="font-semibold text-emerald-300">SQL Script</span>
+              </>
+            ) : normalizedType === 'pythonscript' ? (
+              <>
+                <Terminal className="h-3.5 w-3.5 text-emerald-400" />
+                <span>Script</span>
+              </>
+            ) : (
+              <>
+                <Sliders className="h-3.5 w-3.5" />
+                <span>Configuration</span>
+              </>
+            )}
           </button>
 
           <button
@@ -886,7 +915,7 @@ export const ActivityConfigDrawer: React.FC<ConfigDrawerProps> = ({
             )}
 
             {/* SQL SCRIPT */}
-            {(activityType === 'SqlScript' || activityType === 'sql_script' || activityType === 'Sql' || activityType === 'SqlQuery') && (
+            {(isSqlScript || activityType === 'SqlScript' || activityType === 'sql_script' || activityType === 'Sql' || activityType === 'SqlQuery') && (
               <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-lg space-y-3">
                 <div className="flex items-center justify-between text-slate-300 font-semibold text-[11px] uppercase tracking-wider">
                   <div className="flex items-center gap-1.5">

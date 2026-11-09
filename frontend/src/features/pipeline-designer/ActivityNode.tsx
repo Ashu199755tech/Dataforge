@@ -352,6 +352,13 @@ export const ActivityNode: React.FC<NodeProps> = ({ id, data, selected }) => {
           </div>
         )}
 
+        {(activityData.activityType === 'SqlScript' || String(activityData.activityType || '').toLowerCase().includes('sql') || Boolean(activityData.config?.sql)) && (
+          <div className="truncate text-emerald-400 text-[10px] flex items-center gap-1 font-mono">
+            <span className="text-slate-500">SQL:</span>
+            <span className="truncate">{activityData.config?.sql ? activityData.config.sql.trim().slice(0, 25) + '...' : 'Query Editor'}</span>
+          </div>
+        )}
+
         {activityData.activityType === 'PythonScript' && (
           <div className="truncate text-emerald-400 text-[10px] flex items-center gap-1 font-mono">
             <span className="text-slate-500">Python:</span>
