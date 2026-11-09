@@ -39,6 +39,7 @@ import {
   Scale,
   ShieldAlert,
   Boxes,
+  Radio,
   Plus,
   Maximize2,
   Minimize2
@@ -1365,6 +1366,195 @@ export const ActivityConfigDrawer: React.FC<ConfigDrawerProps> = ({
                     </div>
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* CDC REPLICATION */}
+            {(activityType === 'CDCReplication' || activityType === 'cdc') && (
+              <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-lg space-y-3">
+                <div className="flex items-center justify-between text-slate-300 font-semibold text-[11px] uppercase tracking-wider">
+                  <span>Debezium / WAL CDC Replication</span>
+                  <Radio className="h-3.5 w-3.5 text-rose-400" />
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-slate-400 mb-1 text-[11px]">CDC Source Stream</label>
+                    <select
+                      value={config.source?.connection_id || ''}
+                      onChange={(e) => updateConfig({ source: { ...(config.source || {}), connection_id: e.target.value } })}
+                      className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 text-[11px]"
+                    >
+                      <option value="">Select CDC / DB Connection...</option>
+                      {connections.map((c) => (
+                        <option key={c.id} value={c.id}>{c.name} ({c.connector_type})</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-slate-400 mb-1 text-[11px]">Target Warehouse</label>
+                    <select
+                      value={config.destination?.connection_id || ''}
+                      onChange={(e) => updateConfig({ destination: { ...(config.destination || {}), connection_id: e.target.value } })}
+                      className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 text-[11px]"
+                    >
+                      <option value="">Select Warehouse Connection...</option>
+                      {connections.map((c) => (
+                        <option key={c.id} value={c.id}>{c.name} ({c.connector_type})</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-slate-400 mb-1 text-[11px]">Destination Table</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. replicated_customers"
+                      value={config.destination?.table_name || ''}
+                      onChange={(e) => updateConfig({ destination: { ...(config.destination || {}), table_name: e.target.value } })}
+                      className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono text-[11px]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-slate-400 mb-1 text-[11px]">Key Columns (Upsert / Delete)</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. id, tenant_id"
+                      value={(config.key_columns || []).join(', ')}
+                      onChange={(e) => updateConfig({ key_columns: e.target.value.split(',').map((s: string) => s.trim()).filter(Boolean) })}
+                      className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono text-[11px]"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-4 pt-1">
+                  <label className="flex items-center gap-1.5 text-slate-300 text-[11px] cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(config.soft_delete)}
+                      onChange={(e) => updateConfig({ soft_delete: e.target.checked })}
+                      className="rounded bg-slate-800 text-rose-500 focus:ring-0"
+                    />
+                    <span>Soft Delete (_df_is_deleted)</span>
+                  </label>
+                  <label className="flex items-center gap-1.5 text-slate-300 text-[11px] cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(config.audit_mode)}
+                      onChange={(e) => updateConfig({ audit_mode: e.target.checked })}
+                      className="rounded bg-slate-800 text-brand-500 focus:ring-0"
+                    />
+                    <span>Capture History Changelog</span>
+                  </label>
+                </div>
+              </div>
+            )}
+
+            {/* REVERSE ETL */}
+            {(activityType === 'ReverseETL' || activityType === 'reverse_etl') && (
+              <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-lg space-y-3">
+                <div className="flex items-center justify-between text-slate-300 font-semibold text-[11px] uppercase tracking-wider">
+                  <span>Reverse ETL Operational Sync</span>
+                  <Send className="h-3.5 w-3.5 text-indigo-400" />
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-slate-400 mb-1 text-[11px]">Target Application</label>
+                    <select
+                      value={config.destination?.target_app || config.target_app || 'salesforce'}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        updateConfig({
+                          target_app: val,
+                          destination: { ...(config.destination || {}), target_app: val }
+                        });
+                      }}
+                      className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 text-[11px]"
+                    >
+                      <option value="salesforce">Salesforce (SObjects)</option>
+                      <option value="hubspot">HubSpot (CRM Objects)</option>
+                      <option value="slack">Slack (Channel Notification)</option>
+                      <option value="webhook">Custom HTTP Webhook</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-slate-400 mb-1 text-[11px]">Destination Connection</label>
+                    <select
+                      value={config.destination?.connection_id || ''}
+                      onChange={(e) => updateConfig({ destination: { ...(config.destination || {}), connection_id: e.target.value } })}
+                      className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 text-[11px]"
+                    >
+                      <option value="">Select Destination App...</option>
+                      {connections.map((c) => (
+                        <option key={c.id} value={c.id}>{c.name} ({c.connector_type})</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-slate-400 mb-1 text-[11px]">Target Object / Channel</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Contact, deals, #alerts"
+                      value={config.destination?.target_object || config.target_object || ''}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        updateConfig({
+                          target_object: val,
+                          destination: { ...(config.destination || {}), target_object: val }
+                        });
+                      }}
+                      className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono text-[11px]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-slate-400 mb-1 text-[11px]">External ID Field (for Match)</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Email, External_Id__c"
+                      value={config.destination?.external_id_field || config.external_id_field || ''}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        updateConfig({
+                          external_id_field: val,
+                          destination: { ...(config.destination || {}), external_id_field: val }
+                        });
+                      }}
+                      className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono text-[11px]"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-slate-400 mb-1 text-[11px]">Sync Mode</label>
+                    <select
+                      value={config.sync_mode || 'upsert'}
+                      onChange={(e) => updateConfig({ sync_mode: e.target.value })}
+                      className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 text-[11px]"
+                    >
+                      <option value="upsert">Upsert (Update or Insert)</option>
+                      <option value="insert">Insert Only</option>
+                      <option value="update">Update Only</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-slate-400 mb-1 text-[11px]">Batch Size</label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={1000}
+                      value={config.batch_size || 50}
+                      onChange={(e) => updateConfig({ batch_size: parseInt(e.target.value) || 50 })}
+                      className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 text-[11px]"
+                    />
+                  </div>
+                </div>
               </div>
             )}
 

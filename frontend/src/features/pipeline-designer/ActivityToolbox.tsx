@@ -31,7 +31,8 @@ import {
   BarChart3,
   Scale,
   ShieldAlert,
-  Boxes
+  Boxes,
+  Radio
 } from 'lucide-react';
 import api from '../../api/client';
 
@@ -50,6 +51,7 @@ const DEFAULT_ACTIVITIES = [
       { type: 'CopyData', label: 'Copy Data', icon: ArrowRightLeft, color: 'text-brand-400', desc: 'Stream from source to destination' },
       { type: 'ExecuteDataFlow', label: 'Data Flow', icon: Workflow, color: 'text-brand-400', desc: 'Vectorized mapping transformation graph' },
       { type: 'Lookup', label: 'Lookup', icon: Search, color: 'text-teal-400', desc: 'Read dataset or single record' },
+      { type: 'CDCReplication', label: 'CDC Replication', icon: Radio, color: 'text-rose-400', desc: 'Transaction log stream replication' },
       { type: 'GetMetadata', label: 'Get Metadata', icon: FileSearch, color: 'text-indigo-400', desc: 'Inspect table/file structure & rows' },
       { type: 'DeleteData', label: 'Delete Data', icon: Trash2, color: 'text-rose-400', desc: 'Cleanup records or truncate tables' },
     ]
@@ -88,6 +90,7 @@ const DEFAULT_ACTIVITIES = [
       { type: 'CustomActivity', label: 'Custom Activity', icon: Cpu, color: 'text-amber-400', desc: 'Execute custom command/binary' },
       { type: 'DatabricksNotebook', label: 'Databricks Notebook', icon: CloudLightning, color: 'text-orange-400', desc: 'Run Databricks notebook job' },
       { type: 'Dbt', label: 'dbt Transformation', icon: Boxes, color: 'text-orange-500', desc: 'Run dbt Core models or dbt Cloud jobs' },
+      { type: 'ReverseETL', label: 'Reverse ETL', icon: Send, color: 'text-indigo-400', desc: 'Sync to Salesforce, HubSpot, Slack' },
       { type: 'PySparkJob', label: 'PySpark Job', icon: Flame, color: 'text-rose-400', desc: 'Submit Apache Spark / PySpark job' },
       { type: 'WebActivity', label: 'Web Activity', icon: Globe, color: 'text-sky-400', desc: 'Send HTTP request & capture response' },
       { type: 'Webhook', label: 'Webhook', icon: Send, color: 'text-teal-400', desc: 'Call endpoint with async callback URL' },

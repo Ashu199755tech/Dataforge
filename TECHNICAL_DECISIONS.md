@@ -43,7 +43,7 @@
 
 ---
 
-### Section III: Modern Data Stack & Ecosystem Expansion (ADR 024 – ADR 026)
+### Section III: Modern Data Stack & Ecosystem Expansion (ADR 024 – ADR 028)
 
 24. **ADR 024: SQL-Context Vectorized Data Quality & Declarative Rulebook Evaluation**:
     - **Context:** Enterprise users required evaluating custom multi-column SQL predicates and running declarative YAML/JSON data quality rulebooks against any dataset.
@@ -54,3 +54,9 @@
 26. **ADR 026: Universal Analytical Warehouses & Embedded OLAP (DuckDB, BigQuery, Redshift)**:
     - **Context:** Enterprise pipelines required embedded zero-egress analytical querying on Parquet/Arrow files alongside managed multi-cloud analytical warehouses (BigQuery and Amazon Redshift).
     - **Decision:** Built `DuckDBConnector` for in-process OLAP and direct file querying (`read_parquet`), `BigQueryConnector` using official BigQuery REST API v2 with OAuth2 / service account keys, and `RedshiftConnector` with transactional staging merges via PostgreSQL wire protocol. Registered all three in the connector factory and frontend connection designer.
+27. **ADR 027: Log-Based CDC Replication Engine (Debezium / WAL Stream)**:
+    - **Context:** Analytical warehouses required real-time transaction log streaming synchronization (inserts, updates, deletes) with deterministic checkpointing.
+    - **Decision:** Built `DebeziumCDCConnector` and `CDCReplicationActivity` supporting Debezium JSON and WAL log stream decoding, warehouse upsert/delete execution, historical audit changelogs, and LSN offset checkpoint management.
+28. **ADR 028: Multi-Destination Reverse ETL Engine (Salesforce, HubSpot, Slack, Webhooks)**:
+    - **Context:** Enterprise users required synchronizing transformed warehouse models directly into operational business tools (Salesforce, HubSpot, Slack, Webhooks).
+    - **Decision:** Created `ReverseETLConnector` and `ReverseETLActivity` supporting SObject external ID upsert, HubSpot CRM v3 batch upsert, Slack alert cards, and generic webhook dispatch with field mapping and rate-limited batching.

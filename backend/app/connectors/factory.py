@@ -32,6 +32,12 @@ def get_connector(connector_type: str, config: Dict[str, Any]) -> BaseConnector:
     elif ctype in ("redshift", "aws_redshift"):
         from backend.app.connectors.redshift import RedshiftConnector
         return RedshiftConnector(config)
+    elif ctype in ("cdc", "debezium", "wal", "debezium_cdc"):
+        from backend.app.connectors.cdc import DebeziumCDCConnector
+        return DebeziumCDCConnector(config)
+    elif ctype in ("reverse_etl", "salesforce", "hubspot", "slack", "webhook"):
+        from backend.app.connectors.reverse_etl import ReverseETLConnector
+        return ReverseETLConnector(config)
     elif ctype in ("file", "local_file", "filesystem", "csv", "json"):
         return LocalFileConnector(config)
     elif ctype in ("local_storage",):
@@ -41,6 +47,6 @@ def get_connector(connector_type: str, config: Dict[str, Any]) -> BaseConnector:
     else:
         raise ValueError(
             f"Unsupported connector type: '{connector_type}'. "
-            f"Supported: postgres, mysql, sqlite, snowflake, duckdb, bigquery, redshift, local_file, local_storage, azure_blob, azure_adls, aws_s3, gcp_storage"
+            f"Supported: postgres, mysql, sqlite, snowflake, duckdb, bigquery, redshift, cdc, reverse_etl, local_file, local_storage, azure_blob, azure_adls, aws_s3, gcp_storage"
         )
 

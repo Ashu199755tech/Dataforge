@@ -34,6 +34,8 @@ from backend.app.activities.archive import ArchiveActivity
 from backend.app.activities.data_flow import ExecuteDataFlowActivity
 from backend.app.activities.pipeline_return_value import PipelineReturnValueActivity
 from backend.app.activities.dbt import DbtActivity
+from backend.app.activities.cdc import CDCReplicationActivity
+from backend.app.activities.reverse_etl import ReverseETLActivity
 
 
 def _register_builtin_activities():
@@ -1020,6 +1022,76 @@ def _register_builtin_activities():
         ),
         DbtActivity,
         aliases=["dbt", "dbt_activity", "dbt_run", "dbt_cloud", "DbtActivity"]
+    )
+
+    # 17. Incremental CDC Replication Stream
+    activity_registry.register(
+        ActivityMetadata(
+            activity_type="CDCReplication",
+            display_name="CDC Replication",
+            category="Move & Transform",
+            description="Continuous or micro-batched transaction log CDC replication (Debezium/WAL) with upsert, delete, and audit logging.",
+            version="1.0.0",
+            icon="Radio",
+            config_schema={
+                "type": "object",
+                "required": ["source", "destination"],
+                "properties": {
+                    "source": {"type": "object"},
+                    "destination": {"type": "object"},
+                    "key_columns": {"type": "array"},
+                    "soft_delete": {"type": "boolean"},
+                    "audit_mode": {"type": "boolean"}
+                }
+            },
+            outputs=[
+                {"name": "events_processed", "type": "int"},
+                {"name": "inserts", "type": "int"},
+                {"name": "updates", "type": "int"},
+                {"name": "deletes", "type": "int"},
+                {"name": "highest_lsn", "type": "string"},
+                {"name": "duration_seconds", "type": "float"}
+            ],
+            supports_retry=True,
+            tags=["CDC", "Debezium", "WAL", "Streaming", "Replication"]
+        ),
+        CDCReplicationActivity,
+        aliases=["cdc", "cdc_replication", "debezium", "CDCReplicationActivity"]
+    )
+
+    # 18. Reverse ETL Sync
+    activity_registry.register(
+        ActivityMetadata(
+            activity_type="ReverseETL",
+            display_name="Reverse ETL",
+            category="Compute & External",
+            description="Synchronizes analytical models from warehouses into operational tools: Salesforce, HubSpot, Slack, and Webhooks.",
+            version="1.0.0",
+            icon="Send",
+            config_schema={
+                "type": "object",
+                "required": ["destination"],
+                "properties": {
+                    "source": {"type": "object"},
+                    "destination": {"type": "object"},
+                    "target_object": {"type": "string"},
+                    "external_id_field": {"type": "string"},
+                    "field_mappings": {"type": "array"},
+                    "sync_mode": {"type": "string", "enum": ["upsert", "insert", "update"]}
+                }
+            },
+            outputs=[
+                {"name": "records_synced", "type": "int"},
+                {"name": "records_failed", "type": "int"},
+                {"name": "target_object", "type": "string"},
+                {"name": "destination_type", "type": "string"},
+                {"name": "duration_seconds", "type": "float"}
+            ],
+            supports_retry=True,
+            tags=["ReverseETL", "Salesforce", "HubSpot", "Slack", "Webhook", "OperationalAnalytics"]
+        ),
+        ReverseETLActivity,
+        aliases=["reverse_etl", "reverseetl", "ReverseETLActivity"]
     )
 
 

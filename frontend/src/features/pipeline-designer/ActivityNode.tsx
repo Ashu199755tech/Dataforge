@@ -34,7 +34,8 @@ import {
   BarChart3,
   Scale,
   ShieldAlert,
-  Boxes
+  Boxes,
+  Radio
 } from 'lucide-react';
 
 export const ActivityNode: React.FC<NodeProps> = ({ id, data, selected }) => {
@@ -100,6 +101,12 @@ export const ActivityNode: React.FC<NodeProps> = ({ id, data, selected }) => {
       case 'Dbt':
       case 'dbt':
         return <Boxes className="h-4 w-4 text-orange-500" />;
+      case 'CDCReplication':
+      case 'cdc':
+        return <Radio className="h-4 w-4 text-rose-400" />;
+      case 'ReverseETL':
+      case 'reverse_etl':
+        return <Send className="h-4 w-4 text-indigo-400" />;
       case 'PySparkJob':
         return <Flame className="h-4 w-4 text-rose-400" />;
       case 'WebActivity':
