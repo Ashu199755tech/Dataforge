@@ -16,7 +16,7 @@
 | **Phase 3** | **Rating & Usage Aggregation Engine** | `18fc461` | **Completed** | 4 / 4 Passed (16/16 Billing Total) | 2026-11-09 |
 | **Phase 4** | **Billing Dashboard & Cost Management UI** | `95557ee` | **Completed** | 16 / 16 Billing + Frontend Build Verified | 2026-11-09 |
 | **Phase 5** | **Automated Invoicing, Tax & Payment Ledger Engine** | `2f1012b` | **Completed** | 5 / 5 Passed (21/21 Billing Total) | 2026-11-09 |
-| **Phase 6** | **Interactive Cost Estimator & Plan Comparison Calculator** | `PENDING_COMMIT` | **Completed** | 6 / 6 Passed (27/27 Billing Total) | 2026-11-09 |
+| **Phase 6** | **Interactive Cost Estimator & Plan Comparison Calculator** | `6df92a2` | **Completed** | 6 / 6 Passed (27/27 Billing Total) | 2026-11-09 |
 | **Phase 7** | **Budget Management, Threshold Alerts & Notification System** | `—` | *Awaiting Gate 6* | — | — |
 | **Phase 8** | **Administrative Pricing, Discounts & Auditing Console** | `—` | *Awaiting Gate 7* | — | — |
 | **Phase 9** | **End-to-End Validation, Chaos Testing & Final Hardening** | `—` | *Awaiting Gate 8* | — | — |
