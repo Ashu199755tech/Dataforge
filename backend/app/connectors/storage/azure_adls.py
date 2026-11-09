@@ -1,3 +1,4 @@
+from __future__ import annotations
 import time
 from typing import List, Dict, Any, Iterator, Optional, Set
 from datetime import datetime
@@ -30,6 +31,15 @@ try:
     HAS_AZURE_ADLS = True
 except ImportError:
     HAS_AZURE_ADLS = False
+    DataLakeServiceClient = Any
+    FileSystemClient = Any
+    DataLakeDirectoryClient = Any
+    DataLakeFileClient = Any
+    ContentSettings = Any
+    HttpResponseError = Exception
+    ResourceNotFoundError = Exception
+    ClientAuthenticationError = Exception
+    ServiceRequestError = Exception
 
 
 class AzureDataLakeStorageConnector(BaseStorageConnector):

@@ -1,3 +1,4 @@
+from __future__ import annotations
 import time
 from typing import List, Dict, Any, Iterator, Optional, Set
 from datetime import datetime
@@ -29,6 +30,14 @@ try:
     HAS_AZURE_BLOB = True
 except ImportError:
     HAS_AZURE_BLOB = False
+    BlobServiceClient = Any
+    BlobClient = Any
+    ContainerClient = Any
+    ContentSettings = Any
+    HttpResponseError = Exception
+    ResourceNotFoundError = Exception
+    ClientAuthenticationError = Exception
+    ServiceRequestError = Exception
 
 
 class AzureBlobStorageConnector(BaseStorageConnector):
