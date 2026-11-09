@@ -7,7 +7,8 @@ from backend.app.models.billing import (
     Tenant,
     SubscriptionPlan,
     PricingConfigVersion,
-    CustomerSubscription
+    CustomerSubscription,
+    PipelineUsageLedger
 )
 from backend.app.models.workspace import Workspace
 from backend.app.models.execution import PipelineRun
@@ -333,15 +334,24 @@ class BillingService:
             p_start = now - timedelta(days=now.day - 1)
             p_end = next_bill
 
-        # Query actual billable runs executed within current period
-        runs_query = db.query(PipelineRun).filter(
-            PipelineRun.started_at >= p_start,
-            PipelineRun.started_at <= p_end,
-            PipelineRun.status.in_(["Succeeded", "Failed"])
-        )
-        total_runs_count = runs_query.count()
+        # Check authoritative PipelineUsageLedger first for metered billable executions
+        period_key = p_start.strftime("%Y-%m")
+        ledger_billable_count = db.query(PipelineUsageLedger).filter(
+            PipelineUsageLedger.billing_period_key == period_key,
+            PipelineUsageLedger.is_billable == True
+        ).count()
 
-        consumed_runs = total_runs_count
+        if ledger_billable_count > 0:
+            consumed_runs = ledger_billable_count
+        else:
+            # Query actual billable runs executed within current period
+            runs_query = db.query(PipelineRun).filter(
+                PipelineRun.started_at >= p_start,
+                PipelineRun.started_at <= p_end,
+                PipelineRun.status.in_(["Succeeded", "Failed"])
+            )
+            consumed_runs = runs_query.count()
+
         overage_runs = max(consumed_runs - included_runs, 0)
         remaining_runs = max(included_runs - consumed_runs, 0)
 

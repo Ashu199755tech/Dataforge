@@ -4,13 +4,16 @@ from typing import List, Optional, Dict, Any
 
 from backend.app.core.database import get_db
 from backend.app.services.billing_service import BillingService
+from backend.app.services.metering_service import UsageMeteringEngine
 from backend.app.schemas.billing import (
     SubscriptionPlanResponse,
     SubscriptionPlanCreate,
     CustomerSubscriptionResponse,
     CustomerSubscriptionCreate,
     CustomerSubscriptionUpdate,
-    BillingOverviewResponse
+    BillingOverviewResponse,
+    PipelineUsageLedgerResponse,
+    PipelineUsageOverrideRequest
 )
 from backend.app.api.deps import get_current_user
 from backend.app.core.rbac import require_role
@@ -94,3 +97,71 @@ def get_billing_overview(
 ):
     """Compiles complete billing overview with real execution counts and current balance."""
     return BillingService.get_billing_overview(db, workspace_id)
+
+
+@router.get("/usage", response_model=List[PipelineUsageLedgerResponse])
+def list_pipeline_usage(
+    workspace_id: Optional[str] = None,
+    pipeline_id: Optional[str] = None,
+    execution_engine: Optional[str] = None,
+    classification: Optional[str] = None,
+    is_billable: Optional[bool] = None,
+    period_key: Optional[str] = None,
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Returns metered usage records with classification, engine, and calculated charges."""
+    records, _ = UsageMeteringEngine.query_ledger(
+        db=db,
+        workspace_id=workspace_id,
+        pipeline_id=pipeline_id,
+        execution_engine=execution_engine,
+        classification=classification,
+        is_billable=is_billable,
+        period_key=period_key,
+        limit=limit,
+        offset=offset
+    )
+    return records
+
+
+@router.get("/usage/{run_id}", response_model=PipelineUsageLedgerResponse)
+def get_pipeline_usage_for_run(
+    run_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Retrieves usage ledger entry for a specific pipeline execution run."""
+    from backend.app.models.billing import PipelineUsageLedger
+    ledger = db.query(PipelineUsageLedger).filter(
+        PipelineUsageLedger.pipeline_run_id == run_id
+    ).first()
+    if not ledger:
+        # Check if run exists and meter it on-demand if missing
+        ledger = UsageMeteringEngine.record_pipeline_execution(db, run_id)
+        if not ledger:
+            raise HTTPException(status_code=404, detail="Usage record for run not found.")
+    return ledger
+
+
+@router.post("/usage/{ledger_id}/override", response_model=PipelineUsageLedgerResponse)
+def override_run_billability(
+    ledger_id: str,
+    req: PipelineUsageOverrideRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(["Admin", "Owner"]))
+):
+    """Administratively updates run billability status with audit logging."""
+    try:
+        return UsageMeteringEngine.override_ledger_billability(
+            db=db,
+            ledger_id=ledger_id,
+            is_billable=req.is_billable,
+            reason=req.reason,
+            admin_user_id=current_user.id
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+

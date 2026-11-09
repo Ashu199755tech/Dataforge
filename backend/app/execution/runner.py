@@ -16,6 +16,7 @@ from backend.app.execution.expressions import ExpressionEvaluator
 from backend.app.monitoring.diagnostics import get_worker_telemetry, classify_error, extract_stack_trace
 from backend.app.monitoring.metrics import build_metrics_summary
 from backend.app.monitoring.alert_engine import AlertEngine
+from backend.app.services.metering_service import UsageMeteringEngine
 
 
 class PipelineRunner:
@@ -402,6 +403,12 @@ class PipelineRunner:
             except Exception as alert_err:
                 print(f"[WARN] Alert engine evaluation error: {alert_err}")
 
+            # Record metered usage in immutable billing ledger
+            try:
+                UsageMeteringEngine.record_pipeline_execution(db, pipeline_run.id)
+            except Exception as meter_err:
+                print(f"[WARN] Usage metering recording error: {meter_err}")
+
         except Exception as global_ex:
             pipeline_run = db.query(PipelineRun).filter(PipelineRun.id == self.run_id).first()
             if pipeline_run:
@@ -413,5 +420,9 @@ class PipelineRunner:
                     AlertEngine.evaluate_pipeline_run(pipeline_run, db)
                 except Exception:
                     pass
+                try:
+                    UsageMeteringEngine.record_pipeline_execution(db, pipeline_run.id)
+                except Exception as meter_err:
+                    print(f"[WARN] Usage metering recording error: {meter_err}")
         finally:
             db.close()

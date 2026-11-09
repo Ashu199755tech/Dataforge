@@ -12,7 +12,7 @@
 | :--- | :--- | :---: | :---: | :---: | :---: |
 | **Phase 0** | **Architecture Audit & Governance Alignment** | `d8a74b0` | **Completed** | 405 Passed (Baseline) | 2026-11-09 |
 | **Phase 1** | **Dynamic Pricing & Subscription Configuration Engine** | `4735d36` | **Completed** | 6 / 6 Passed (Billing Suite) | 2026-11-09 |
-| **Phase 2** | **Pipeline Usage Metering & Immutable Ledger Engine** | `—` | *Awaiting Gate 1* | — | — |
+| **Phase 2** | **Pipeline Usage Metering & Immutable Ledger Engine** | `PENDING` | **Completed** | 6 / 6 Passed (12/12 Billing Total) | 2026-11-09 |
 | **Phase 3** | **Rating & Usage Aggregation Engine** | `—` | *Awaiting Gate 2* | — | — |
 | **Phase 4** | **Billing Dashboard & Cost Management UI** | `—` | *Awaiting Gate 3* | — | — |
 | **Phase 5** | **Automated Invoicing, Tax & Payment Ledger Engine** | `—` | *Awaiting Gate 4* | — | — |
@@ -45,3 +45,17 @@
 - [x] Implement complete `BillingPage.tsx` with Overview, Plans & Tiers, Usage Ledger, Consumption, Software vs Cloud Breakdown, Invoices, and Interactive Cost Estimator.
 - [x] Run test suite: 6/6 tests passed in `test_billing_plans.py`.
 - [x] Run frontend build: 0 TypeScript errors.
+
+---
+
+## 4. Phase 2 Implementation Checklist
+- [x] Create `PipelineUsageLedger` entity with unique idempotency constraint on `pipeline_run_id`.
+- [x] Implement `UsageMeteringEngine` with activity count complexity classification (Basic, Standard, Advanced, Complex).
+- [x] Implement execution engine detection (CopyEngine, SparkEngine, SqlPushdownEngine, Hybrid).
+- [x] Implement fault-tolerant billability rules (PlatformSystemError non-billable; Customer errors billable).
+- [x] Hook `UsageMeteringEngine.record_pipeline_execution()` directly into `PipelineRunner.execute_sync()` upon run completion.
+- [x] Implement administrative billability manual override with tamper-evident audit logging.
+- [x] Expose REST APIs: `GET /api/v1/billing/usage`, `GET /api/v1/billing/usage/{run_id}`, `POST /api/v1/billing/usage/{ledger_id}/override`.
+- [x] Update frontend usage ledger view with engine, classification, and billability filters.
+- [x] Add automated test suite `test_usage_metering.py` (6/6 passed).
+- [x] Full regression test run: 417 passed, 0 failures.

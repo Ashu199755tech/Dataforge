@@ -29,7 +29,8 @@ import {
 import { 
   BillingOverview, 
   SubscriptionPlan, 
-  CustomerSubscription 
+  CustomerSubscription,
+  PipelineUsageLedgerEntry
 } from '../types';
 
 export const BillingPage: React.FC = () => {
@@ -38,11 +39,17 @@ export const BillingPage: React.FC = () => {
   const [overview, setOverview] = useState<BillingOverview | null>(null);
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [recentRuns, setRecentRuns] = useState<any[]>([]);
+  const [usageLedger, setUsageLedger] = useState<PipelineUsageLedgerEntry[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isUpdatingSub, setIsUpdatingSub] = useState<boolean>(false);
   const [billingPeriodToggle, setBillingPeriodToggle] = useState<'Monthly' | 'Annual'>('Monthly');
   const [actionSuccessMsg, setActionSuccessMsg] = useState<string | null>(null);
   const [actionErrorMsg, setActionErrorMsg] = useState<string | null>(null);
+
+  // Filters for Usage Ledger
+  const [filterEngine, setFilterEngine] = useState<string>('ALL');
+  const [filterClassification, setFilterClassification] = useState<string>('ALL');
+  const [filterBillable, setFilterBillable] = useState<string>('ALL');
 
   // Estimator State
   const [estRuns, setEstRuns] = useState<number>(35000);
@@ -54,15 +61,17 @@ export const BillingPage: React.FC = () => {
     setIsLoading(true);
     setActionErrorMsg(null);
     try {
-      const [overviewRes, plansRes, runsRes] = await Promise.all([
+      const [overviewRes, plansRes, runsRes, usageRes] = await Promise.all([
         api.get('/billing/overview'),
         api.get('/billing/plans'),
-        api.get('/runs?limit=15').catch(() => ({ data: [] }))
+        api.get('/runs?limit=15').catch(() => ({ data: [] })),
+        api.get('/billing/usage?limit=50').catch(() => ({ data: [] }))
       ]);
 
       setOverview(overviewRes.data);
       setPlans(plansRes.data);
       setRecentRuns(runsRes.data || []);
+      setUsageLedger(usageRes.data || []);
       if (overviewRes.data?.billing_period) {
         setBillingPeriodToggle(overviewRes.data.billing_period as 'Monthly' | 'Annual');
       }
@@ -96,6 +105,28 @@ export const BillingPage: React.FC = () => {
       setActionErrorMsg(err.response?.data?.detail || 'Subscription switch failed. Ensure administrative privileges.');
     } finally {
       setIsUpdatingSub(false);
+    }
+  };
+
+  const handleOverrideBillability = async (ledgerId: string, currentBillable: boolean) => {
+    const nextBillable = !currentBillable;
+    const reason = window.prompt(
+      `Enter justification for marking run as ${nextBillable ? 'Billable' : 'Non-Billable'}:`,
+      nextBillable ? 'Reclassified after manual customer inspection' : 'Goodwill adjustment / Infrastructure failure'
+    );
+    if (!reason) return;
+
+    try {
+      await api.post(`/billing/usage/${ledgerId}/override`, {
+        is_billable: nextBillable,
+        reason: reason
+      });
+      setActionSuccessMsg(`Run successfully updated to ${nextBillable ? 'Billable' : 'Non-Billable'}.`);
+      await fetchData();
+      setTimeout(() => setActionSuccessMsg(null), 4000);
+    } catch (err: any) {
+      console.error('Failed to override billability', err);
+      setActionErrorMsg(err.response?.data?.detail || 'Billability override failed.');
     }
   };
 
@@ -731,6 +762,65 @@ export const BillingPage: React.FC = () => {
             </div>
           </div>
 
+          {/* Filter Bar */}
+          <div className="flex flex-wrap items-center gap-3 p-3 bg-slate-950/60 rounded-xl border border-slate-800 text-xs">
+            <div className="flex items-center gap-2">
+              <span className="text-slate-400 font-medium">Engine:</span>
+              <select
+                value={filterEngine}
+                onChange={(e) => setFilterEngine(e.target.value)}
+                className="bg-slate-900 border border-slate-700 text-white rounded-lg px-2.5 py-1 text-xs outline-none focus:border-brand-500"
+              >
+                <option value="ALL">All Engines</option>
+                <option value="CopyEngine">CopyEngine</option>
+                <option value="SparkEngine">SparkEngine</option>
+                <option value="SqlPushdownEngine">SqlPushdownEngine</option>
+                <option value="Hybrid">Hybrid</option>
+              </select>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-slate-400 font-medium">Classification:</span>
+              <select
+                value={filterClassification}
+                onChange={(e) => setFilterClassification(e.target.value)}
+                className="bg-slate-900 border border-slate-700 text-white rounded-lg px-2.5 py-1 text-xs outline-none focus:border-brand-500"
+              >
+                <option value="ALL">All Tiers</option>
+                <option value="Basic">Basic (2–5 act)</option>
+                <option value="Standard">Standard (6–15 act)</option>
+                <option value="Advanced">Advanced (16–30 act)</option>
+                <option value="Complex">Complex (31+ act)</option>
+              </select>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-slate-400 font-medium">Billability:</span>
+              <select
+                value={filterBillable}
+                onChange={(e) => setFilterBillable(e.target.value)}
+                className="bg-slate-900 border border-slate-700 text-white rounded-lg px-2.5 py-1 text-xs outline-none focus:border-brand-500"
+              >
+                <option value="ALL">All Runs</option>
+                <option value="BILLABLE">Billable Only</option>
+                <option value="NON_BILLABLE">Non-Billable Only</option>
+              </select>
+            </div>
+
+            {(filterEngine !== 'ALL' || filterClassification !== 'ALL' || filterBillable !== 'ALL') && (
+              <button
+                onClick={() => {
+                  setFilterEngine('ALL');
+                  setFilterClassification('ALL');
+                  setFilterBillable('ALL');
+                }}
+                className="text-xs text-brand-400 hover:text-brand-300 ml-auto"
+              >
+                Clear Filters
+              </button>
+            )}
+          </div>
+
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead>
@@ -743,76 +833,110 @@ export const BillingPage: React.FC = () => {
                   <th className="py-2.5 px-3">Tier</th>
                   <th className="py-2.5 px-3">Status</th>
                   <th className="py-2.5 px-3">Billable</th>
-                  <th className="py-2.5 px-3 text-right">Calculated Charge</th>
+                  <th className="py-2.5 px-3 text-right">Charge</th>
+                  <th className="py-2.5 px-3 text-right">Admin Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/60 font-mono">
-                {recentRuns.length === 0 ? (
-                  <tr>
-                    <td colSpan={9} className="py-8 text-center text-slate-500 font-sans">
-                      No usage entries recorded in this billing cycle yet.
-                    </td>
-                  </tr>
-                ) : (
-                  recentRuns.map((r: any) => {
+                {(() => {
+                  const itemsToRender = usageLedger.length > 0 ? usageLedger.filter((item) => {
+                    if (filterEngine !== 'ALL' && item.execution_engine !== filterEngine) return false;
+                    if (filterClassification !== 'ALL' && item.classification !== filterClassification) return false;
+                    if (filterBillable === 'BILLABLE' && !item.is_billable) return false;
+                    if (filterBillable === 'NON_BILLABLE' && item.is_billable) return false;
+                    return true;
+                  }) : recentRuns.map((r: any) => {
                     const acts = r.activity_runs ? r.activity_runs.length : 1;
-                    let classification = 'Basic';
-                    let rate = '₹0.50';
-                    if (acts >= 6 && acts <= 15) { classification = 'Standard'; rate = '₹1.50'; }
-                    else if (acts >= 16 && acts <= 30) { classification = 'Advanced'; rate = '₹3.00'; }
-                    else if (acts > 30) { classification = 'Complex'; rate = '₹5.00'; }
+                    let classification: any = 'Basic';
+                    let rate = 0.50;
+                    if (acts >= 6 && acts <= 15) { classification = 'Standard'; rate = 1.50; }
+                    else if (acts >= 16 && acts <= 30) { classification = 'Advanced'; rate = 3.00; }
+                    else if (acts > 30) { classification = 'Complex'; rate = 5.00; }
+                    return {
+                      id: r.id,
+                      pipeline_run_id: r.id,
+                      pipeline_name: r.pipeline_name || r.pipeline_id?.substring(0, 8) || 'Ad-Hoc',
+                      execution_engine: r.engine || 'CopyEngine',
+                      activity_count: acts,
+                      classification: classification,
+                      execution_status: r.status,
+                      started_at: r.started_at,
+                      is_billable: r.status !== 'Cancelled',
+                      calculated_charge: r.status !== 'Cancelled' ? rate : 0.0,
+                      non_billable_reason: r.status === 'Cancelled' ? 'UserCancelled' : undefined
+                    };
+                  });
 
-                    const isBillable = r.status !== 'Cancelled';
-
+                  if (itemsToRender.length === 0) {
                     return (
-                      <tr key={r.id} className="hover:bg-slate-800/30 transition">
-                        <td className="py-2.5 px-3 text-slate-400 text-[11px]">
-                          {r.started_at ? new Date(r.started_at).toLocaleString() : 'Recent'}
-                        </td>
-                        <td className="py-2.5 px-3 text-slate-300 truncate max-w-[100px]" title={r.id}>
-                          {r.id.substring(0, 8)}...
-                        </td>
-                        <td className="py-2.5 px-3 text-white font-sans font-medium truncate max-w-[130px]">
-                          {r.pipeline_name || r.pipeline_id?.substring(0, 8) || 'Ad-Hoc'}
-                        </td>
-                        <td className="py-2.5 px-3 text-slate-300">
-                          {r.engine || 'CopyEngine'}
-                        </td>
-                        <td className="py-2.5 px-3 text-slate-300 text-center">
-                          {acts}
-                        </td>
-                        <td className="py-2.5 px-3 font-sans text-slate-300">
-                          {classification}
-                        </td>
-                        <td className="py-2.5 px-3">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-sans font-medium ${
-                            r.status === 'Completed' || r.status === 'Succeeded'
-                              ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                              : 'bg-red-500/10 text-red-400 border border-red-500/20'
-                          }`}>
-                            {r.status}
-                          </span>
-                        </td>
-                        <td className="py-2.5 px-3 font-sans">
-                          {isBillable ? (
-                            <span className="text-emerald-400 flex items-center gap-1 text-[11px]">
-                              <CheckCircle2 className="h-3 w-3" /> Yes
-                            </span>
-                          ) : (
-                            <span className="text-slate-500 flex items-center gap-1 text-[11px]">
-                              <XCircle className="h-3 w-3" /> No (Cancelled)
-                            </span>
-                          )}
-                        </td>
-                        <td className="py-2.5 px-3 text-right">
-                          <span className={isBillable ? 'text-white font-bold' : 'text-slate-500 line-through'}>
-                            {isBillable ? (overview?.remaining_runs && overview.remaining_runs > 0 ? '₹0.00 (Allowance)' : rate) : '₹0.00'}
-                          </span>
+                      <tr>
+                        <td colSpan={10} className="py-8 text-center text-slate-500 font-sans">
+                          No matching usage entries found for the selected filters.
                         </td>
                       </tr>
                     );
-                  })
-                )}
+                  }
+
+                  return itemsToRender.map((entry: any) => (
+                    <tr key={entry.id} className="hover:bg-slate-800/30 transition">
+                      <td className="py-2.5 px-3 text-slate-400 text-[11px]">
+                        {entry.started_at ? new Date(entry.started_at).toLocaleString() : 'Recent'}
+                      </td>
+                      <td className="py-2.5 px-3 text-slate-300 truncate max-w-[100px]" title={entry.pipeline_run_id}>
+                        {entry.pipeline_run_id.substring(0, 8)}...
+                      </td>
+                      <td className="py-2.5 px-3 text-white font-sans font-medium truncate max-w-[130px]">
+                        {entry.pipeline_name}
+                      </td>
+                      <td className="py-2.5 px-3 text-slate-300">
+                        {entry.execution_engine}
+                      </td>
+                      <td className="py-2.5 px-3 text-slate-300 text-center">
+                        {entry.activity_count}
+                      </td>
+                      <td className="py-2.5 px-3 font-sans text-slate-300">
+                        {entry.classification}
+                      </td>
+                      <td className="py-2.5 px-3">
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-sans font-medium ${
+                          entry.execution_status === 'Completed' || entry.execution_status === 'Succeeded'
+                            ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                            : 'bg-red-500/10 text-red-400 border border-red-500/20'
+                        }`}>
+                          {entry.execution_status}
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-3 font-sans">
+                        {entry.is_billable ? (
+                          <span className="text-emerald-400 flex items-center gap-1 text-[11px]">
+                            <CheckCircle2 className="h-3 w-3" /> Yes
+                          </span>
+                        ) : (
+                          <span className="text-slate-500 flex items-center gap-1 text-[11px]" title={entry.non_billable_reason || 'Non-billable'}>
+                            <XCircle className="h-3 w-3" /> No
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-2.5 px-3 text-right">
+                        <span className={entry.is_billable ? 'text-white font-bold' : 'text-slate-500 line-through'}>
+                          ₹{Number(entry.calculated_charge).toFixed(2)}
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-3 text-right font-sans">
+                        {usageLedger.length > 0 && entry.id ? (
+                          <button
+                            onClick={() => handleOverrideBillability(entry.id, entry.is_billable)}
+                            className="px-2 py-1 rounded text-[10px] text-slate-300 bg-slate-800 hover:bg-slate-700 border border-slate-700 transition"
+                          >
+                            {entry.is_billable ? 'Waive' : 'Bill'}
+                          </button>
+                        ) : (
+                          <span className="text-slate-600 text-[10px]">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  ));
+                })()}
               </tbody>
             </table>
           </div>

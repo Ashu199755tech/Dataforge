@@ -557,3 +557,32 @@ export interface BillingOverview {
   previous_month_charges: number;
   deployment_model: string;
 }
+
+export interface PipelineUsageLedgerEntry {
+  id: string;
+  tenant_id: string;
+  workspace_id: string;
+  project_id: string;
+  pipeline_id: string;
+  pipeline_name: string;
+  pipeline_run_id: string;
+  execution_type: string;
+  execution_engine: string;
+  activity_count: number;
+  classification: 'Basic' | 'Standard' | 'Advanced' | 'Complex';
+  started_at: string;
+  ended_at?: string;
+  duration_seconds: number;
+  execution_status: string;
+  retry_count: number;
+  runtime_id?: string;
+  rows_processed: number;
+  bytes_processed: number;
+  billing_period_key: string;
+  is_billable: boolean;
+  non_billable_reason?: string;
+  calculated_charge: number;
+  pricing_version_id?: string;
+  recorded_at: string;
+}
+

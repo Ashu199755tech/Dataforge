@@ -109,3 +109,44 @@ class CustomerSubscription(Base):
     tenant = relationship("Tenant", back_populates="subscriptions")
     plan = relationship("SubscriptionPlan", back_populates="subscriptions")
     pricing_version = relationship("PricingConfigVersion", back_populates="subscriptions")
+
+
+class PipelineUsageLedger(Base):
+    """
+    Immutable Usage Metering Ledger.
+    Captures metered consumption for every pipeline execution.
+    Natural uniqueness constraint on pipeline_run_id guarantees idempotency across worker retries.
+    """
+    __tablename__ = "pipeline_usage_ledger"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(String(36), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+    workspace_id = Column(String(36), nullable=False, index=True)
+    project_id = Column(String(36), nullable=False)
+    pipeline_id = Column(String(36), ForeignKey("pipelines.id", ondelete="CASCADE"), nullable=False, index=True)
+    pipeline_name = Column(String(150), nullable=False)
+    pipeline_run_id = Column(String(36), ForeignKey("pipeline_runs.id", ondelete="CASCADE"), unique=True, nullable=False, index=True)
+    execution_type = Column(String(30), default="Manual", nullable=False)  # Manual, Scheduled, Triggered, ChildPipeline
+    execution_engine = Column(String(30), default="CopyEngine", nullable=False)  # CopyEngine, SparkEngine, SqlPushdownEngine, Hybrid
+    activity_count = Column(Integer, default=1, nullable=False)
+    classification = Column(String(20), default="Basic", nullable=False)  # Basic, Standard, Advanced, Complex
+    started_at = Column(DateTime, nullable=False)
+    ended_at = Column(DateTime, nullable=True)
+    duration_seconds = Column(Numeric(10, 2), default=0.0, nullable=False)
+    execution_status = Column(String(30), nullable=False)  # Succeeded, Failed, Cancelled
+    retry_count = Column(Integer, default=0, nullable=False)
+    runtime_id = Column(String(36), nullable=True)
+    rows_processed = Column(BigInteger, default=0, nullable=False)
+    bytes_processed = Column(BigInteger, default=0, nullable=False)
+    billing_period_key = Column(String(7), nullable=False, index=True)  # 'YYYY-MM'
+    is_billable = Column(Boolean, default=True, nullable=False)
+    non_billable_reason = Column(String(100), nullable=True)  # PlatformSystemError, CancelledBeforeStart, InternalRetry, ValidationCheck
+    calculated_charge = Column(Numeric(10, 4), default=0.0000, nullable=False)
+    pricing_version_id = Column(String(36), ForeignKey("pricing_config_versions.id"), nullable=True)
+    recorded_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    tenant = relationship("Tenant")
+    pipeline = relationship("Pipeline")
+    pipeline_run = relationship("PipelineRun")
+    pricing_version = relationship("PricingConfigVersion")
+

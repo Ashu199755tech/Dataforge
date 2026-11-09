@@ -135,3 +135,39 @@ class BillingOverviewResponse(BaseModel):
     estimated_total_software_charges: float
     previous_month_charges: float
     deployment_model: str
+
+
+class PipelineUsageLedgerResponse(BaseModel):
+    id: str
+    tenant_id: str
+    workspace_id: str
+    project_id: str
+    pipeline_id: str
+    pipeline_name: str
+    pipeline_run_id: str
+    execution_type: str
+    execution_engine: str
+    activity_count: int
+    classification: str
+    started_at: datetime
+    ended_at: Optional[datetime] = None
+    duration_seconds: float
+    execution_status: str
+    retry_count: int
+    runtime_id: Optional[str] = None
+    rows_processed: int
+    bytes_processed: int
+    billing_period_key: str
+    is_billable: bool
+    non_billable_reason: Optional[str] = None
+    calculated_charge: float
+    pricing_version_id: Optional[str] = None
+    recorded_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class PipelineUsageOverrideRequest(BaseModel):
+    is_billable: bool
+    reason: str
+

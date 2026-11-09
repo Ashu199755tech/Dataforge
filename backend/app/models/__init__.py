@@ -24,7 +24,8 @@ from backend.app.models.billing import (
     Tenant,
     SubscriptionPlan,
     PricingConfigVersion,
-    CustomerSubscription
+    CustomerSubscription,
+    PipelineUsageLedger
 )
 
 __all__ = [
@@ -63,5 +64,6 @@ __all__ = [
     "Tenant",
     "SubscriptionPlan",
     "PricingConfigVersion",
-    "CustomerSubscription"
+    "CustomerSubscription",
+    "PipelineUsageLedger"
 ]
