@@ -176,7 +176,19 @@ def prometheus_metrics(db: Session = Depends(get_db)):
     return Response(content=ObservabilityService.export_prometheus_metrics(db), media_type="text/plain; version=0.0.4; charset=utf-8")
 
 
-# Mount static production frontend if built
+# Mount static production frontend if built with SPA fallback
 frontend_dist = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../frontend/dist"))
 if os.path.exists(frontend_dist):
-    app.mount("/", StaticFiles(directory=frontend_dist, html=True), name="static-frontend")
+    assets_dir = os.path.join(frontend_dist, "assets")
+    if os.path.exists(assets_dir):
+        app.mount("/assets", StaticFiles(directory=assets_dir), name="static-assets")
+
+    @app.get("/{full_path:path}")
+    async def serve_spa(full_path: str):
+        # Allow API and OpenAPI paths to be handled by FastAPI
+        if full_path.startswith("api/") or full_path in ("docs", "redoc", "openapi.json"):
+            return Response(status_code=404)
+        file_path = os.path.join(frontend_dist, full_path)
+        if full_path and os.path.isfile(file_path):
+            return FileResponse(file_path)
+        return FileResponse(os.path.join(frontend_dist, "index.html"))
