@@ -513,10 +513,18 @@ export const DatasetsPage: React.FC = () => {
                   const isDrift = ds.schema_status === 'DriftDetected';
 
                   return (
-                    <tr key={ds.id} className="hover:bg-slate-800/30 transition">
+                    <tr 
+                      key={ds.id} 
+                      onClick={() => handleOpenSchemaDrawer(ds)}
+                      className={`cursor-pointer transition-colors group ${
+                        selectedDatasetForSchema?.id === ds.id 
+                          ? 'bg-emerald-950/20 border-l-2 border-emerald-500' 
+                          : 'hover:bg-slate-800/40'
+                      }`}
+                    >
                       {/* Name */}
                       <td className="px-6 py-4">
-                        <div className="font-semibold text-slate-100 text-sm flex items-center gap-2">
+                        <div className="font-semibold text-slate-100 group-hover:text-emerald-300 transition-colors text-sm flex items-center gap-2">
                           {ds.name}
                         </div>
                         {ds.description && (
@@ -525,7 +533,7 @@ export const DatasetsPage: React.FC = () => {
                           </div>
                         )}
                         <div className="text-[10px] text-slate-500 font-mono mt-0.5">
-                          ID: {ds.id.slice(0, 13)}...
+                          ID: {ds.id.slice(0, 13)}... • Click to inspect schema & drift
                         </div>
                       </td>
 
@@ -591,7 +599,7 @@ export const DatasetsPage: React.FC = () => {
                       </td>
 
                       {/* Actions */}
-                      <td className="px-6 py-4 text-right space-x-1">
+                      <td className="px-6 py-4 text-right space-x-1" onClick={(e) => e.stopPropagation()}>
                         <button
                           onClick={() => handleOpenPreview(ds)}
                           title="Preview Sample Data"

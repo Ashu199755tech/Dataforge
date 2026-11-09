@@ -677,6 +677,9 @@ export const DataForgeHomePage: React.FC = () => {
               emptyTitle="No executions recorded yet"
               emptyDescription="Launch a pipeline in the designer to track operational runs."
               keyField="id"
+              onRowClick={() => {
+                setCurrentTab('runs');
+              }}
             />
           </div>
         </div>
@@ -769,6 +772,14 @@ export const DataForgeHomePage: React.FC = () => {
             emptyTitle="No resources found"
             emptyDescription="Create your first pipeline or connection to view it here."
             keyField={(item) => `${item.type}-${item.id}`}
+            onRowClick={(item) => {
+              if (item.type === 'Pipeline') {
+                setSelectedPipelineId(item.id);
+                setCurrentTab('designer');
+              } else {
+                setCurrentTab(item.tab);
+              }
+            }}
           />
         </div>
 

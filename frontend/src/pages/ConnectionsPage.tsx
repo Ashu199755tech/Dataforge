@@ -312,14 +312,15 @@ export const ConnectionsPage: React.FC = () => {
           return (
             <div 
               key={conn.id} 
-              className="p-5 rounded-xl bg-slate-900/80 border border-slate-800 hover:border-slate-700 transition space-y-4 flex flex-col justify-between"
+              onClick={() => handleExploreTables(conn)}
+              className="p-5 rounded-xl bg-slate-900/80 border border-slate-800 hover:border-brand-500/50 hover:bg-slate-900 transition-all duration-150 space-y-4 flex flex-col justify-between cursor-pointer group"
             >
               <div>
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-2.5">
                     {renderConnectorIcon(conn.connector_type)}
                     <div>
-                      <h3 className="text-sm font-semibold text-white">{conn.name}</h3>
+                      <h3 className="text-sm font-semibold text-white group-hover:text-brand-300 transition-colors">{conn.name}</h3>
                       <div className="text-[10px] text-slate-500 uppercase tracking-wider font-mono">
                         {conn.connector_type.replace('_', ' ')}
                       </div>
@@ -393,7 +394,7 @@ export const ConnectionsPage: React.FC = () => {
               </div>
 
               {/* Actions */}
-              <div className="pt-3 border-t border-slate-800 flex items-center justify-between text-xs">
+              <div className="pt-3 border-t border-slate-800 flex items-center justify-between text-xs" onClick={(e) => e.stopPropagation()}>
                 <button
                   onClick={() => handleTestConnection(conn.id)}
                   disabled={testingId === conn.id}
