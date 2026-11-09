@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status, Response
 from sqlalchemy.orm import Session
 from typing import List, Optional, Dict, Any
 from datetime import datetime, timezone
@@ -7,6 +7,7 @@ from backend.app.core.database import get_db
 from backend.app.services.billing_service import BillingService
 from backend.app.services.metering_service import UsageMeteringEngine
 from backend.app.services.rating_engine import RatingEngine
+from backend.app.services.invoicing_service import InvoiceService
 from backend.app.schemas.billing import (
     SubscriptionPlanResponse,
     SubscriptionPlanCreate,
@@ -18,7 +19,12 @@ from backend.app.schemas.billing import (
     PipelineUsageOverrideRequest,
     ConsumptionSummaryResponse,
     DailyConsumptionItem,
-    UsageAggregationResponse
+    UsageAggregationResponse,
+    BillingInvoiceResponse,
+    BillingInvoiceDetailResponse,
+    InvoiceGenerateRequest,
+    PaymentRecordCreate,
+    PaymentRecordResponse
 )
 from backend.app.api.deps import get_current_user
 from backend.app.core.rbac import require_role
@@ -221,4 +227,118 @@ def override_run_billability(
         )
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
+
+
+# ---------------------------------------------------------
+# Phase 5: Invoicing & Payment Endpoints
+# ---------------------------------------------------------
+
+@router.get("/invoices", response_model=List[BillingInvoiceResponse])
+def list_invoices(
+    status: Optional[str] = None,
+    period_key: Optional[str] = None,
+    workspace_id: Optional[str] = None,
+    limit: int = Query(default=50, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Lists monthly commercial invoices for the customer tenant."""
+    tenant = BillingService.get_or_create_default_tenant(db, workspace_id)
+    invoices, _ = InvoiceService.list_invoices(
+        db=db,
+        tenant_id=tenant.id,
+        status=status,
+        period_key=period_key,
+        limit=limit,
+        offset=offset
+    )
+    return invoices
+
+
+@router.post("/invoices/generate", response_model=BillingInvoiceDetailResponse)
+def generate_monthly_invoice(
+    req: InvoiceGenerateRequest,
+    workspace_id: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(["Admin", "Owner"]))
+):
+    """Generates or recalculates a commercial invoice statement for the specified period."""
+    tenant = None
+    if req.tenant_id:
+        from backend.app.models.billing import Tenant
+        tenant = db.query(Tenant).filter(Tenant.id == req.tenant_id).first()
+    if not tenant:
+        tenant = BillingService.get_or_create_default_tenant(db, workspace_id)
+
+    try:
+        invoice = InvoiceService.generate_monthly_invoice(
+            db=db,
+            tenant_id=tenant.id,
+            period_key=req.period_key,
+            notes=req.notes
+        )
+        return invoice
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/invoices/{invoice_id}", response_model=BillingInvoiceDetailResponse)
+def get_invoice_details(
+    invoice_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Retrieves full details of an invoice including line items and payment records."""
+    invoice = InvoiceService.get_invoice_by_id(db, invoice_id)
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Invoice not found.")
+    return invoice
+
+
+@router.get("/invoices/{invoice_id}/download")
+def download_invoice_pdf(
+    invoice_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Generates and downloads a standardized ISO 32000-1 PDF statement."""
+    invoice = InvoiceService.get_invoice_by_id(db, invoice_id)
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Invoice not found.")
+
+    pdf_bytes = InvoiceService.generate_invoice_pdf(db, invoice_id)
+    filename = f"{invoice.invoice_number}.pdf"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Content-Length": str(len(pdf_bytes))
+        }
+    )
+
+
+@router.post("/invoices/{invoice_id}/payments", response_model=PaymentRecordResponse)
+def record_invoice_payment(
+    invoice_id: str,
+    payment_in: PaymentRecordCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(["Admin", "Owner"]))
+):
+    """Records a verified payment against an invoice with tamper-evident audit logging."""
+    invoice = InvoiceService.get_invoice_by_id(db, invoice_id)
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Invoice not found.")
+
+    try:
+        payment = InvoiceService.record_payment(
+            db=db,
+            invoice_id=invoice_id,
+            payment_data=payment_in.model_dump(),
+            admin_user_id=current_user.id
+        )
+        return payment
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 

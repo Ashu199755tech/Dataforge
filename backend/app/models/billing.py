@@ -34,6 +34,7 @@ class Tenant(Base):
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
 
     subscriptions = relationship("CustomerSubscription", back_populates="tenant", cascade="all, delete-orphan")
+    invoices = relationship("BillingInvoice", back_populates="tenant", cascade="all, delete-orphan")
 
 
 class SubscriptionPlan(Base):
@@ -109,6 +110,7 @@ class CustomerSubscription(Base):
     tenant = relationship("Tenant", back_populates="subscriptions")
     plan = relationship("SubscriptionPlan", back_populates="subscriptions")
     pricing_version = relationship("PricingConfigVersion", back_populates="subscriptions")
+    invoices = relationship("BillingInvoice", back_populates="subscription")
 
 
 class PipelineUsageLedger(Base):
@@ -184,5 +186,84 @@ class UsageAggregation(Base):
 
     tenant = relationship("Tenant")
     subscription = relationship("CustomerSubscription")
+
+
+class BillingInvoice(Base):
+    """
+    Monthly commercial billing statement generated for a customer tenant.
+    Captures subscription base, usage overage, compute charges, taxes (18% GST), and adjustments.
+    """
+    __tablename__ = "billing_invoices"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(String(36), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+    subscription_id = Column(String(36), ForeignKey("customer_subscriptions.id", ondelete="SET NULL"), nullable=True, index=True)
+    invoice_number = Column(String(50), unique=True, index=True, nullable=False)  # e.g. DF-INV-2026-11-0001
+    period_key = Column(String(7), nullable=False, index=True)  # 'YYYY-MM'
+    billing_period_start = Column(DateTime, nullable=False)
+    billing_period_end = Column(DateTime, nullable=False)
+    issue_date = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    due_date = Column(DateTime, nullable=False)
+    currency = Column(String(3), default="INR", nullable=False)
+    subscription_amount = Column(Numeric(12, 2), default=0.00, nullable=False)
+    overage_amount = Column(Numeric(12, 2), default=0.00, nullable=False)
+    compute_amount = Column(Numeric(12, 2), default=0.00, nullable=False)
+    subtotal_amount = Column(Numeric(12, 2), default=0.00, nullable=False)
+    tax_percent = Column(Numeric(5, 2), default=18.00, nullable=False)  # 18.00% GST
+    tax_amount = Column(Numeric(12, 2), default=0.00, nullable=False)
+    adjustments_amount = Column(Numeric(12, 2), default=0.00, nullable=False)
+    total_amount = Column(Numeric(12, 2), default=0.00, nullable=False)
+    status = Column(String(30), default="Issued", nullable=False)  # Draft, Issued, Paid, PastDue, Void
+    pdf_storage_path = Column(String(500), nullable=True)
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
+
+    tenant = relationship("Tenant", back_populates="invoices")
+    subscription = relationship("CustomerSubscription", back_populates="invoices")
+    line_items = relationship("InvoiceLineItem", back_populates="invoice", cascade="all, delete-orphan", order_by="InvoiceLineItem.created_at")
+    payments = relationship("PaymentRecord", back_populates="invoice", cascade="all, delete-orphan", order_by="PaymentRecord.payment_date")
+
+
+class InvoiceLineItem(Base):
+    """
+    Granular itemized charge on a billing invoice.
+    """
+    __tablename__ = "invoice_line_items"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    invoice_id = Column(String(36), ForeignKey("billing_invoices.id", ondelete="CASCADE"), nullable=False, index=True)
+    item_type = Column(String(40), nullable=False)  # SubscriptionBase, OverageBasic, OverageStandard, OverageAdvanced, OverageComplex, SparkCompute, CreditAdjustment
+    description = Column(String(255), nullable=False)
+    quantity = Column(Numeric(10, 2), default=1.00, nullable=False)
+    unit_price = Column(Numeric(10, 4), default=0.0000, nullable=False)
+    amount = Column(Numeric(12, 2), default=0.00, nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    invoice = relationship("BillingInvoice", back_populates="line_items")
+
+
+class PaymentRecord(Base):
+    """
+    Verified payment transaction associated with an issued invoice.
+    Supports B2B offline bank transfer / corporate purchase order verification and online gateways.
+    """
+    __tablename__ = "payment_records"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    invoice_id = Column(String(36), ForeignKey("billing_invoices.id", ondelete="CASCADE"), nullable=False, index=True)
+    tenant_id = Column(String(36), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+    payment_reference = Column(String(100), unique=True, nullable=False, index=True)  # Bank UTR, Wire Reference, PO Number
+    payment_method = Column(String(50), default="BankTransfer", nullable=False)  # BankTransfer, CorporatePO, Stripe, Razorpay
+    amount = Column(Numeric(12, 2), nullable=False)
+    currency = Column(String(3), default="INR", nullable=False)
+    payment_status = Column(String(30), default="Completed", nullable=False)  # Completed, Pending, Failed, Refunded
+    payment_date = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    verified_by_user_id = Column(String(36), nullable=True)  # Admin user who verified the wire transfer
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    invoice = relationship("BillingInvoice", back_populates="payments")
+    tenant = relationship("Tenant")
 
 

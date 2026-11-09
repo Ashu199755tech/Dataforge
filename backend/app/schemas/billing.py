@@ -235,3 +235,82 @@ class ConsumptionSummaryResponse(BaseModel):
     daily_consumption: List[DailyConsumptionItem]
 
 
+class InvoiceLineItemResponse(BaseModel):
+    id: str
+    invoice_id: str
+    item_type: str
+    description: str
+    quantity: float
+    unit_price: float
+    amount: float
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class PaymentRecordBase(BaseModel):
+    payment_reference: str
+    payment_method: str = "BankTransfer"  # BankTransfer, CorporatePO, Stripe, Razorpay
+    amount: float
+    currency: str = "INR"
+    notes: Optional[str] = None
+
+
+class PaymentRecordCreate(PaymentRecordBase):
+    payment_status: str = "Completed"
+
+
+class PaymentRecordResponse(PaymentRecordBase):
+    id: str
+    invoice_id: str
+    tenant_id: str
+    payment_status: str
+    payment_date: datetime
+    verified_by_user_id: Optional[str] = None
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class BillingInvoiceBase(BaseModel):
+    invoice_number: str
+    period_key: str
+    billing_period_start: datetime
+    billing_period_end: datetime
+    issue_date: datetime
+    due_date: datetime
+    currency: str = "INR"
+    subscription_amount: float
+    overage_amount: float
+    compute_amount: float
+    subtotal_amount: float
+    tax_percent: float = 18.00
+    tax_amount: float
+    adjustments_amount: float = 0.00
+    total_amount: float
+    status: str
+    pdf_storage_path: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class BillingInvoiceResponse(BillingInvoiceBase):
+    id: str
+    tenant_id: str
+    subscription_id: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class BillingInvoiceDetailResponse(BillingInvoiceResponse):
+    line_items: List[InvoiceLineItemResponse] = []
+    payments: List[PaymentRecordResponse] = []
+
+
+class InvoiceGenerateRequest(BaseModel):
+    tenant_id: Optional[str] = None
+    period_key: Optional[str] = None  # Defaults to current YYYY-MM
+    notes: Optional[str] = None
+
+

@@ -15,7 +15,7 @@
 | **Phase 2** | **Pipeline Usage Metering & Immutable Ledger Engine** | `a926496` | **Completed** | 6 / 6 Passed (12/12 Billing Total) | 2026-11-09 |
 | **Phase 3** | **Rating & Usage Aggregation Engine** | `18fc461` | **Completed** | 4 / 4 Passed (16/16 Billing Total) | 2026-11-09 |
 | **Phase 4** | **Billing Dashboard & Cost Management UI** | `95557ee` | **Completed** | 16 / 16 Billing + Frontend Build Verified | 2026-11-09 |
-| **Phase 5** | **Automated Invoicing, Tax & Payment Ledger Engine** | `—` | *Awaiting Gate 4* | — | — |
+| **Phase 5** | **Automated Invoicing, Tax & Payment Ledger Engine** | `PENDING_COMMIT` | **Completed** | 5 / 5 Passed (21/21 Billing Total) | 2026-11-09 |
 | **Phase 6** | **Interactive Cost Estimator & Plan Comparison Calculator** | `—` | *Awaiting Gate 5* | — | — |
 | **Phase 7** | **Budget Management, Threshold Alerts & Notification System** | `—` | *Awaiting Gate 6* | — | — |
 | **Phase 8** | **Administrative Pricing, Discounts & Auditing Console** | `—` | *Awaiting Gate 7* | — | — |
@@ -84,4 +84,18 @@
 - [x] Implement client-side pagination (15 items/page) with entry counters and previous/next page navigation controls.
 - [x] Implement browser export capabilities: CSV export for Usage Ledger and formatted JSON export for Consumption Summary.
 - [x] Verify complete frontend build (`tsc && vite build`) with zero compiler errors.
+
+---
+
+## 7. Phase 5 Implementation Checklist
+- [x] Create `BillingInvoice`, `InvoiceLineItem`, and `PaymentRecord` entities in `backend/app/models/billing.py`.
+- [x] Implement `InvoiceService` with monthly invoice generator, 18.00% GST tax calculation, itemized line items, and allowance reconciliation.
+- [x] Enforce idempotent monthly invoice generation preventing duplicate statements.
+- [x] Build pure standard library ISO 32000-1 PDF statement generator (`PDFInvoiceGenerator`) with zero unapproved third-party dependencies.
+- [x] Implement extensible `BasePaymentGateway` with `OfflineBankTransferAdapter` recording verified wire transfers / POs with tamper-evident audit logs.
+- [x] Expose REST APIs: `GET /api/v1/billing/invoices`, `POST /api/v1/billing/invoices/generate`, `GET /api/v1/billing/invoices/{id}`, `GET /api/v1/billing/invoices/{id}/download`, `POST /api/v1/billing/invoices/{id}/payments`.
+- [x] Implement interactive Invoices & Statements tab in `BillingPage.tsx` with live invoice table, PDF download, invoice details drawer, and payment recording modal.
+- [x] Add automated test suite `test_invoicing_service.py` (5/5 passed).
+- [x] Full regression test run: 426 passed, 3 skipped, 0 failures.
+- [x] Frontend production build: 0 TypeScript errors (6.83s).
 

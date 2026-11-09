@@ -631,4 +631,58 @@ export interface ConsumptionSummary {
   daily_consumption: DailyConsumptionItem[];
 }
 
+export interface InvoiceLineItem {
+  id: string;
+  invoice_id: string;
+  item_type: string;
+  description: string;
+  quantity: number;
+  unit_price: number;
+  amount: number;
+  created_at: string;
+}
+
+export interface PaymentRecord {
+  id: string;
+  invoice_id: string;
+  tenant_id: string;
+  payment_reference: string;
+  payment_method: string;
+  amount: number;
+  currency: string;
+  payment_status: 'Completed' | 'Pending' | 'Failed' | 'Refunded';
+  payment_date: string;
+  verified_by_user_id?: string;
+  notes?: string;
+  created_at: string;
+}
+
+export interface BillingInvoice {
+  id: string;
+  tenant_id: string;
+  subscription_id?: string;
+  invoice_number: string;
+  period_key: string;
+  billing_period_start: string;
+  billing_period_end: string;
+  issue_date: string;
+  due_date: string;
+  currency: string;
+  subscription_amount: number;
+  overage_amount: number;
+  compute_amount: number;
+  subtotal_amount: number;
+  tax_percent: number;
+  tax_amount: number;
+  adjustments_amount: number;
+  total_amount: number;
+  status: 'Draft' | 'Issued' | 'Paid' | 'PastDue' | 'Void';
+  pdf_storage_path?: string;
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+  line_items?: InvoiceLineItem[];
+  payments?: PaymentRecord[];
+}
+
 

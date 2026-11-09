@@ -163,7 +163,14 @@ class BillingService:
 
     @staticmethod
     def get_or_create_default_tenant(db: Session, workspace_id: Optional[str] = None) -> Tenant:
-        """Retrieves or provisions the primary corporate tenant."""
+        """Retrieves or provisions the primary corporate tenant or workspace's bound tenant."""
+        if workspace_id:
+            ws = db.query(Workspace).filter(Workspace.id == workspace_id).first()
+            if ws and getattr(ws, "tenant_id", None):
+                ws_tenant = db.query(Tenant).filter(Tenant.id == ws.tenant_id).first()
+                if ws_tenant:
+                    return ws_tenant
+
         tenant = db.query(Tenant).filter(Tenant.name == "Default Enterprise Organization").first()
         if not tenant:
             tenant = Tenant(
