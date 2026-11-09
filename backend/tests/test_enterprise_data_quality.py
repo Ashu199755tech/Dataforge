@@ -367,3 +367,283 @@ def test_data_quality_activity_pipeline_execution_with_quarantine(setup_dq_db):
 
     finally:
         db.close()
+
+
+def test_custom_sql_conditions_and_queries():
+    df = pl.DataFrame({
+        "order_id": [101, 102, 103, 104],
+        "subtotal": [100.0, 50.0, 200.0, 75.0],
+        "discount": [10.0, 60.0, 20.0, 90.0]  # rows 1 and 3 violate discount <= subtotal
+    })
+
+    # 1. SQL Condition check: discount <= subtotal
+    rules_cond = [
+        {
+            "rule_name": "Discount Cannot Exceed Subtotal",
+            "rule_type": "CustomSqlCheck",
+            "sql_condition": "discount <= subtotal",
+            "threshold_percent": 100.0
+        }
+    ]
+    res_cond = DataQualityEngine.evaluate_rules(df, rules_cond)
+    assert res_cond["overall_status"] == "Failed"
+    assert res_cond["quarantine_count"] == 2
+    assert res_cond["composite_dq_score"] == 50.0  # 2 of 4 passed -> 50%
+    assert res_cond["rule_results"][0]["failed_records_count"] == 2
+
+    # 2. Violation WHERE clause: discount > subtotal
+    rules_where = [
+        {
+            "rule_name": "Excessive Discount Filter",
+            "rule_type": "CustomSqlCheck",
+            "where_clause": "discount > subtotal",
+            "threshold_percent": 100.0
+        }
+    ]
+    res_where = DataQualityEngine.evaluate_rules(df, rules_where)
+    assert res_where["overall_status"] == "Failed"
+    assert res_where["quarantine_count"] == 2
+    assert res_where["composite_dq_score"] == 50.0
+
+    # 3. Full SELECT query returning violating rows
+    rules_query = [
+        {
+            "rule_name": "Select Violating Discount Orders",
+            "rule_type": "CustomSqlCheck",
+            "sql_query": "SELECT * FROM dataset WHERE discount > subtotal",
+            "threshold_percent": 100.0
+        }
+    ]
+    res_query = DataQualityEngine.evaluate_rules(df, rules_query)
+    assert res_query["overall_status"] == "Failed"
+    assert res_query["quarantine_count"] == 2
+    assert len(res_query["quarantine_records"]) == 2
+
+    # 4. Valid condition where 100% pass
+    rules_valid = [
+        {
+            "rule_name": "Subtotal Is Positive",
+            "rule_type": "CustomSqlCheck",
+            "sql_condition": "subtotal > 0",
+            "threshold_percent": 100.0
+        }
+    ]
+    res_valid = DataQualityEngine.evaluate_rules(df, rules_valid)
+    assert res_valid["overall_status"] == "Passed"
+    assert res_valid["composite_dq_score"] == 100.0
+    assert res_valid["quarantine_count"] == 0
+
+
+def test_custom_sql_reference_join():
+    orders_df = pl.DataFrame({
+        "order_id": [1, 2, 3],
+        "customer_id": [10, 20, 30],
+        "amount": [150.0, 75.0, 300.0]
+    })
+    customers_df = pl.DataFrame({
+        "id": [10, 20, 30],
+        "status": ["ACTIVE", "SUSPENDED", "ACTIVE"]  # customer 20 is suspended
+    })
+
+    # Join dataset with reference table and find orders placed by non-active customers
+    join_rule = [
+        {
+            "rule_name": "Orders Only By Active Customers",
+            "rule_type": "CustomSqlCheck",
+            "sql_query": "SELECT dataset.__df_row_idx__ FROM dataset JOIN reference ON dataset.customer_id = reference.id WHERE reference.status = 'SUSPENDED'",
+            "threshold_percent": 100.0
+        }
+    ]
+    res = DataQualityEngine.evaluate_rules(orders_df, join_rule, ref_df=customers_df)
+    assert res["overall_status"] == "Failed"
+    assert res["quarantine_count"] == 1
+    assert res["quarantine_records"][0]["customer_id"] == 20
+
+
+def test_custom_sql_security_guard_disallows_ddl():
+    df = pl.DataFrame({"id": [1, 2], "val": [10, 20]})
+    ddl_rules = [
+        {
+            "rule_name": "Malicious DDL Injection",
+            "rule_type": "CustomSqlCheck",
+            "sql_query": "DROP TABLE dataset",
+            "threshold_percent": 100.0
+        }
+    ]
+    res = DataQualityEngine.evaluate_rules(df, ddl_rules)
+    assert res["overall_status"] == "Failed"
+    assert "Disallowed SQL statement detected" in res["rule_results"][0]["error_message"]
+
+
+def test_manual_rulebook_evaluation_json_and_yaml():
+    import json
+    import yaml
+
+    df = pl.DataFrame({
+        "sku": ["A100", "B200", "C300"],
+        "cost": [10.0, 25.0, 40.0],
+        "retail_price": [15.0, 20.0, 60.0]  # row 1 violates retail_price >= cost * 1.2
+    })
+
+    # 1. JSON rulebook file
+    with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as f_json:
+        json_path = f_json.name
+        json.dump({
+            "dataset_name": "product_pricing",
+            "min_score_threshold": 90.0,
+            "rules": [
+                {
+                    "rule_name": "Non-null SKU",
+                    "rule_type": "MandatoryFieldCheck",
+                    "columns": ["sku"]
+                },
+                {
+                    "rule_name": "Minimum Margin Assertion",
+                    "rule_type": "CustomSqlCheck",
+                    "sql_condition": "retail_price >= cost * 1.2"
+                }
+            ]
+        }, f_json)
+
+    # 2. YAML rulebook file
+    with tempfile.NamedTemporaryFile("w", suffix=".yaml", delete=False) as f_yaml:
+        yaml_path = f_yaml.name
+        yaml.dump({
+            "dataset_name": "product_pricing_yaml",
+            "min_score_threshold": 50.0,
+            "rules": [
+                {
+                    "rule_name": "Positive Cost Check",
+                    "rule_type": "CustomSqlCheck",
+                    "sql_condition": "cost > 0"
+                }
+            ]
+        }, f_yaml)
+
+    try:
+        # Evaluate JSON rulebook
+        res_json = DataQualityEngine.evaluate_rulebook(df, json_path)
+        assert res_json["rules_evaluated"] == 2
+        # Minimum margin rule failed (1 of 3 failed -> 66.67% on rule 2, 100% on rule 1 -> composite 83.33% < 90%)
+        assert res_json["overall_status"] == "Failed"
+
+        # Evaluate YAML rulebook
+        res_yaml = DataQualityEngine.evaluate_rulebook(df, yaml_path)
+        assert res_yaml["rules_evaluated"] == 1
+        assert res_yaml["overall_status"] == "Passed"
+        assert res_yaml["composite_dq_score"] == 100.0
+
+    finally:
+        if os.path.exists(json_path):
+            os.remove(json_path)
+        if os.path.exists(yaml_path):
+            os.remove(yaml_path)
+
+
+def test_data_quality_activity_with_rulebook_file(setup_dq_db):
+    import json
+    db = SessionLocal()
+    try:
+        pipe = db.query(Pipeline).first()
+        if not pipe:
+            pipe = Pipeline(
+                project_id=setup_dq_db["project_id"],
+                name="DQ Rulebook Pipeline",
+                activities=[]
+            )
+            db.add(pipe)
+            db.commit()
+            db.refresh(pipe)
+
+        run = db.query(PipelineRun).filter(PipelineRun.id == "run_dq_rulebook_test").first()
+        if not run:
+            run = PipelineRun(id="run_dq_rulebook_test", pipeline_id=pipe.id, status="Running")
+            db.add(run)
+            db.commit()
+
+        # Create dataset CSV
+        with tempfile.NamedTemporaryFile("w", suffix=".csv", delete=False) as f_csv:
+            csv_path = f_csv.name
+            f_csv.write("item_id,price,tax\n1,100,10\n2,50,60\n3,30,3\n")
+
+        # Create rulebook JSON
+        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as f_rulebook:
+            rulebook_path = f_rulebook.name
+            json.dump({
+                "dataset_name": "invoice_items",
+                "min_score_threshold": 90.0,
+                "rules": [
+                    {
+                        "rule_name": "Tax Cannot Exceed Price",
+                        "rule_type": "CustomSqlCheck",
+                        "sql_condition": "tax <= price"
+                    }
+                ]
+            }, f_rulebook)
+
+        ctx = ActivityExecutionContext(
+            pipeline_run_id="run_dq_rulebook_test",
+            activity_id="act_rulebook_exec",
+            activity_name="Rulebook Test Activity",
+            activity_type="DataQualityCheck",
+            config={
+                "file_path": csv_path,
+                "rulebook_path": rulebook_path,
+                "fail_pipeline_on_error": True
+            }
+        )
+        act = DataQualityActivity(ctx, db)
+        res = act.execute()
+        # Item 2 has tax 60 > price 50, so rule fails and composite score is 66.67% < 90% threshold
+        assert res.status == "Failed"
+        assert "Data Quality threshold failed" in res.error_message
+        assert res.outputs["quarantine_count"] == 1
+        assert res.outputs["rules_failed"] == 1
+
+    finally:
+        if os.path.exists(csv_path):
+            os.remove(csv_path)
+        if os.path.exists(rulebook_path):
+            os.remove(rulebook_path)
+        db.close()
+
+
+def test_data_quality_api_validate_with_custom_sql_and_catalog():
+    from fastapi.testclient import TestClient
+    from backend.app.main import app
+
+    client = TestClient(app)
+
+    # 1. Verify rules-catalog includes CustomSqlCheck
+    cat_res = client.get("/api/v1/data-quality/rules-catalog")
+    assert cat_res.status_code == 200
+    rule_types = [r["rule_type"] for r in cat_res.json()]
+    assert "CustomSqlCheck" in rule_types
+
+    # 2. Test validate endpoint with custom SQL rule
+    with tempfile.NamedTemporaryFile("w", suffix=".csv", delete=False) as f:
+        f.write("id,gross,net\n1,100,90\n2,50,60\n")
+        temp_csv = f.name
+
+    try:
+        val_res = client.post("/api/v1/data-quality/validate", json={
+            "file_path": temp_csv,
+            "min_score_threshold": 90.0,
+            "rules": [
+                {
+                    "rule_name": "Net Cannot Exceed Gross",
+                    "rule_type": "CustomSqlCheck",
+                    "sql_condition": "net <= gross"
+                }
+            ]
+        })
+        assert val_res.status_code == 200
+        val_data = val_res.json()
+        assert val_data["overall_status"] == "Failed"
+        assert val_data["composite_dq_score"] == 50.0
+        assert val_data["quarantine_count"] == 1
+        assert val_data["quarantine_records"][0]["id"] == 2
+
+    finally:
+        if os.path.exists(temp_csv):
+            os.remove(temp_csv)

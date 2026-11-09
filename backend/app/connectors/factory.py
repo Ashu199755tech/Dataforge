@@ -20,6 +20,9 @@ def get_connector(connector_type: str, config: Dict[str, Any]) -> BaseConnector:
         return MySQLConnector(config)
     elif ctype in ("sqlite", "sqlite3"):
         return SQLiteConnector(config)
+    elif ctype in ("snowflake", "sf", "snowflake_db"):
+        from backend.app.connectors.snowflake import SnowflakeConnector
+        return SnowflakeConnector(config)
     elif ctype in ("file", "local_file", "filesystem", "csv", "json"):
         return LocalFileConnector(config)
     elif ctype in ("local_storage",):
@@ -29,6 +32,6 @@ def get_connector(connector_type: str, config: Dict[str, Any]) -> BaseConnector:
     else:
         raise ValueError(
             f"Unsupported connector type: '{connector_type}'. "
-            f"Supported: postgres, mysql, sqlite, local_file, local_storage, azure_blob, azure_adls, aws_s3, gcp_storage"
+            f"Supported: postgres, mysql, sqlite, snowflake, local_file, local_storage, azure_blob, azure_adls, aws_s3, gcp_storage"
         )
 

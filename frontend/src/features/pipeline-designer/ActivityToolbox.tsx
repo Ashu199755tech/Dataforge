@@ -30,7 +30,8 @@ import {
   Archive,
   BarChart3,
   Scale,
-  ShieldAlert
+  ShieldAlert,
+  Boxes
 } from 'lucide-react';
 import api from '../../api/client';
 
@@ -86,6 +87,7 @@ const DEFAULT_ACTIVITIES = [
       { type: 'StoredProcedure', label: 'Stored Procedure', icon: DatabaseZap, color: 'text-purple-400', desc: 'Execute database routine or function' },
       { type: 'CustomActivity', label: 'Custom Activity', icon: Cpu, color: 'text-amber-400', desc: 'Execute custom command/binary' },
       { type: 'DatabricksNotebook', label: 'Databricks Notebook', icon: CloudLightning, color: 'text-orange-400', desc: 'Run Databricks notebook job' },
+      { type: 'Dbt', label: 'dbt Transformation', icon: Boxes, color: 'text-orange-500', desc: 'Run dbt Core models or dbt Cloud jobs' },
       { type: 'PySparkJob', label: 'PySpark Job', icon: Flame, color: 'text-rose-400', desc: 'Submit Apache Spark / PySpark job' },
       { type: 'WebActivity', label: 'Web Activity', icon: Globe, color: 'text-sky-400', desc: 'Send HTTP request & capture response' },
       { type: 'Webhook', label: 'Webhook', icon: Send, color: 'text-teal-400', desc: 'Call endpoint with async callback URL' },

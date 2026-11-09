@@ -38,6 +38,7 @@ import {
   BarChart3,
   Scale,
   ShieldAlert,
+  Boxes,
   Plus,
   Maximize2,
   Minimize2
@@ -1192,6 +1193,181 @@ export const ActivityConfigDrawer: React.FC<ConfigDrawerProps> = ({
               </div>
             )}
 
+            {/* DBT TRANSFORMATION */}
+            {(activityType === 'Dbt' || activityType === 'dbt' || activityType === 'DbtActivity') && (
+              <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-lg space-y-3">
+                <div className="flex items-center justify-between text-slate-300 font-semibold text-[11px] uppercase tracking-wider">
+                  <span>dbt Transformation (Core / Cloud)</span>
+                  <Boxes className="h-3.5 w-3.5 text-orange-500" />
+                </div>
+
+                {/* Mode Selector */}
+                <div className="flex rounded bg-slate-900 p-0.5 border border-slate-800 text-[10px]">
+                  <button
+                    type="button"
+                    onClick={() => updateConfig({ mode: 'core' })}
+                    className={`flex-1 py-1 rounded transition font-medium ${
+                      (config.mode || 'core') === 'core'
+                        ? 'bg-orange-500/20 text-orange-300 border border-orange-500/30'
+                        : 'text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    dbt Core (CLI)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => updateConfig({ mode: 'cloud' })}
+                    className={`flex-1 py-1 rounded transition font-medium ${
+                      config.mode === 'cloud'
+                        ? 'bg-orange-500/20 text-orange-300 border border-orange-500/30'
+                        : 'text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    dbt Cloud (API)
+                  </button>
+                </div>
+
+                {(config.mode || 'core') === 'core' ? (
+                  <div className="space-y-2.5">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-slate-400 mb-1 text-[11px]">dbt Command</label>
+                        <select
+                          value={config.command || 'run'}
+                          onChange={(e) => updateConfig({ command: e.target.value })}
+                          className="w-full bg-slate-900 border border-slate-700/80 rounded px-2 py-1 text-slate-200 text-[11px]"
+                        >
+                          <option value="run">dbt run</option>
+                          <option value="test">dbt test</option>
+                          <option value="build">dbt build</option>
+                          <option value="seed">dbt seed</option>
+                          <option value="snapshot">dbt snapshot</option>
+                          <option value="compile">dbt compile</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-slate-400 mb-1 text-[11px]">Target Profile</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. prod, snowflake"
+                          value={config.target || ''}
+                          onChange={(e) => updateConfig({ target: e.target.value })}
+                          className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono text-[11px]"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-slate-400 text-[11px]">Project Directory</label>
+                        <DynamicContentTrigger
+                          fieldName="project_dir"
+                          value={config.project_dir || ''}
+                          onApply={(val) => updateConfig({ project_dir: val })}
+                        />
+                      </div>
+                      <input
+                        type="text"
+                        placeholder="./dbt_project"
+                        value={config.project_dir || ''}
+                        onChange={(e) => updateConfig({ project_dir: e.target.value })}
+                        className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono text-[11px]"
+                      />
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-slate-400 text-[11px]">Model Selector (--select)</label>
+                        <DynamicContentTrigger
+                          fieldName="select"
+                          value={config.select || ''}
+                          onApply={(val) => updateConfig({ select: val })}
+                        />
+                      </div>
+                      <input
+                        type="text"
+                        placeholder="e.g. tag:daily, my_model+"
+                        value={config.select || ''}
+                        onChange={(e) => updateConfig({ select: e.target.value })}
+                        className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono text-[11px]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-slate-400 mb-1 text-[11px]">Profiles Dir (Optional)</label>
+                      <input
+                        type="text"
+                        placeholder="~/.dbt"
+                        value={config.profiles_dir || ''}
+                        onChange={(e) => updateConfig({ profiles_dir: e.target.value })}
+                        className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono text-[11px]"
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-2.5">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-slate-400 mb-1 text-[11px]">Account ID</label>
+                        <input
+                          type="text"
+                          placeholder="12345"
+                          value={config.account_id || ''}
+                          onChange={(e) => updateConfig({ account_id: e.target.value })}
+                          className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono text-[11px]"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-slate-400 mb-1 text-[11px]">Job ID</label>
+                        <input
+                          type="text"
+                          placeholder="67890"
+                          value={config.job_id || ''}
+                          onChange={(e) => updateConfig({ job_id: e.target.value })}
+                          className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono text-[11px]"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-slate-400 mb-1 text-[11px]">dbt Cloud API Token</label>
+                      <input
+                        type="password"
+                        placeholder="dbtc_..."
+                        value={config.api_token || ''}
+                        onChange={(e) => updateConfig({ api_token: e.target.value })}
+                        className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono text-[11px]"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-slate-400 mb-1 text-[11px]">Git Branch (Optional)</label>
+                        <input
+                          type="text"
+                          placeholder="main"
+                          value={config.git_branch || ''}
+                          onChange={(e) => updateConfig({ git_branch: e.target.value })}
+                          className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono text-[11px]"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-slate-400 mb-1 text-[11px]">Poll Interval (s)</label>
+                        <input
+                          type="number"
+                          min={5}
+                          max={60}
+                          value={config.poll_interval_seconds || 10}
+                          onChange={(e) => updateConfig({ poll_interval_seconds: parseInt(e.target.value) || 10 })}
+                          className="w-full bg-slate-900 border border-slate-700/80 rounded px-2 py-1 text-slate-200 text-[11px]"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* WEB ACTIVITY */}
             {activityType === 'WebActivity' && (
               <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-lg space-y-2.5">
@@ -1672,6 +1848,24 @@ export const ActivityConfigDrawer: React.FC<ConfigDrawerProps> = ({
                   </div>
                 </div>
 
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-slate-400 text-[11px]">Rulebook File Path (Optional JSON/YAML)</label>
+                    <DynamicContentTrigger
+                      fieldName="rulebook_path"
+                      value={config.rulebook_path || ''}
+                      onApply={(val) => updateConfig({ rulebook_path: val })}
+                    />
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="/data/rules/orders_rulebook.yaml"
+                    value={config.rulebook_path || ''}
+                    onChange={(e) => updateConfig({ rulebook_path: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-700/80 rounded px-2 py-1 text-slate-200 font-mono text-[11px]"
+                  />
+                </div>
+
                 {/* Rules List */}
                 <div className="pt-2 border-t border-slate-800">
                   <div className="flex items-center justify-between mb-2">
@@ -1726,6 +1920,7 @@ export const ActivityConfigDrawer: React.FC<ConfigDrawerProps> = ({
                             <option value="SchemaDriftDetection">Schema Drift Detection</option>
                             <option value="RowCountValidation">Row Count Check</option>
                             <option value="PIIDetection">PII Detection</option>
+                            <option value="CustomSqlCheck">Custom SQL Query / Rule</option>
                           </select>
                           <select
                             value={r.severity || 'Error'}
@@ -1776,6 +1971,32 @@ export const ActivityConfigDrawer: React.FC<ConfigDrawerProps> = ({
                             className="bg-slate-950 border border-slate-700 rounded px-1.5 py-0.5 text-slate-200 text-[10px]"
                           />
                         </div>
+                        {r.rule_type === 'CustomSqlCheck' && (
+                          <div className="space-y-1 pt-1">
+                            <input
+                              type="text"
+                              placeholder="SQL Condition (e.g. amount >= 0 AND tax < amount)"
+                              value={r.sql_condition || ''}
+                              onChange={(e) => {
+                                const updated = [...(config.rules || [])];
+                                updated[rIdx] = { ...updated[rIdx], sql_condition: e.target.value };
+                                updateConfig({ rules: updated });
+                              }}
+                              className="w-full bg-slate-950 border border-purple-500/40 rounded px-1.5 py-1 text-purple-300 text-[10px] font-mono placeholder:text-slate-600"
+                            />
+                            <input
+                              type="text"
+                              placeholder="Or full query (e.g. SELECT * FROM df WHERE amount < 0)"
+                              value={r.sql_query || ''}
+                              onChange={(e) => {
+                                const updated = [...(config.rules || [])];
+                                updated[rIdx] = { ...updated[rIdx], sql_query: e.target.value };
+                                updateConfig({ rules: updated });
+                              }}
+                              className="w-full bg-slate-950 border border-slate-700 rounded px-1.5 py-1 text-slate-300 text-[10px] font-mono placeholder:text-slate-600"
+                            />
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>

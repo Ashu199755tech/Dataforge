@@ -33,6 +33,7 @@ from backend.app.activities.file_operation import FileOperationActivity
 from backend.app.activities.archive import ArchiveActivity
 from backend.app.activities.data_flow import ExecuteDataFlowActivity
 from backend.app.activities.pipeline_return_value import PipelineReturnValueActivity
+from backend.app.activities.dbt import DbtActivity
 
 
 def _register_builtin_activities():
@@ -984,6 +985,41 @@ def _register_builtin_activities():
         ),
         PipelineReturnValueActivity,
         aliases=["pipeline_return_value", "return_value", "set_return_value"]
+    )
+
+    # 33. dbt (Data Build Tool)
+    activity_registry.register(
+        ActivityMetadata(
+            activity_type="Dbt",
+            display_name="dbt Transformation",
+            category="Compute & External",
+            description="Orchestrates dbt Core CLI models or dbt Cloud jobs with model selection and parameterization.",
+            version="1.0.0",
+            icon="Boxes",
+            config_schema={
+                "type": "object",
+                "properties": {
+                    "mode": {"type": "string", "enum": ["core", "cloud"], "default": "core"},
+                    "command": {"type": "string", "default": "run"},
+                    "select": {"type": "string"},
+                    "project_dir": {"type": "string"},
+                    "target": {"type": "string"},
+                    "account_id": {"type": "string"},
+                    "job_id": {"type": "string"}
+                }
+            },
+            outputs=[
+                {"name": "status", "type": "string"},
+                {"name": "models_run", "type": "int"},
+                {"name": "models_passed", "type": "int"},
+                {"name": "models_failed", "type": "int"},
+                {"name": "duration_seconds", "type": "float"}
+            ],
+            supports_retry=True,
+            tags=["dbt", "Transformation", "DataOps", "ELT", "Compute"]
+        ),
+        DbtActivity,
+        aliases=["dbt", "dbt_activity", "dbt_run", "dbt_cloud", "DbtActivity"]
     )
 
 

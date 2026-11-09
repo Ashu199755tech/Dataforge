@@ -40,3 +40,14 @@
 21. **[ADR 021: Multi-Factor Intelligent Execution Planner](file:///home/fifity-five/projects/Dataforge/EXECUTION_ENGINE_TECHNICAL_DECISIONS.md#L92)**: Cost-model optimizer evaluating volume, complexity, affinity, and resources with manual override support.
 22. **[ADR 022: Partition-Level Checkpoint Resumption](file:///home/fifity-five/projects/Dataforge/EXECUTION_ENGINE_TECHNICAL_DECISIONS.md#L106)**: Resumable execution skipping completed partition slices upon failure recovery.
 23. **[ADR 023: OpenTelemetry & Prometheus Semantic Conventions](file:///home/fifity-five/projects/Dataforge/EXECUTION_ENGINE_TECHNICAL_DECISIONS.md#L120)**: Unified observability integrating engine badges, pushdown query viewers, and stage telemetry into UI.
+
+---
+
+### Section III: Modern Data Stack & Ecosystem Expansion (ADR 024 – ADR 025)
+
+24. **ADR 024: SQL-Context Vectorized Data Quality & Declarative Rulebook Evaluation**:
+    - **Context:** Enterprise users required evaluating custom multi-column SQL predicates and running declarative YAML/JSON data quality rulebooks against any dataset.
+    - **Decision:** Integrated Polars in-memory `SQLContext` with AST mutation sanitization (`DISALLOWED_SQL_REGEX` blocking `DROP`, `DELETE`, `ALTER`, etc.). Added `CustomSqlCheck` supporting both column expressions (`sql_condition`) and full `SELECT` statements (`sql_query`), along with automated YAML/JSON rulebook loading (`evaluate_rulebook`).
+25. **ADR 025: Snowflake SQL REST v2 Connector & Enterprise dbt Orchestration**:
+    - **Context:** Modern data stack integration necessitated direct Snowflake virtual warehouse connectivity without fragile binary driver compilation, and dual-mode dbt transformation support (dbt Core CLI + dbt Cloud API).
+    - **Decision:** Created dedicated `SnowflakeConnector` supporting streaming chunked reads, append/overwrite/merge writes, metadata auto-discovery, and mock verification via official Snowflake SQL REST API v2. Created dedicated `DbtActivity` supporting sandboxed local CLI subprocess execution with regex log telemetry extraction and dbt Cloud REST API v2 triggering and polling.

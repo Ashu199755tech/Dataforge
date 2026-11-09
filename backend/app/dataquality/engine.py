@@ -19,6 +19,12 @@ class DataQualityEngine:
     CREDIT_CARD_REGEX = re.compile(r"^(?:4[0-9]{12}(?:[0-9]{3})?|5[1-5][0-9]{14}|3[47][0-9]{13}|6(?:011|5[0-9]{2})[0-9]{12})$")
     IPV4_REGEX = re.compile(r"^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$")
 
+    # Disallowed DDL/DML patterns to guarantee read-only query safety
+    DISALLOWED_SQL_REGEX = re.compile(
+        r"\b(DROP|DELETE|ALTER|TRUNCATE|INSERT|UPDATE|GRANT|REVOKE|EXEC|EXECUTE|ATTACH|DETACH)\b",
+        re.IGNORECASE
+    )
+
     @classmethod
     def evaluate_rules(
         cls,
@@ -62,7 +68,17 @@ class DataQualityEngine:
             "rowcount": "RowCountValidation",
             "rowcountvalidation": "RowCountValidation",
             "pii": "PIIDetection",
-            "piidetection": "PIIDetection"
+            "piidetection": "PIIDetection",
+            "customsql": "CustomSqlCheck",
+            "customsqlcheck": "CustomSqlCheck",
+            "sql": "CustomSqlCheck",
+            "sqlcheck": "CustomSqlCheck",
+            "sqlquery": "CustomSqlCheck",
+            "sqlquerycheck": "CustomSqlCheck",
+            "customquery": "CustomSqlCheck",
+            "customsqlquery": "CustomSqlCheck",
+            "sqlcondition": "CustomSqlCheck",
+            "customsqlexpression": "CustomSqlCheck"
         }
 
         for r_idx, rule in enumerate(rules):
@@ -76,6 +92,7 @@ class DataQualityEngine:
 
             failed_indices = set()
             error_message = None
+            custom_sample_records = None
 
             # 1. Mandatory Field Check
             if rule_type == "MandatoryFieldCheck":
@@ -225,6 +242,89 @@ class DataQualityEngine:
                                ("credit_card" in pii_types and cls.CREDIT_CARD_REGEX.match(val_str)):
                                 failed_indices.add(idx)
 
+            # 14. Custom SQL Business Rule Check
+            elif rule_type in ("CustomSqlCheck", "SqlQueryCheck", "CustomSqlExpression"):
+                sql_query = rule.get("sql_query") or rule.get("query") or params.get("sql_query") or params.get("query")
+                sql_condition = rule.get("sql_condition") or rule.get("condition") or params.get("sql_condition") or params.get("condition")
+                where_clause = rule.get("where_clause") or params.get("where_clause") or rule.get("filter") or params.get("filter")
+
+                if not (sql_query or sql_condition or where_clause):
+                    error_message = "CustomSqlCheck requires 'sql_query', 'sql_condition', or 'where_clause'"
+                    failed_indices = set(range(total_rows))
+                else:
+                    raw_sql = str(sql_query or sql_condition or where_clause)
+                    if cls.DISALLOWED_SQL_REGEX.search(raw_sql):
+                        error_message = "Disallowed SQL statement detected: only read-only SELECT queries and conditions are permitted in Data Quality rules"
+                        failed_indices = set(range(total_rows))
+                    else:
+                        try:
+                            df_idx = df.with_row_index("__df_row_idx__")
+                            ctx = pl.SQLContext()
+                            target_alias = rule.get("table_name") or params.get("table_name") or "dataset"
+                            ctx.register(target_alias, df_idx)
+                            ctx.register("dataset", df_idx)
+                            ctx.register("df", df_idx)
+                            ctx.register("source", df_idx)
+
+                            if ref_df is not None:
+                                ref_alias = rule.get("reference_table_name") or params.get("reference_table_name") or "reference"
+                                ref_idx = ref_df.with_row_index("__ref_row_idx__")
+                                ctx.register(ref_alias, ref_idx)
+                                ctx.register("reference", ref_idx)
+                                ctx.register("ref_df", ref_idx)
+                                ctx.register("ref_dataset", ref_idx)
+
+                            if sql_condition:
+                                # Records where condition is NOT true violate the rule
+                                cond_query = f"SELECT __df_row_idx__ FROM {target_alias} WHERE NOT ({sql_condition})"
+                                q_res = ctx.execute(cond_query).collect()
+                                failed_indices = set(q_res["__df_row_idx__"].to_list())
+                            elif where_clause:
+                                # Records matching where_clause are violating rows
+                                wc_query = f"SELECT __df_row_idx__ FROM {target_alias} WHERE {where_clause}"
+                                q_res = ctx.execute(wc_query).collect()
+                                failed_indices = set(q_res["__df_row_idx__"].to_list())
+                            elif sql_query:
+                                trimmed_query = sql_query.strip()
+                                if not (trimmed_query.upper().startswith("SELECT") or trimmed_query.upper().startswith("WITH")):
+                                    error_message = "Custom SQL query must begin with SELECT or WITH"
+                                    failed_indices = set(range(total_rows))
+                                else:
+                                    q_res = ctx.execute(trimmed_query).collect()
+                                    if "__df_row_idx__" in q_res.columns:
+                                        failed_indices = set(q_res["__df_row_idx__"].to_list())
+                                    elif len(q_res) == 1 and len(q_res.columns) == 1:
+                                        val = q_res[0, 0]
+                                        if isinstance(val, bool):
+                                            if not val:
+                                                failed_indices = set(range(total_rows))
+                                        elif isinstance(val, (int, float)):
+                                            val_num = int(val)
+                                            if val_num > 0:
+                                                failed_indices = set(range(min(val_num, total_rows or 1)))
+                                        else:
+                                            if not val:
+                                                failed_indices = set(range(total_rows))
+                                    else:
+                                        # Query returned violating rows
+                                        num_failing = len(q_res)
+                                        if num_failing > 0:
+                                            # Match by key if possible
+                                            matched_indices = set()
+                                            if column and column in q_res.columns and column in df.columns:
+                                                failing_keys = set(q_res[column].drop_nulls().to_list())
+                                                for idx, row_val in enumerate(df[column].to_list()):
+                                                    if row_val in failing_keys:
+                                                        matched_indices.add(idx)
+                                            if matched_indices:
+                                                failed_indices = matched_indices
+                                            else:
+                                                failed_indices = set(range(min(num_failing, total_rows or 1)))
+                                            custom_sample_records = q_res.drop("__df_row_idx__", strict=False).head(10).to_dicts()
+                        except Exception as ex:
+                            error_message = f"SQL execution error in CustomSqlCheck: {str(ex)}"
+                            failed_indices = set(range(total_rows))
+
             else:
                 error_message = f"Unsupported rule type: {rule_type}"
 
@@ -241,13 +341,16 @@ class DataQualityEngine:
             # Extract sample failed records
             sample_failed_records = []
             if failed_indices:
-                sample_indices = sorted(list(failed_indices))[:10]
-                sample_failed_records = df[sample_indices].to_dicts()
+                if custom_sample_records:
+                    sample_failed_records = custom_sample_records
+                else:
+                    sample_indices = sorted(list(failed_indices))[:10]
+                    sample_failed_records = df[sample_indices].to_dicts()
 
             rule_results.append({
-                "rule_name": rule.get("rule_name", f"{rule_type} on {column or 'dataset'}"),
+                "rule_name": rule.get("rule_name") or rule.get("name") or f"{rule_type} on {column or rule.get('sql_condition') or 'query'}",
                 "rule_type": rule_type,
-                "column": column,
+                "column": column or rule.get("sql_condition") or rule.get("where_clause") or "sql_expression",
                 "severity": severity,
                 "threshold_percent": threshold_pct,
                 "total_records": total_rows,
@@ -288,6 +391,63 @@ class DataQualityEngine:
             "quarantine_count": len(all_failed_indices),
             "quarantine_records": quarantine_rows[:100]  # sample of quarantine
         }
+
+    @classmethod
+    def evaluate_rulebook(
+        cls,
+        df: pl.DataFrame,
+        rulebook: Union[Dict[str, Any], str],
+        ref_df: Optional[pl.DataFrame] = None
+    ) -> Dict[str, Any]:
+        """
+        Evaluates a manually written Data Quality rulebook (provided as a dictionary,
+        JSON/YAML string, or file path to a .json / .yaml / .yml document).
+        """
+        import os
+        import json
+
+        rulebook_data = {}
+        if isinstance(rulebook, str):
+            trimmed = rulebook.strip()
+            if (trimmed.startswith("{") and trimmed.endswith("}")) or (trimmed.startswith("[") and trimmed.endswith("]")):
+                rulebook_data = json.loads(trimmed)
+            elif os.path.exists(trimmed):
+                norm_path = os.path.abspath(trimmed)
+                with open(norm_path, "r", encoding="utf-8") as f:
+                    if norm_path.endswith((".yaml", ".yml")):
+                        try:
+                            import yaml
+                            rulebook_data = yaml.safe_load(f)
+                        except ImportError:
+                            raise RuntimeError("PyYAML is required to parse YAML rulebook files")
+                    else:
+                        rulebook_data = json.load(f)
+            else:
+                try:
+                    import yaml
+                    rulebook_data = yaml.safe_load(trimmed)
+                except Exception:
+                    raise ValueError(f"Rulebook path or content '{rulebook[:100]}' could not be resolved")
+        elif isinstance(rulebook, dict):
+            rulebook_data = rulebook
+        elif isinstance(rulebook, list):
+            rulebook_data = {"rules": rulebook}
+        else:
+            raise TypeError(f"Expected rulebook to be dict, JSON/YAML string, or file path, got {type(rulebook)}")
+
+        if isinstance(rulebook_data, list):
+            rules = rulebook_data
+            min_score = 100.0
+        else:
+            rules = rulebook_data.get("rules", [])
+            min_score = float(rulebook_data.get("min_score_threshold", 100.0))
+
+        return cls.evaluate_rules(
+            df=df,
+            rules=rules,
+            min_score_threshold=min_score,
+            ref_df=ref_df
+        )
 
     @classmethod
     def profile_dataset(cls, df: pl.DataFrame) -> Dict[str, Any]:

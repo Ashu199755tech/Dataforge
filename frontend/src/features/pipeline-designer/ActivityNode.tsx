@@ -33,7 +33,8 @@ import {
   Archive,
   BarChart3,
   Scale,
-  ShieldAlert
+  ShieldAlert,
+  Boxes
 } from 'lucide-react';
 
 export const ActivityNode: React.FC<NodeProps> = ({ id, data, selected }) => {
@@ -96,6 +97,9 @@ export const ActivityNode: React.FC<NodeProps> = ({ id, data, selected }) => {
         return <Cpu className="h-4 w-4 text-amber-400" />;
       case 'DatabricksNotebook':
         return <CloudLightning className="h-4 w-4 text-orange-400" />;
+      case 'Dbt':
+      case 'dbt':
+        return <Boxes className="h-4 w-4 text-orange-500" />;
       case 'PySparkJob':
         return <Flame className="h-4 w-4 text-rose-400" />;
       case 'WebActivity':

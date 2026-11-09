@@ -56,7 +56,9 @@ class ValidateRequest(BaseModel):
     connection_id: Optional[str] = None
     table_name: Optional[str] = None
     file_path: Optional[str] = None
-    rules: List[Dict[str, Any]]
+    rules: Optional[List[Dict[str, Any]]] = None
+    rulebook: Optional[Dict[str, Any]] = None
+    rulebook_file_path: Optional[str] = None
     min_score_threshold: float = 100.0
     reference_connection_id: Optional[str] = None
     reference_table_name: Optional[str] = None
@@ -195,6 +197,17 @@ def get_rules_catalog():
                 {"name": "column", "type": "string", "required": True},
                 {"name": "pii_types", "type": "array", "default": ["email", "phone", "ssn", "credit_card"]}
             ]
+        },
+        {
+            "rule_type": "CustomSqlCheck",
+            "name": "Custom SQL Business Rule",
+            "description": "Executes custom business SQL query, condition, or WHERE clause against the dataset to validate complex domain relationships.",
+            "parameters": [
+                {"name": "sql_condition", "type": "string", "required": False, "description": "Boolean expression valid rows must satisfy (e.g. 'discount <= total_amount')."},
+                {"name": "sql_query", "type": "string", "required": False, "description": "Full SQL query returning violating records (e.g. 'SELECT * FROM dataset WHERE discount > total_amount')."},
+                {"name": "where_clause", "type": "string", "required": False, "description": "WHERE clause filter matching violating records (e.g. 'discount > total_amount')."},
+                {"name": "table_name", "type": "string", "required": False, "default": "dataset", "description": "Table alias for the dataset in SQLContext."}
+            ]
         }
     ]
 
@@ -202,7 +215,7 @@ def get_rules_catalog():
 @router.post("/validate")
 def validate_dataset(payload: ValidateRequest, db: Session = Depends(get_db)):
     """
-    Executes Data Quality validation rules on-demand against a dataset.
+    Executes Data Quality validation rules or an integrated rulebook on-demand against a dataset.
     """
     df = _load_polars_df(db, payload.connection_id, payload.table_name, payload.file_path)
 
@@ -218,9 +231,17 @@ def validate_dataset(payload: ValidateRequest, db: Session = Depends(get_db)):
         except Exception:
             pass
 
+    if payload.rulebook_file_path or payload.rulebook:
+        target_rulebook = payload.rulebook or payload.rulebook_file_path
+        return DataQualityEngine.evaluate_rulebook(
+            df=df,
+            rulebook=target_rulebook,
+            ref_df=ref_df
+        )
+
     return DataQualityEngine.evaluate_rules(
         df=df,
-        rules=payload.rules,
+        rules=payload.rules or [],
         min_score_threshold=payload.min_score_threshold,
         ref_df=ref_df
     )
