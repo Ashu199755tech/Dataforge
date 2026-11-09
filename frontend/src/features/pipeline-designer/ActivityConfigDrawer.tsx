@@ -5,6 +5,7 @@ import api from '../../api/client';
 import { 
   X, 
   Database, 
+  FileCode,
   Settings2, 
   CheckCircle2, 
   ShieldCheck, 
@@ -79,7 +80,7 @@ export const ActivityConfigDrawer: React.FC<ConfigDrawerProps> = ({
   const activityType = data.activityType || 'CopyData';
   const state = data.state || 'Active';
   const retryPolicy = data.retry_policy || { max_retries: 0, retry_interval_seconds: 2 };
-  const [isExpanded, setIsExpanded] = useState(activityType === 'CopyData');
+  const [isExpanded, setIsExpanded] = useState(activityType === 'CopyData' || activityType === 'SqlScript');
   const [availableRuntimes, setAvailableRuntimes] = useState<any[]>([]);
   const [availableDataflows, setAvailableDataflows] = useState<any[]>([]);
 
@@ -183,7 +184,7 @@ export const ActivityConfigDrawer: React.FC<ConfigDrawerProps> = ({
           <div className="flex items-center gap-2">
             <Settings2 className="h-4 w-4 text-brand-400" />
             <h3 className="text-sm font-semibold text-white">
-              {activityType === 'CopyData' ? 'Copy Data Activity (Multi-Cloud)' : 'Activity Properties'}
+              {activityType === 'CopyData' ? 'Copy Data Activity (Multi-Cloud)' : activityType === 'SqlScript' ? 'SQL Script Activity' : 'Activity Properties'}
             </h3>
           </div>
           <div className="flex items-center gap-1">
@@ -880,6 +881,89 @@ export const ActivityConfigDrawer: React.FC<ConfigDrawerProps> = ({
                     onChange={(e) => updateConfig({ max_iterations: parseInt(e.target.value) || 10 })}
                     className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono text-[11px]"
                   />
+                </div>
+              </div>
+            )}
+
+            {/* SQL SCRIPT */}
+            {(activityType === 'SqlScript' || activityType === 'sql_script' || activityType === 'Sql' || activityType === 'SqlQuery') && (
+              <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-lg space-y-3">
+                <div className="flex items-center justify-between text-slate-300 font-semibold text-[11px] uppercase tracking-wider">
+                  <div className="flex items-center gap-1.5">
+                    <FileCode className="h-3.5 w-3.5 text-emerald-400" />
+                    <span>SQL Script Execution</span>
+                  </div>
+                  <span className="text-[10px] text-emerald-400 bg-emerald-950/60 border border-emerald-800/60 px-1.5 py-0.5 rounded font-mono">
+                    Query / DDL / DML
+                  </span>
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 mb-1 text-[11px]">Database Connection <span className="text-rose-400">*</span></label>
+                  <select
+                    value={config.connection_id || ''}
+                    onChange={(e) => updateConfig({ connection_id: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1.5 text-slate-200 text-[11px] focus:outline-none focus:border-emerald-500 transition"
+                  >
+                    <option value="">Select connection (PostgreSQL, DuckDB, SQLite, MySQL, Snowflake...)</option>
+                    {connections.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name} ({c.connector_type})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-slate-400 text-[11px]">SQL Script / Query <span className="text-rose-400">*</span></label>
+                    <DynamicContentTrigger
+                      fieldName="sql"
+                      value={config.sql || ''}
+                      onApply={(val) => updateConfig({ sql: val })}
+                    />
+                  </div>
+                  <textarea
+                    rows={8}
+                    placeholder={`-- Enter SQL commands (SELECT, INSERT, UPDATE, DELETE, CREATE TABLE, MERGE, etc.)\nCREATE OR REPLACE TABLE sales_performance_summary AS\nSELECT \n    region,\n    product_category,\n    COUNT(*) AS total_orders,\n    ROUND(SUM(gross_amount), 2) AS total_revenue\nFROM stg_sales_orders\nWHERE order_status = 'Completed'\nGROUP BY region, product_category\nORDER BY total_revenue DESC;`}
+                    value={config.sql || ''}
+                    onChange={(e) => updateConfig({ sql: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-2 text-slate-100 font-mono text-[11px] focus:outline-none focus:border-emerald-500 transition leading-relaxed"
+                    spellCheck={false}
+                  />
+                  <p className="text-[10px] text-slate-500 mt-1">
+                    Supports multiple statements or queries. Results from SELECT queries are captured in <code className="text-emerald-400">@activity('...').output</code>.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-800/60">
+                  <div>
+                    <label className="block text-slate-400 mb-1 text-[11px]">Timeout (seconds)</label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={7200}
+                      value={config.timeout_seconds || 120}
+                      onChange={(e) => updateConfig({ timeout_seconds: parseInt(e.target.value) || 120 })}
+                      className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono text-[11px] focus:outline-none focus:border-emerald-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-slate-400 mb-1 text-[11px]">Parameters (JSON)</label>
+                    <input
+                      type="text"
+                      placeholder='{"p_status": "Active"}'
+                      value={typeof config.parameters === 'string' ? config.parameters : JSON.stringify(config.parameters || {})}
+                      onChange={(e) => {
+                        try {
+                          updateConfig({ parameters: JSON.parse(e.target.value) });
+                        } catch {
+                          updateConfig({ parameters: e.target.value });
+                        }
+                      }}
+                      className="w-full bg-slate-900 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 font-mono text-[11px] focus:outline-none focus:border-emerald-500"
+                    />
+                  </div>
                 </div>
               </div>
             )}
