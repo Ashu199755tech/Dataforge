@@ -10,8 +10,8 @@
 
 | Phase | Milestone Name | Commit | Status | Tests Passed | Completed Date |
 | :--- | :--- | :---: | :---: | :---: | :---: |
-| **Phase 0** | **Architecture Audit & Governance Alignment** | `PENDING_GATE` | **In Review** | 405 Passed (Baseline) | 2026-11-09 |
-| **Phase 1** | **Dynamic Pricing & Subscription Configuration Engine** | `—` | *Awaiting Gate 0* | — | — |
+| **Phase 0** | **Architecture Audit & Governance Alignment** | `d8a74b0` | **Completed** | 405 Passed (Baseline) | 2026-11-09 |
+| **Phase 1** | **Dynamic Pricing & Subscription Configuration Engine** | `PENDING` | **Completed** | 6 / 6 Passed (Billing Suite) | 2026-11-09 |
 | **Phase 2** | **Pipeline Usage Metering & Immutable Ledger Engine** | `—` | *Awaiting Gate 1* | — | — |
 | **Phase 3** | **Rating & Usage Aggregation Engine** | `—` | *Awaiting Gate 2* | — | — |
 | **Phase 4** | **Billing Dashboard & Cost Management UI** | `—` | *Awaiting Gate 3* | — | — |
@@ -24,7 +24,6 @@
 ---
 
 ## 2. Phase 0 Audit Artifacts Checklist
-
 - [x] Audit existing execution framework, database schema, and frontend navigation.
 - [x] Create `BILLING_ARCHITECTURE.md`: Subsystem architecture, data models, state machines.
 - [x] Create `BILLING_PRICING_MODEL.md`: Commercial tiers, run overages, compute multipliers, BYOC boundaries.
@@ -32,4 +31,17 @@
 - [x] Create `BILLING_IMPLEMENTATION_TRACKER.md`: Active milestone execution ledger.
 - [x] Create `BILLING_TECHNICAL_DECISIONS.md`: Architectural Decision Records (ADRs).
 - [x] Create `BILLING_TEST_STRATEGY.md`: Test matrix, boundary cases, idempotency & chaos coverage.
-- [ ] Await user approval of Phase 0 architecture before writing implementation code.
+- [x] Phase 0 approved by user.
+
+---
+
+## 3. Phase 1 Implementation Checklist
+- [x] Create `Tenant`, `SubscriptionPlan`, `PricingConfigVersion`, and `CustomerSubscription` SQLAlchemy models.
+- [x] Implement schema migration script updating `workspaces.tenant_id`.
+- [x] Create Pydantic v2 validation schemas with `ConfigDict(from_attributes=True)`.
+- [x] Implement `BillingService` seeding default plans (Starter ₹9,999, Professional ₹29,999, Enterprise ₹99,999) and active pricing versions.
+- [x] Register `/api/v1/billing` REST endpoints (`GET /plans`, `GET /plans/{id}`, `GET /subscription`, `POST /subscription`, `GET /overview`).
+- [x] Wire up frontend sidebar navigation with `Billing & Cost Management` icon under Manage group.
+- [x] Implement complete `BillingPage.tsx` with Overview, Plans & Tiers, Usage Ledger, Consumption, Software vs Cloud Breakdown, Invoices, and Interactive Cost Estimator.
+- [x] Run test suite: 6/6 tests passed in `test_billing_plans.py`.
+- [x] Run frontend build: 0 TypeScript errors.

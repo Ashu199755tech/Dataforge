@@ -461,3 +461,99 @@ export interface DashboardMetrics {
     rows_written: number;
   }>;
 }
+
+export interface PricingConfigVersion {
+  id: string;
+  plan_id: string;
+  version_number: number;
+  monthly_base_price: number;
+  annual_base_price: number;
+  included_pipeline_runs: number;
+  basic_run_rate: number;
+  standard_run_rate: number;
+  advanced_run_rate: number;
+  complex_run_rate: number;
+  spark_node_hour_rate: number;
+  sql_pushdown_rate: number;
+  currency: string;
+  effective_from?: string;
+  effective_to?: string;
+  created_at: string;
+}
+
+export interface SubscriptionPlan {
+  id: string;
+  plan_code: string;
+  name: string;
+  description?: string;
+  tier_level: number;
+  is_active: boolean;
+  is_custom: boolean;
+  features: {
+    max_workspaces?: number;
+    max_concurrency?: number;
+    copy_engine?: string;
+    spark_engine?: boolean;
+    sql_pushdown?: boolean;
+    data_quality?: string;
+    git_sync?: boolean;
+    self_hosted_runtime?: boolean;
+    support_tier?: string;
+    [key: string]: any;
+  };
+  created_at: string;
+  updated_at: string;
+  active_pricing?: PricingConfigVersion;
+}
+
+export interface Tenant {
+  id: string;
+  name: string;
+  billing_email: string;
+  currency: string;
+  country: string;
+  tax_identifier?: string;
+  deployment_model: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CustomerSubscription {
+  id: string;
+  tenant_id: string;
+  workspace_id?: string;
+  plan_id: string;
+  pricing_version_id: string;
+  billing_period: 'Monthly' | 'Annual';
+  status: 'Active' | 'PastDue' | 'Suspended' | 'Cancelled' | 'Trial';
+  current_period_start: string;
+  current_period_end: string;
+  cancel_at_period_end: boolean;
+  custom_agreement_notes?: string;
+  created_at: string;
+  updated_at: string;
+  plan?: SubscriptionPlan;
+  pricing_version?: PricingConfigVersion;
+}
+
+export interface BillingOverview {
+  tenant: Tenant;
+  subscription?: CustomerSubscription;
+  plan_name: string;
+  tier_level: number;
+  monthly_subscription_amount: number;
+  annual_subscription_amount: number;
+  currency: string;
+  billing_period: string;
+  subscription_status: string;
+  next_billing_date?: string;
+  included_runs: number;
+  consumed_runs: number;
+  remaining_runs: number;
+  overage_runs: number;
+  estimated_overage_charges: number;
+  estimated_spark_compute_charges: number;
+  estimated_total_software_charges: number;
+  previous_month_charges: number;
+  deployment_model: string;
+}

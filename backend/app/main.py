@@ -33,6 +33,8 @@ from backend.app.api.git import router as git_router
 from backend.app.api.deployments import router as deployments_router
 from backend.app.api.lineage import router as lineage_router
 from backend.app.api.observability import router as observability_router
+from backend.app.api.billing import router as billing_router
+from backend.app.services.billing_service import BillingService
 from backend.app.services.observability_service import ObservabilityService
 from backend.app.models.runtime import IntegrationRuntime
 from datetime import datetime, timezone
@@ -98,6 +100,11 @@ def seed_initial_metadata():
             db.add(default_ir)
             db.commit()
             print("[INFO] Default AutoResolveIntegrationRuntime created.")
+
+        # Seed billing plans and default organization tenant
+        BillingService.seed_default_plans(db)
+        BillingService.get_or_create_default_tenant(db, ws.id if ws else None)
+        print("[INFO] Commercial billing plans and default organization initialized.")
     finally:
         db.close()
 
@@ -155,6 +162,7 @@ app.include_router(git_router, prefix=settings.API_V1_STR)
 app.include_router(deployments_router, prefix=settings.API_V1_STR)
 app.include_router(lineage_router, prefix=settings.API_V1_STR)
 app.include_router(observability_router, prefix=settings.API_V1_STR)
+app.include_router(billing_router, prefix=settings.API_V1_STR)
 
 
 @app.get("/health")

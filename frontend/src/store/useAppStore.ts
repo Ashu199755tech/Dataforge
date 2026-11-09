@@ -5,7 +5,7 @@ import api from '../api/client';
 export type EnvironmentType = 'Development' | 'Testing' | 'Staging' | 'Production';
 
 interface AppState {
-  currentTab: 'dashboard' | 'pipelines' | 'designer' | 'dataflows' | 'connections' | 'datasets' | 'triggers' | 'runs' | 'dq' | 'runtimes' | 'deployments' | 'lineage' | 'observability';
+  currentTab: 'dashboard' | 'pipelines' | 'designer' | 'dataflows' | 'connections' | 'datasets' | 'triggers' | 'runs' | 'dq' | 'runtimes' | 'deployments' | 'lineage' | 'observability' | 'billing';
   selectedPipelineId: string | null;
   selectedEnvironment: EnvironmentType;
   isSidebarCollapsed: boolean;
@@ -17,7 +17,7 @@ interface AppState {
   pipelines: Pipeline[];
   isLoading: boolean;
   
-  setCurrentTab: (tab: 'dashboard' | 'pipelines' | 'designer' | 'dataflows' | 'connections' | 'datasets' | 'triggers' | 'runs' | 'dq' | 'runtimes' | 'deployments' | 'lineage' | 'observability') => void;
+  setCurrentTab: (tab: 'dashboard' | 'pipelines' | 'designer' | 'dataflows' | 'connections' | 'datasets' | 'triggers' | 'runs' | 'dq' | 'runtimes' | 'deployments' | 'lineage' | 'observability' | 'billing') => void;
   setSelectedPipelineId: (id: string | null) => void;
   setSelectedEnvironment: (env: EnvironmentType) => void;
   setSidebarCollapsed: (collapsed: boolean) => void;

@@ -20,6 +20,12 @@ from backend.app.models.dataset import Dataset, DatasetVersion
 from backend.app.models.git import GitRepository
 from backend.app.models.deployment import Deployment
 from backend.app.models.lineage import LineageNode, LineageEdge, ColumnLineage
+from backend.app.models.billing import (
+    Tenant,
+    SubscriptionPlan,
+    PricingConfigVersion,
+    CustomerSubscription
+)
 
 __all__ = [
     "Base",
@@ -53,5 +59,9 @@ __all__ = [
     "Deployment",
     "LineageNode",
     "LineageEdge",
-    "ColumnLineage"
+    "ColumnLineage",
+    "Tenant",
+    "SubscriptionPlan",
+    "PricingConfigVersion",
+    "CustomerSubscription"
 ]

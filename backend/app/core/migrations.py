@@ -46,6 +46,9 @@ def run_migrations():
                 conn.execute(text("ALTER TABLE triggers ADD COLUMN IF NOT EXISTS window_state JSON DEFAULT '{}'::json NOT NULL;"))
                 conn.execute(text("ALTER TABLE triggers ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;"))
                 conn.execute(text("ALTER TABLE triggers ALTER COLUMN pipeline_id DROP NOT NULL;"))
+
+                # Billing Module additions: workspaces.tenant_id
+                conn.execute(text("ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(36);"))
                 conn.commit()
     except Exception as e:
         print(f"[WARN] Schema migration encountered notice/exception (non-fatal): {e}")

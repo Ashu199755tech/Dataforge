@@ -19,11 +19,12 @@ import {
   Sliders,
   FolderKanban,
   FileText,
-  Info
+  Info,
+  CreditCard
 } from 'lucide-react';
 
 interface NavItem {
-  id: 'dashboard' | 'pipelines' | 'designer' | 'dataflows' | 'connections' | 'datasets' | 'triggers' | 'runs' | 'dq' | 'runtimes' | 'deployments' | 'lineage' | 'observability';
+  id: 'dashboard' | 'pipelines' | 'designer' | 'dataflows' | 'connections' | 'datasets' | 'triggers' | 'runs' | 'dq' | 'runtimes' | 'deployments' | 'lineage' | 'observability' | 'billing';
   label: string;
   icon: React.ElementType;
   badge?: string;
@@ -61,6 +62,7 @@ export const StudioSidebar: React.FC = () => {
       items: [
         { id: 'runtimes', label: 'Runtime Manager', icon: Cpu },
         { id: 'deployments', label: 'Deployments & CI/CD', icon: Rocket },
+        { id: 'billing', label: 'Billing & Cost Management', icon: CreditCard },
       ]
     },
     {

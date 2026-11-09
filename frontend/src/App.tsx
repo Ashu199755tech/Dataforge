@@ -15,6 +15,7 @@ import { DatasetsPage } from './pages/DatasetsPage';
 import { DeploymentsPage } from './pages/DeploymentsPage';
 import { LineagePage } from './pages/LineagePage';
 import { ObservabilityPage } from './pages/ObservabilityPage';
+import { BillingPage } from './pages/BillingPage';
 
 export const App: React.FC = () => {
   const { currentTab, fetchInitialData } = useAppStore();
@@ -51,6 +52,8 @@ export const App: React.FC = () => {
         return <ObservabilityPage />;
       case 'dq':
         return <DataQualityPage />;
+      case 'billing':
+        return <BillingPage />;
       default:
         return <DataForgeHomePage />;
     }
