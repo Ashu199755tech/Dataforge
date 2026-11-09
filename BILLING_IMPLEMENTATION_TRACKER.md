@@ -11,7 +11,7 @@
 | Phase | Milestone Name | Commit | Status | Tests Passed | Completed Date |
 | :--- | :--- | :---: | :---: | :---: | :---: |
 | **Phase 0** | **Architecture Audit & Governance Alignment** | `d8a74b0` | **Completed** | 405 Passed (Baseline) | 2026-11-09 |
-| **Phase 1** | **Dynamic Pricing & Subscription Configuration Engine** | `PENDING` | **Completed** | 6 / 6 Passed (Billing Suite) | 2026-11-09 |
+| **Phase 1** | **Dynamic Pricing & Subscription Configuration Engine** | `4735d36` | **Completed** | 6 / 6 Passed (Billing Suite) | 2026-11-09 |
 | **Phase 2** | **Pipeline Usage Metering & Immutable Ledger Engine** | `—` | *Awaiting Gate 1* | — | — |
 | **Phase 3** | **Rating & Usage Aggregation Engine** | `—` | *Awaiting Gate 2* | — | — |
 | **Phase 4** | **Billing Dashboard & Cost Management UI** | `—` | *Awaiting Gate 3* | — | — |
