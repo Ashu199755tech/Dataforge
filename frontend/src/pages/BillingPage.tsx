@@ -66,12 +66,14 @@ import {
   BudgetStatus,
   BudgetAlertRecipient,
   BudgetAlertRecord,
-  BudgetEvaluationResult
+  BudgetEvaluationResult,
+  BillingAuditLogEntry,
+  PricingConfigVersion
 } from '../types';
 
 export const BillingPage: React.FC = () => {
   const { activeWorkspace } = useAppStore();
-  const [activeTab, setActiveTab] = useState<'overview' | 'plans' | 'usage' | 'consumption' | 'breakdown' | 'invoices' | 'estimator' | 'budgets'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'plans' | 'usage' | 'consumption' | 'breakdown' | 'invoices' | 'estimator' | 'budgets' | 'admin'>('overview');
   const [overview, setOverview] = useState<BillingOverview | null>(null);
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [recentRuns, setRecentRuns] = useState<any[]>([]);
@@ -98,6 +100,52 @@ export const BillingPage: React.FC = () => {
   const [recipientChannel, setRecipientChannel] = useState<'email' | 'slack' | 'webhook'>('email');
   const [recipientTarget, setRecipientTarget] = useState<string>('');
   const [isSavingBudget, setIsSavingBudget] = useState<boolean>(false);
+
+  // Admin Pricing & Audit Console State
+  const [adminPlans, setAdminPlans] = useState<SubscriptionPlan[]>([]);
+  const [auditLogs, setAuditLogs] = useState<BillingAuditLogEntry[]>([]);
+  const [isLoadingAdmin, setIsLoadingAdmin] = useState<boolean>(false);
+  const [isPublishModalOpen, setIsPublishModalOpen] = useState<boolean>(false);
+  const [selectedPlanForVersion, setSelectedPlanForVersion] = useState<SubscriptionPlan | null>(null);
+  const [pubMonthlyPrice, setPubMonthlyPrice] = useState<string>('9999');
+  const [pubAnnualPrice, setPubAnnualPrice] = useState<string>('99990');
+  const [pubIncludedRuns, setPubIncludedRuns] = useState<string>('10000');
+  const [pubBasicRate, setPubBasicRate] = useState<string>('0.50');
+  const [pubStandardRate, setPubStandardRate] = useState<string>('1.50');
+  const [pubAdvancedRate, setPubAdvancedRate] = useState<string>('3.00');
+  const [pubComplexRate, setPubComplexRate] = useState<string>('5.00');
+  const [pubSparkRate, setPubSparkRate] = useState<string>('45.0');
+  const [pubCurrency, setPubCurrency] = useState<string>('INR');
+  const [pubJustification, setPubJustification] = useState<string>('');
+  const [isPublishingVersion, setIsPublishingVersion] = useState<boolean>(false);
+
+  // Custom Enterprise Agreement State
+  const [isCustomAgreementModalOpen, setIsCustomAgreementModalOpen] = useState<boolean>(false);
+  const [customTenantId, setCustomTenantId] = useState<string>('');
+  const [customPlanName, setCustomPlanName] = useState<string>('Enterprise Custom Volume Agreement');
+  const [customMonthlyPrice, setCustomMonthlyPrice] = useState<string>('150000');
+  const [customAnnualPrice, setCustomAnnualPrice] = useState<string>('1500000');
+  const [customIncludedRuns, setCustomIncludedRuns] = useState<string>('750000');
+  const [customBasicRate, setCustomBasicRate] = useState<string>('0.30');
+  const [customStandardRate, setCustomStandardRate] = useState<string>('1.00');
+  const [customAdvancedRate, setCustomAdvancedRate] = useState<string>('2.00');
+  const [customComplexRate, setCustomComplexRate] = useState<string>('3.50');
+  const [customSparkRate, setCustomSparkRate] = useState<string>('30.0');
+  const [customNotes, setCustomNotes] = useState<string>('Negotiated high-scale enterprise volume licensing');
+  const [customJustification, setCustomJustification] = useState<string>('');
+  const [isSavingCustomAgreement, setIsSavingCustomAgreement] = useState<boolean>(false);
+
+  // Manual Adjustment State
+  const [isAdjustmentModalOpen, setIsAdjustmentModalOpen] = useState<boolean>(false);
+  const [adjInvoiceId, setAdjInvoiceId] = useState<string>('');
+  const [adjAmount, setAdjAmount] = useState<string>('');
+  const [adjType, setAdjType] = useState<string>('GoodwillSLA');
+  const [adjDesc, setAdjDesc] = useState<string>('SLA Incident goodwill credit adjustment');
+  const [adjJustification, setAdjJustification] = useState<string>('');
+  const [isApplyingAdjustment, setIsApplyingAdjustment] = useState<boolean>(false);
+
+  // Audit Diff Viewer Drawer
+  const [selectedAuditLogForDiff, setSelectedAuditLogForDiff] = useState<BillingAuditLogEntry | null>(null);
 
   // Drawer state for run details
   const [selectedRunForDrawer, setSelectedRunForDrawer] = useState<PipelineUsageLedgerEntry | null>(null);
@@ -141,14 +189,16 @@ export const BillingPage: React.FC = () => {
     setIsLoading(true);
     setActionErrorMsg(null);
     try {
-      const [overviewRes, plansRes, runsRes, usageRes, summaryRes, invoicesRes, budgetsRes] = await Promise.all([
+      const [overviewRes, plansRes, runsRes, usageRes, summaryRes, invoicesRes, budgetsRes, adminPlansRes, auditLogsRes] = await Promise.all([
         api.get('/billing/overview'),
         api.get('/billing/plans'),
         api.get('/runs?limit=15').catch(() => ({ data: [] })),
         api.get('/billing/usage?limit=100').catch(() => ({ data: [] })),
         api.get('/billing/usage/summary').catch(() => ({ data: null })),
         api.get('/billing/invoices').catch(() => ({ data: [] })),
-        api.get(`/billing/budgets${activeWorkspace ? `?workspace_id=${activeWorkspace.id}` : ''}`).catch(() => ({ data: [] }))
+        api.get(`/billing/budgets${activeWorkspace ? `?workspace_id=${activeWorkspace.id}` : ''}`).catch(() => ({ data: [] })),
+        api.get('/billing/admin/plans').catch(() => ({ data: [] })),
+        api.get('/billing/admin/audit-logs').catch(() => ({ data: [] }))
       ]);
 
       setOverview(overviewRes.data);
@@ -158,6 +208,8 @@ export const BillingPage: React.FC = () => {
       setConsumptionSummary(summaryRes.data);
       setInvoices(invoicesRes.data || []);
       setBudgets(budgetsRes.data || []);
+      setAdminPlans(adminPlansRes.data || []);
+      setAuditLogs(auditLogsRes.data || []);
       if (overviewRes.data?.billing_period) {
         setBillingPeriodToggle(overviewRes.data.billing_period as 'Monthly' | 'Annual');
       }
@@ -494,6 +546,143 @@ export const BillingPage: React.FC = () => {
     }
   };
 
+  const handleOpenPublishVersionModal = (plan: SubscriptionPlan) => {
+    setSelectedPlanForVersion(plan);
+    const curr = plan.active_pricing || (plan.pricing_versions && plan.pricing_versions[plan.pricing_versions.length - 1]);
+    setPubMonthlyPrice(curr ? curr.monthly_base_price.toString() : '9999');
+    setPubAnnualPrice(curr ? curr.annual_base_price.toString() : '99990');
+    setPubIncludedRuns(curr ? curr.included_pipeline_runs.toString() : '10000');
+    setPubBasicRate(curr ? curr.basic_run_rate.toString() : '0.50');
+    setPubStandardRate(curr ? curr.standard_run_rate.toString() : '1.50');
+    setPubAdvancedRate(curr ? curr.advanced_run_rate.toString() : '3.00');
+    setPubComplexRate(curr ? curr.complex_run_rate.toString() : '5.00');
+    setPubSparkRate(curr ? curr.spark_node_hour_rate.toString() : '45.0');
+    setPubCurrency(curr ? curr.currency : 'INR');
+    setPubJustification('Regular indexation and tier capacity revision');
+    setIsPublishModalOpen(true);
+  };
+
+  const handlePublishPricingVersion = async () => {
+    if (!selectedPlanForVersion || !pubJustification.trim()) {
+      setActionErrorMsg('Administrative justification is strictly mandatory for pricing audit trails.');
+      return;
+    }
+    setIsPublishingVersion(true);
+    setActionSuccessMsg(null);
+    setActionErrorMsg(null);
+    try {
+      await api.post(`/billing/admin/plans/${selectedPlanForVersion.id}/pricing-versions`, {
+        monthly_base_price: parseFloat(pubMonthlyPrice) || 0.0,
+        annual_base_price: parseFloat(pubAnnualPrice) || 0.0,
+        included_pipeline_runs: parseInt(pubIncludedRuns) || 0,
+        basic_run_rate: parseFloat(pubBasicRate) || 0.50,
+        standard_run_rate: parseFloat(pubStandardRate) || 1.50,
+        advanced_run_rate: parseFloat(pubAdvancedRate) || 3.00,
+        complex_run_rate: parseFloat(pubComplexRate) || 5.00,
+        spark_node_hour_rate: parseFloat(pubSparkRate) || 45.0,
+        currency: pubCurrency,
+        justification: pubJustification.trim()
+      });
+      setActionSuccessMsg(`New pricing schedule published for plan '${selectedPlanForVersion.name}'. Historical invoices preserved.`);
+      setIsPublishModalOpen(false);
+      await fetchData();
+      setTimeout(() => setActionSuccessMsg(null), 5000);
+    } catch (err: any) {
+      console.error('Failed to publish pricing version', err);
+      setActionErrorMsg(err.response?.data?.detail || 'Failed to publish new pricing version.');
+    } finally {
+      setIsPublishingVersion(false);
+    }
+  };
+
+  const handleOpenCustomAgreementModal = () => {
+    setCustomTenantId(overview?.tenant?.id || '');
+    setCustomPlanName('Enterprise Dedicated Volume Agreement');
+    setCustomMonthlyPrice('150000');
+    setCustomAnnualPrice('1500000');
+    setCustomIncludedRuns('750000');
+    setCustomBasicRate('0.30');
+    setCustomStandardRate('1.00');
+    setCustomAdvancedRate('2.00');
+    setCustomComplexRate('3.50');
+    setCustomSparkRate('30.0');
+    setCustomNotes('Negotiated high-scale enterprise volume contract with dedicated SLA');
+    setCustomJustification('Contract approved by executive management');
+    setIsCustomAgreementModalOpen(true);
+  };
+
+  const handleSaveCustomAgreement = async () => {
+    if (!customTenantId.trim() || !customJustification.trim()) {
+      setActionErrorMsg('Tenant ID and administrative justification are required.');
+      return;
+    }
+    setIsSavingCustomAgreement(true);
+    setActionSuccessMsg(null);
+    setActionErrorMsg(null);
+    try {
+      await api.post('/billing/admin/custom-agreement', {
+        tenant_id: customTenantId.trim(),
+        plan_name: customPlanName.trim(),
+        monthly_base_price: parseFloat(customMonthlyPrice) || 0.0,
+        annual_base_price: parseFloat(customAnnualPrice) || 0.0,
+        included_pipeline_runs: parseInt(customIncludedRuns) || 0,
+        basic_run_rate: parseFloat(customBasicRate) || 0.0,
+        standard_run_rate: parseFloat(customStandardRate) || 0.0,
+        advanced_run_rate: parseFloat(customAdvancedRate) || 0.0,
+        complex_run_rate: parseFloat(customComplexRate) || 0.0,
+        spark_node_hour_rate: parseFloat(customSparkRate) || 0.0,
+        currency: 'INR',
+        custom_agreement_notes: customNotes.trim(),
+        justification: customJustification.trim()
+      });
+      setActionSuccessMsg('Bespoke enterprise agreement successfully provisioned.');
+      setIsCustomAgreementModalOpen(false);
+      await fetchData();
+      setTimeout(() => setActionSuccessMsg(null), 5000);
+    } catch (err: any) {
+      console.error('Failed to provision custom agreement', err);
+      setActionErrorMsg(err.response?.data?.detail || 'Failed to provision custom agreement.');
+    } finally {
+      setIsSavingCustomAgreement(false);
+    }
+  };
+
+  const handleOpenAdjustmentModal = (invoiceId?: string) => {
+    setAdjInvoiceId(invoiceId || (invoices.length > 0 ? invoices[0].id : ''));
+    setAdjAmount('2000');
+    setAdjType('GoodwillSLA');
+    setAdjDesc('Incident SLA credit adjustment per customer request');
+    setAdjJustification('Approved per incident ticket SLA-9081');
+    setIsAdjustmentModalOpen(true);
+  };
+
+  const handleApplyAdjustment = async () => {
+    if (!adjInvoiceId || !adjAmount || !adjJustification.trim()) {
+      setActionErrorMsg('Invoice ID, credit amount, and justification are required.');
+      return;
+    }
+    setIsApplyingAdjustment(true);
+    setActionSuccessMsg(null);
+    setActionErrorMsg(null);
+    try {
+      await api.post(`/billing/admin/invoices/${adjInvoiceId}/adjustments`, {
+        adjustment_amount: parseFloat(adjAmount) || 0.0,
+        adjustment_type: adjType,
+        description: adjDesc.trim(),
+        justification: adjJustification.trim()
+      });
+      setActionSuccessMsg(`Credit adjustment of ₹${parseFloat(adjAmount).toLocaleString()} applied to invoice.`);
+      setIsAdjustmentModalOpen(false);
+      await fetchData();
+      setTimeout(() => setActionSuccessMsg(null), 5000);
+    } catch (err: any) {
+      console.error('Failed to apply invoice adjustment', err);
+      setActionErrorMsg(err.response?.data?.detail || 'Failed to apply adjustment.');
+    } finally {
+      setIsApplyingAdjustment(false);
+    }
+  };
+
   // Filtered & Paginated usage entries
   const filteredUsage = (() => {
     const sourceList: any[] = usageLedger.length > 0 ? usageLedger : recentRuns.map((r: any) => {
@@ -765,6 +954,7 @@ export const BillingPage: React.FC = () => {
           { id: 'invoices', label: 'Invoices & Tax History', icon: FileText },
           { id: 'estimator', label: 'Cost Estimator', icon: Sliders },
           { id: 'budgets', label: 'Budgets & Threshold Alerts', icon: Bell },
+          { id: 'admin', label: 'Admin Pricing & Audit', icon: ShieldCheck },
         ].map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -2390,6 +2580,306 @@ export const BillingPage: React.FC = () => {
         </div>
       )}
 
+      {/* TAB 9: ADMIN PRICING & AUDITING CONSOLE */}
+      {activeTab === 'admin' && (
+        <div className="space-y-6">
+          {/* Admin Header Action Card */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl bg-slate-900 border border-slate-800">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="p-1 rounded-md bg-brand-500/10 text-brand-400">
+                  <ShieldCheck className="h-5 w-5" />
+                </span>
+                <h2 className="text-base font-bold text-white">
+                  Administrative Pricing Governance & Audit Console
+                </h2>
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20 uppercase tracking-wide">
+                  Admin Privileged
+                </span>
+              </div>
+              <p className="text-xs text-slate-400 mt-1">
+                Configure commercial tier rates, publish versioned schedules for future periods, provision bespoke enterprise agreements, and review immutable audit logs.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={() => handleOpenAdjustmentModal()}
+                className="px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-300 bg-slate-800 hover:bg-slate-700 border border-slate-700 transition flex items-center gap-1.5"
+              >
+                <DollarSign className="h-3.5 w-3.5 text-emerald-400" />
+                Apply Credit Adjustment
+              </button>
+              <button
+                onClick={handleOpenCustomAgreementModal}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-white bg-brand-600 hover:bg-brand-500 shadow-lg shadow-brand-500/20 transition flex items-center gap-1.5"
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                Provision Enterprise Agreement
+              </button>
+            </div>
+          </div>
+
+          {/* Section 1: Tier Rate Schedules & Version Management */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-bold text-slate-200">
+                  Commercial Subscription Tiers & Pricing Versions
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Publishing a new pricing version takes effect for future billing periods without altering past invoices.
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {(adminPlans.length > 0 ? adminPlans : plans).map((plan) => {
+                const activeVersion = plan.active_pricing || (plan.pricing_versions && plan.pricing_versions[plan.pricing_versions.length - 1]);
+                const versionsCount = plan.pricing_versions ? plan.pricing_versions.length : 1;
+
+                return (
+                  <div
+                    key={plan.id}
+                    className="p-6 rounded-2xl bg-slate-900 border border-slate-800 flex flex-col justify-between space-y-5 hover:border-slate-700 transition"
+                  >
+                    <div>
+                      {/* Plan Header */}
+                      <div className="flex items-start justify-between mb-3">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h4 className="text-base font-bold text-white">{plan.name}</h4>
+                            {plan.is_custom && (
+                              <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                                Bespoke
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-xs text-slate-400 font-mono block mt-0.5">{plan.plan_code}</span>
+                        </div>
+                        <span className="px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-brand-500/10 text-brand-400 border border-brand-500/20">
+                          Tier {plan.tier_level}
+                        </span>
+                      </div>
+
+                      {/* Active Version Rates */}
+                      <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800/80 space-y-2 mb-4">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-slate-400">Current Schedule:</span>
+                          <span className="font-mono text-emerald-400 font-bold">
+                            Version {activeVersion ? activeVersion.version_number : 1}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-slate-400">Monthly Base Price:</span>
+                          <span className="font-mono text-white font-bold text-sm">
+                            ₹{activeVersion ? Math.round(activeVersion.monthly_base_price).toLocaleString() : 'N/A'}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-slate-400">Included Allowance:</span>
+                          <span className="font-mono text-blue-400 font-bold">
+                            {activeVersion ? activeVersion.included_pipeline_runs.toLocaleString() : '0'} runs/mo
+                          </span>
+                        </div>
+                        <div className="pt-2 border-t border-slate-800 space-y-1 text-[11px]">
+                          <div className="flex justify-between text-slate-400">
+                            <span>Basic (2-5 acts):</span>
+                            <span className="font-mono text-white">₹{activeVersion?.basic_run_rate || '0.50'}</span>
+                          </div>
+                          <div className="flex justify-between text-slate-400">
+                            <span>Standard (6-15 acts):</span>
+                            <span className="font-mono text-white">₹{activeVersion?.standard_run_rate || '1.50'}</span>
+                          </div>
+                          <div className="flex justify-between text-slate-400">
+                            <span>Advanced (16-30 acts):</span>
+                            <span className="font-mono text-white">₹{activeVersion?.advanced_run_rate || '3.00'}</span>
+                          </div>
+                          <div className="flex justify-between text-slate-400">
+                            <span>Spark Worker Hour:</span>
+                            <span className="font-mono text-brand-400">₹{activeVersion?.spark_node_hour_rate || '45.00'}/hr</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Historical Version Count */}
+                      <div className="text-[11px] text-slate-500 flex items-center justify-between">
+                        <span>{versionsCount} historical schedule{versionsCount > 1 ? 's' : ''} stored</span>
+                        <span className="text-slate-400 font-mono">Immutable</span>
+                      </div>
+                    </div>
+
+                    {/* Action Button */}
+                    <button
+                      onClick={() => handleOpenPublishVersionModal(plan)}
+                      className="w-full py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-semibold text-xs border border-slate-700 transition flex items-center justify-center gap-1.5"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                      Publish New Pricing Version
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Section 2: Invoice Credit & Goodwill Adjustments */}
+          <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                  <DollarSign className="h-4 w-4 text-emerald-400" />
+                  Manual Invoice Credit & Goodwill Adjustments
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Apply administrative credit deductions or SLA goodwill waivers to customer invoices with full audit justification.
+                </p>
+              </div>
+              <button
+                onClick={() => handleOpenAdjustmentModal()}
+                className="px-3.5 py-1.5 rounded-xl text-xs font-semibold text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 transition flex items-center gap-1.5"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Add Credit Adjustment
+              </button>
+            </div>
+
+            {invoices.length === 0 ? (
+              <p className="text-xs text-slate-500 italic py-2">No generated invoices available for adjustments.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-950/80 text-slate-400 border-b border-slate-800 font-mono text-[11px]">
+                    <tr>
+                      <th className="py-2.5 px-3">Invoice #</th>
+                      <th className="py-2.5 px-3">Period</th>
+                      <th className="py-2.5 px-3">Status</th>
+                      <th className="py-2.5 px-3">Subtotal</th>
+                      <th className="py-2.5 px-3">Adjustments</th>
+                      <th className="py-2.5 px-3">Total (Incl. Tax)</th>
+                      <th className="py-2.5 px-3 text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/60 font-mono">
+                    {invoices.slice(0, 5).map((inv) => (
+                      <tr key={inv.id} className="hover:bg-slate-800/30 transition">
+                        <td className="py-2.5 px-3 font-bold text-white">{inv.invoice_number}</td>
+                        <td className="py-2.5 px-3 text-slate-400">{inv.period_key}</td>
+                        <td className="py-2.5 px-3">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-sans font-semibold ${
+                            inv.status === 'Paid'
+                              ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                              : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                          }`}>
+                            {inv.status}
+                          </span>
+                        </td>
+                        <td className="py-2.5 px-3 text-slate-300">₹{Number(inv.subtotal_amount).toLocaleString()}</td>
+                        <td className="py-2.5 px-3 text-rose-400">
+                          {Number(inv.adjustments_amount) > 0 ? `-₹${Number(inv.adjustments_amount).toLocaleString()}` : '₹0.00'}
+                        </td>
+                        <td className="py-2.5 px-3 font-bold text-brand-400">₹{Number(inv.total_amount).toLocaleString()}</td>
+                        <td className="py-2.5 px-3 text-right font-sans">
+                          {inv.status !== 'Paid' && inv.status !== 'Void' ? (
+                            <button
+                              onClick={() => handleOpenAdjustmentModal(inv.id)}
+                              className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition"
+                            >
+                              Apply Credit
+                            </button>
+                          ) : (
+                            <span className="text-[11px] text-slate-500 italic">Locked</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {/* Section 3: Immutable Billing Audit Trail */}
+          <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                  <ShieldCheck className="h-4 w-4 text-brand-400" />
+                  Immutable Billing Governance Audit Log
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Cryptographically track all administrative price changes, volume overrides, credits, and commercial mutations.
+                </p>
+              </div>
+              <button
+                onClick={fetchData}
+                className="px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-300 bg-slate-800 hover:bg-slate-700 border border-slate-700 transition flex items-center gap-1.5"
+              >
+                <RefreshCw className="h-3 w-3" />
+                Refresh Audit Trail
+              </button>
+            </div>
+
+            {auditLogs.length === 0 ? (
+              <div className="p-8 text-center text-slate-500 text-xs italic">
+                No billing audit logs recorded yet. Administrative changes will automatically populate here.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-950/80 text-slate-400 border-b border-slate-800 font-mono text-[11px]">
+                    <tr>
+                      <th className="py-2.5 px-3">Timestamp</th>
+                      <th className="py-2.5 px-3">Admin</th>
+                      <th className="py-2.5 px-3">Action</th>
+                      <th className="py-2.5 px-3">Resource</th>
+                      <th className="py-2.5 px-3">Justification</th>
+                      <th className="py-2.5 px-3 text-right">Diff Inspector</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/60 font-mono">
+                    {auditLogs.map((log) => (
+                      <tr key={log.id} className="hover:bg-slate-800/30 transition">
+                        <td className="py-2.5 px-3 text-slate-400 whitespace-nowrap">
+                          {new Date(log.created_at).toLocaleString([], { month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                        </td>
+                        <td className="py-2.5 px-3 text-white font-sans">{log.admin_email || log.admin_user_id.slice(0, 8)}</td>
+                        <td className="py-2.5 px-3">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-sans font-semibold ${
+                            log.action === 'UpdatePricingVersion'
+                              ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
+                              : log.action === 'ConfigureCustomAgreement'
+                              ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20'
+                              : log.action === 'ApplyCredit'
+                              ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                              : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                          }`}>
+                            {log.action}
+                          </span>
+                        </td>
+                        <td className="py-2.5 px-3 text-slate-300">
+                          {log.resource_type} <span className="text-slate-500 text-[10px]">({log.resource_id?.slice(0, 8)})</span>
+                        </td>
+                        <td className="py-2.5 px-3 text-slate-300 font-sans max-w-xs truncate" title={log.justification}>
+                          {log.justification}
+                        </td>
+                        <td className="py-2.5 px-3 text-right font-sans">
+                          <button
+                            onClick={() => setSelectedAuditLogForDiff(log)}
+                            className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-brand-400 border border-slate-700 transition"
+                          >
+                            Inspect State Diff
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Slide-Over Drawer: Usage Breakdown Details */}
       {selectedRunForDrawer && (
         <div className="fixed inset-0 z-50 overflow-hidden flex justify-end bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200">
@@ -2952,6 +3442,483 @@ export const BillingPage: React.FC = () => {
                 ) : (
                   'Save Budget Policy'
                 )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* PUBLISH PRICING VERSION MODAL */}
+      {isPublishModalOpen && selectedPlanForVersion && (
+        <div className="fixed inset-0 z-50 overflow-hidden bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-xl bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-950/60">
+              <div>
+                <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                  <Plus className="h-4 w-4 text-brand-400" />
+                  Publish New Pricing Version Schedule
+                </h3>
+                <span className="text-[11px] text-slate-400 font-mono mt-0.5 block">
+                  Plan: {selectedPlanForVersion.name} ({selectedPlanForVersion.plan_code})
+                </span>
+              </div>
+              <button
+                onClick={() => setIsPublishModalOpen(false)}
+                className="text-slate-400 hover:text-white"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4 text-xs max-h-[75vh] overflow-y-auto">
+              <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-300 text-[11px] leading-relaxed">
+                Publishing this version creates an immutable rate record effective for future billing cycles. Past and already generated invoices are never retroactively modified.
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-slate-400 block mb-1">Monthly Base Price (INR)</label>
+                  <input
+                    type="number"
+                    value={pubMonthlyPrice}
+                    onChange={(e) => setPubMonthlyPrice(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-white font-mono focus:border-brand-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-slate-400 block mb-1">Annual Base Price (INR)</label>
+                  <input
+                    type="number"
+                    value={pubAnnualPrice}
+                    onChange={(e) => setPubAnnualPrice(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-white font-mono focus:border-brand-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-slate-400 block mb-1">Included Monthly Runs</label>
+                  <input
+                    type="number"
+                    value={pubIncludedRuns}
+                    onChange={(e) => setPubIncludedRuns(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-white font-mono focus:border-brand-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-slate-400 block mb-1">Spark Node-Hour Rate (INR)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={pubSparkRate}
+                    onChange={(e) => setPubSparkRate(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-white font-mono focus:border-brand-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Overage Rates */}
+              <div className="p-3.5 rounded-xl bg-slate-950/60 border border-slate-800 space-y-3">
+                <span className="font-semibold text-white block">Additional Overage Rates Per Execution</span>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <div>
+                    <label className="text-slate-500 block text-[10px] mb-0.5">Basic (2-5 acts)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={pubBasicRate}
+                      onChange={(e) => setPubBasicRate(e.target.value)}
+                      className="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-white font-mono text-xs focus:border-brand-500 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-slate-500 block text-[10px] mb-0.5">Standard (6-15 acts)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={pubStandardRate}
+                      onChange={(e) => setPubStandardRate(e.target.value)}
+                      className="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-white font-mono text-xs focus:border-brand-500 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-slate-500 block text-[10px] mb-0.5">Advanced (16-30 acts)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={pubAdvancedRate}
+                      onChange={(e) => setPubAdvancedRate(e.target.value)}
+                      className="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-white font-mono text-xs focus:border-brand-500 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-slate-500 block text-[10px] mb-0.5">Complex (31+ acts)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={pubComplexRate}
+                      onChange={(e) => setPubComplexRate(e.target.value)}
+                      className="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-white font-mono text-xs focus:border-brand-500 focus:outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-slate-400 block mb-1">
+                  Administrative Justification <span className="text-rose-400">*</span>
+                </label>
+                <textarea
+                  value={pubJustification}
+                  onChange={(e) => setPubJustification(e.target.value)}
+                  rows={2}
+                  placeholder="e.g. Approved tier pricing update per Board of Directors Q2 financial plan"
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-white text-xs focus:border-brand-500 focus:outline-none"
+                />
+              </div>
+            </div>
+
+            <div className="p-4 border-t border-slate-800 flex justify-end gap-3 bg-slate-950/50">
+              <button
+                type="button"
+                onClick={() => setIsPublishModalOpen(false)}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-white transition"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handlePublishPricingVersion}
+                disabled={isPublishingVersion || !pubJustification.trim()}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-white bg-brand-600 hover:bg-brand-500 transition shadow-lg shadow-brand-500/20 disabled:opacity-50 flex items-center gap-1.5"
+              >
+                {isPublishingVersion ? (
+                  <>
+                    <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                    Publishing...
+                  </>
+                ) : (
+                  'Publish Version Schedule'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* BESPOKE ENTERPRISE AGREEMENT MODAL */}
+      {isCustomAgreementModalOpen && (
+        <div className="fixed inset-0 z-50 overflow-hidden bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-xl bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-950/60">
+              <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-purple-400" />
+                Provision Bespoke Enterprise Agreement
+              </h3>
+              <button
+                onClick={() => setIsCustomAgreementModalOpen(false)}
+                className="text-slate-400 hover:text-white"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4 text-xs max-h-[75vh] overflow-y-auto">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-slate-400 block mb-1">Target Tenant ID</label>
+                  <input
+                    type="text"
+                    value={customTenantId}
+                    onChange={(e) => setCustomTenantId(e.target.value)}
+                    placeholder="Enter Tenant UUID"
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-white font-mono text-xs focus:border-brand-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-slate-400 block mb-1">Agreement Name</label>
+                  <input
+                    type="text"
+                    value={customPlanName}
+                    onChange={(e) => setCustomPlanName(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-white focus:border-brand-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-slate-400 block mb-1">Negotiated Monthly Base Price (INR)</label>
+                  <input
+                    type="number"
+                    value={customMonthlyPrice}
+                    onChange={(e) => setCustomMonthlyPrice(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-white font-mono focus:border-brand-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-slate-400 block mb-1">Negotiated Included Runs</label>
+                  <input
+                    type="number"
+                    value={customIncludedRuns}
+                    onChange={(e) => setCustomIncludedRuns(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-white font-mono focus:border-brand-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <label className="text-slate-500 block text-[10px] mb-0.5">Basic (₹/run)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={customBasicRate}
+                    onChange={(e) => setCustomBasicRate(e.target.value)}
+                    className="w-full px-2.5 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-white font-mono text-xs focus:border-brand-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-slate-500 block text-[10px] mb-0.5">Standard (₹/run)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={customStandardRate}
+                    onChange={(e) => setCustomStandardRate(e.target.value)}
+                    className="w-full px-2.5 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-white font-mono text-xs focus:border-brand-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-slate-500 block text-[10px] mb-0.5">Spark Rate (₹/hr)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={customSparkRate}
+                    onChange={(e) => setCustomSparkRate(e.target.value)}
+                    className="w-full px-2.5 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-white font-mono text-xs focus:border-brand-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-slate-400 block mb-1">Contract & Dedicated SLA Notes</label>
+                <textarea
+                  value={customNotes}
+                  onChange={(e) => setCustomNotes(e.target.value)}
+                  rows={2}
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-white text-xs focus:border-brand-500 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="text-slate-400 block mb-1">
+                  Administrative Justification <span className="text-rose-400">*</span>
+                </label>
+                <textarea
+                  value={customJustification}
+                  onChange={(e) => setCustomJustification(e.target.value)}
+                  rows={2}
+                  placeholder="e.g. Multi-year enterprise license signed with VP Commercial"
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-white text-xs focus:border-brand-500 focus:outline-none"
+                />
+              </div>
+            </div>
+
+            <div className="p-4 border-t border-slate-800 flex justify-end gap-3 bg-slate-950/50">
+              <button
+                type="button"
+                onClick={() => setIsCustomAgreementModalOpen(false)}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-white transition"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveCustomAgreement}
+                disabled={isSavingCustomAgreement || !customTenantId.trim() || !customJustification.trim()}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-white bg-purple-600 hover:bg-purple-500 transition shadow-lg shadow-purple-500/20 disabled:opacity-50 flex items-center gap-1.5"
+              >
+                {isSavingCustomAgreement ? (
+                  <>
+                    <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                    Provisioning...
+                  </>
+                ) : (
+                  'Bind Enterprise Contract'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MANUAL INVOICE CREDIT / ADJUSTMENT MODAL */}
+      {isAdjustmentModalOpen && (
+        <div className="fixed inset-0 z-50 overflow-hidden bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-950/60">
+              <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                <DollarSign className="h-4 w-4 text-emerald-400" />
+                Apply Invoice Credit Adjustment
+              </h3>
+              <button
+                onClick={() => setIsAdjustmentModalOpen(false)}
+                className="text-slate-400 hover:text-white"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4 text-xs">
+              <div>
+                <label className="text-slate-400 block mb-1">Target Invoice</label>
+                <select
+                  value={adjInvoiceId}
+                  onChange={(e) => setAdjInvoiceId(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-white font-mono text-xs focus:border-brand-500 focus:outline-none"
+                >
+                  <option value="">Select Invoice...</option>
+                  {invoices.filter(i => i.status !== 'Paid' && i.status !== 'Void').map(i => (
+                    <option key={i.id} value={i.id}>
+                      {i.invoice_number} ({i.period_key}) - ₹{Number(i.total_amount).toLocaleString()}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-slate-400 block mb-1">Adjustment Type</label>
+                  <select
+                    value={adjType}
+                    onChange={(e) => setAdjType(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-white text-xs focus:border-brand-500 focus:outline-none"
+                  >
+                    <option value="GoodwillSLA">Goodwill SLA Waiver</option>
+                    <option value="Discount">Contractual Discount</option>
+                    <option value="Credit">Billing Error Credit</option>
+                    <option value="Refund">Direct Credit Refund</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-slate-400 block mb-1">Credit Amount (INR)</label>
+                  <input
+                    type="number"
+                    value={adjAmount}
+                    onChange={(e) => setAdjAmount(e.target.value)}
+                    placeholder="2000"
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-white font-mono focus:border-brand-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-slate-400 block mb-1">Line Item Description</label>
+                <input
+                  type="text"
+                  value={adjDesc}
+                  onChange={(e) => setAdjDesc(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-white focus:border-brand-500 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="text-slate-400 block mb-1">
+                  Administrative Justification <span className="text-rose-400">*</span>
+                </label>
+                <textarea
+                  value={adjJustification}
+                  onChange={(e) => setAdjJustification(e.target.value)}
+                  rows={2}
+                  placeholder="e.g. Outage incident INC-4902 credit approved by Head of Customer Success"
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-white text-xs focus:border-brand-500 focus:outline-none"
+                />
+              </div>
+            </div>
+
+            <div className="p-4 border-t border-slate-800 flex justify-end gap-3 bg-slate-950/50">
+              <button
+                type="button"
+                onClick={() => setIsAdjustmentModalOpen(false)}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-white transition"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleApplyAdjustment}
+                disabled={isApplyingAdjustment || !adjInvoiceId || !adjAmount || !adjJustification.trim()}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 transition shadow-lg shadow-emerald-500/20 disabled:opacity-50 flex items-center gap-1.5"
+              >
+                {isApplyingAdjustment ? (
+                  <>
+                    <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                    Applying...
+                  </>
+                ) : (
+                  'Apply Credit to Invoice'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* AUDIT STATE DIFF INSPECTOR MODAL */}
+      {selectedAuditLogForDiff && (
+        <div className="fixed inset-0 z-50 overflow-hidden bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-2xl bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-950/60">
+              <div>
+                <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                  <ShieldCheck className="h-4 w-4 text-brand-400" />
+                  Audit State Diff Inspector: {selectedAuditLogForDiff.action}
+                </h3>
+                <span className="text-[11px] text-slate-400 font-mono mt-0.5 block">
+                  Resource: {selectedAuditLogForDiff.resource_type} • ID: {selectedAuditLogForDiff.resource_id}
+                </span>
+              </div>
+              <button
+                onClick={() => setSelectedAuditLogForDiff(null)}
+                className="text-slate-400 hover:text-white"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4 text-xs max-h-[75vh] overflow-y-auto">
+              <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-1">
+                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Administrative Justification</span>
+                <p className="text-slate-200">{selectedAuditLogForDiff.justification}</p>
+                <span className="text-[10px] text-slate-500 block pt-1 font-mono">
+                  Recorded on {new Date(selectedAuditLogForDiff.created_at).toLocaleString()} by {selectedAuditLogForDiff.admin_email || selectedAuditLogForDiff.admin_user_id}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <span className="text-[11px] font-bold text-amber-400 mb-1.5 block">State Prior to Mutation (Before)</span>
+                  <pre className="p-3 rounded-xl bg-slate-950 border border-slate-800 font-mono text-[10px] text-slate-300 overflow-x-auto max-h-60">
+                    {JSON.stringify(selectedAuditLogForDiff.before_state, null, 2)}
+                  </pre>
+                </div>
+                <div>
+                  <span className="text-[11px] font-bold text-emerald-400 mb-1.5 block">Mutated State Applied (After)</span>
+                  <pre className="p-3 rounded-xl bg-slate-950 border border-slate-800 font-mono text-[10px] text-emerald-300 overflow-x-auto max-h-60">
+                    {JSON.stringify(selectedAuditLogForDiff.after_state, null, 2)}
+                  </pre>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-4 border-t border-slate-800 flex justify-end bg-slate-950/50">
+              <button
+                type="button"
+                onClick={() => setSelectedAuditLogForDiff(null)}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-white bg-slate-800 hover:bg-slate-700 transition border border-slate-700"
+              >
+                Close Inspector
               </button>
             </div>
           </div>

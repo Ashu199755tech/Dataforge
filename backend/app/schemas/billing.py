@@ -442,3 +442,61 @@ class BudgetEvaluationResult(BaseModel):
     alerts_dispatched: List[BudgetAlertRecordResponse] = []
 
 
+# ---------------------------------------------------------
+# Phase 8: Administrative Pricing, Discounts & Audit Schemas
+# ---------------------------------------------------------
+
+class PricingVersionCreate(BaseModel):
+    monthly_base_price: float = Field(..., ge=0.0, description="Monthly base subscription price")
+    annual_base_price: float = Field(..., ge=0.0, description="Annual base subscription price")
+    included_pipeline_runs: int = Field(..., ge=0, description="Included pipeline execution runs per month")
+    basic_run_rate: float = Field(default=0.50, ge=0.0, description="Additional rate for basic runs (2-5 activities)")
+    standard_run_rate: float = Field(default=1.50, ge=0.0, description="Additional rate for standard runs (6-15 activities)")
+    advanced_run_rate: float = Field(default=3.00, ge=0.0, description="Additional rate for advanced runs (16-30 activities)")
+    complex_run_rate: float = Field(default=5.00, ge=0.0, description="Additional rate for complex runs (31+ activities)")
+    spark_node_hour_rate: float = Field(default=45.0, ge=0.0, description="Spark worker compute rate per node-hour")
+    sql_pushdown_rate: float = Field(default=0.0, ge=0.0, description="Pushdown egress rate (0.0 for BYOC)")
+    currency: str = Field(default="INR", description="Three-letter currency code (INR, USD, EUR)")
+    justification: str = Field(..., min_length=5, description="Administrative audit reason for pricing update")
+
+
+class CustomEnterpriseAgreementRequest(BaseModel):
+    tenant_id: str = Field(..., description="Target Tenant ID for custom licensing")
+    plan_name: str = Field(default="Enterprise Custom Agreement", description="Custom agreement title")
+    monthly_base_price: float = Field(default=99999.0, ge=0.0)
+    annual_base_price: float = Field(default=999990.0, ge=0.0)
+    included_pipeline_runs: int = Field(default=500000, ge=0)
+    basic_run_rate: float = Field(default=0.40, ge=0.0)
+    standard_run_rate: float = Field(default=1.20, ge=0.0)
+    advanced_run_rate: float = Field(default=2.50, ge=0.0)
+    complex_run_rate: float = Field(default=4.00, ge=0.0)
+    spark_node_hour_rate: float = Field(default=35.0, ge=0.0)
+    currency: str = Field(default="INR")
+    custom_agreement_notes: str = Field(default="Custom negotiated enterprise volume agreement")
+    justification: str = Field(..., min_length=5, description="Administrative justification")
+
+
+class BillingAdjustmentRequest(BaseModel):
+    adjustment_amount: float = Field(..., gt=0.0, description="Credit amount to deduct from invoice")
+    adjustment_type: str = Field(default="Credit", description="Adjustment type: Credit, Discount, Refund, GoodwillSLA")
+    description: str = Field(default="Administrative SLA credit adjustment")
+    justification: str = Field(..., min_length=5, description="Administrative reason for financial adjustment")
+
+
+class BillingAuditLogResponse(BaseModel):
+    id: str
+    tenant_id: Optional[str] = None
+    admin_user_id: str
+    admin_email: Optional[str] = None
+    action: str
+    resource_type: str
+    resource_id: Optional[str] = None
+    before_state: Dict[str, Any]
+    after_state: Dict[str, Any]
+    justification: str
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+

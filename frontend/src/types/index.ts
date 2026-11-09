@@ -504,6 +504,7 @@ export interface SubscriptionPlan {
   created_at: string;
   updated_at: string;
   active_pricing?: PricingConfigVersion;
+  pricing_versions?: PricingConfigVersion[];
 }
 
 export interface Tenant {
@@ -774,6 +775,21 @@ export interface BudgetEvaluationResult {
   triggered_alerts_count: number;
   alerts_dispatched: BudgetAlertRecord[];
 }
+
+export interface BillingAuditLogEntry {
+  id: string;
+  tenant_id?: string;
+  admin_user_id: string;
+  admin_email?: string;
+  action: string;
+  resource_type: string;
+  resource_id?: string;
+  before_state: Record<string, any>;
+  after_state: Record<string, any>;
+  justification: string;
+  created_at: string;
+}
+
 
 
 

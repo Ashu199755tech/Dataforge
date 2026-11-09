@@ -10,9 +10,11 @@ from backend.app.services.rating_engine import RatingEngine
 from backend.app.services.invoicing_service import InvoiceService
 from backend.app.services.cost_estimator_service import CostEstimatorService
 from backend.app.services.budget_service import BudgetService
+from backend.app.services.admin_pricing_service import AdminPricingService
 from backend.app.schemas.billing import (
     SubscriptionPlanResponse,
     SubscriptionPlanCreate,
+    PricingConfigVersionResponse,
     CustomerSubscriptionResponse,
     CustomerSubscriptionCreate,
     CustomerSubscriptionUpdate,
@@ -32,7 +34,11 @@ from backend.app.schemas.billing import (
     BudgetConfigurationCreate,
     BudgetConfigurationUpdate,
     BudgetStatusResponse,
-    BudgetEvaluationResult
+    BudgetEvaluationResult,
+    PricingVersionCreate,
+    CustomEnterpriseAgreementRequest,
+    BillingAdjustmentRequest,
+    BillingAuditLogResponse
 )
 from backend.app.api.deps import get_current_user
 from backend.app.core.rbac import require_role
@@ -463,4 +469,65 @@ def evaluate_budgets(
     """Triggers on-demand evaluation of all tenant budgets and dispatches alerts for breached thresholds."""
     tenant = BillingService.get_or_create_default_tenant(db, workspace_id)
     return BudgetService.evaluate_budgets_for_tenant(db, tenant.id, period_key)
+
+
+# ---------------------------------------------------------
+# Phase 8: Administrative Pricing, Discounts & Auditing Endpoints
+# ---------------------------------------------------------
+
+@router.get("/admin/plans", response_model=List[SubscriptionPlanResponse])
+def list_admin_plans(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(["Admin"]))
+):
+    """Lists all subscription plans with full version histories (Admin only)."""
+    return AdminPricingService.list_all_admin_plans(db)
+
+
+@router.post("/admin/plans/{plan_id}/pricing-versions", response_model=PricingConfigVersionResponse)
+def publish_pricing_version(
+    plan_id: str,
+    pricing_in: PricingVersionCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(["Admin"]))
+):
+    """
+    Publishes a new immutable pricing version for a subscription plan.
+    Does not retroactively affect existing invoices.
+    """
+    return AdminPricingService.publish_new_pricing_version(db, plan_id, current_user, pricing_in)
+
+
+@router.post("/admin/custom-agreement", response_model=CustomerSubscriptionResponse)
+def configure_custom_enterprise_agreement(
+    req: CustomEnterpriseAgreementRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(["Admin"]))
+):
+    """Provisions a bespoke custom enterprise agreement for a tenant with custom allowances and rates."""
+    return AdminPricingService.configure_custom_enterprise_agreement(db, current_user, req)
+
+
+@router.post("/admin/invoices/{invoice_id}/adjustments", response_model=BillingInvoiceDetailResponse)
+def apply_invoice_adjustment(
+    invoice_id: str,
+    req: BillingAdjustmentRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(["Admin"]))
+):
+    """Applies a credit or discount adjustment to an invoice with full audit justification."""
+    return AdminPricingService.apply_invoice_adjustment(db, invoice_id, current_user, req)
+
+
+@router.get("/admin/audit-logs", response_model=List[BillingAuditLogResponse])
+def list_billing_audit_logs(
+    tenant_id: Optional[str] = None,
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(["Admin"]))
+):
+    """Retrieves immutable billing audit logs (Admin only)."""
+    return AdminPricingService.list_audit_logs(db, tenant_id, limit, offset)
+
 

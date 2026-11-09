@@ -55,7 +55,7 @@ class SubscriptionPlan(Base):
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
 
-    pricing_versions = relationship("PricingConfigVersion", back_populates="plan", cascade="all, delete-orphan")
+    pricing_versions = relationship("PricingConfigVersion", back_populates="plan", cascade="all, delete-orphan", order_by="PricingConfigVersion.version_number.asc()")
     subscriptions = relationship("CustomerSubscription", back_populates="plan")
 
 
@@ -316,5 +316,28 @@ class BudgetAlertRecord(Base):
     triggered_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
 
     budget = relationship("BudgetConfiguration", back_populates="alerts")
+
+
+class BillingAuditLog(Base):
+    """
+    Immutable audit log capturing all administrative mutations on pricing, tiers,
+    custom enterprise agreements, manual credits, and billability overrides.
+    """
+    __tablename__ = "billing_audit_logs"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(String(36), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=True, index=True)
+    admin_user_id = Column(String(36), nullable=False, index=True)
+    admin_email = Column(String(255), nullable=True)
+    action = Column(String(100), nullable=False, index=True)  # UpdatePricingVersion, ConfigureCustomAgreement, ApplyCredit, OverrideBillability, UpdateSubscription
+    resource_type = Column(String(100), nullable=False)       # SubscriptionPlan, PricingConfigVersion, BillingInvoice, CustomerSubscription, PipelineUsageLedger
+    resource_id = Column(String(100), nullable=True, index=True)
+    before_state = Column(JSON, default=dict, nullable=False)
+    after_state = Column(JSON, default=dict, nullable=False)
+    justification = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False, index=True)
+
+    tenant = relationship("Tenant")
+
 
 

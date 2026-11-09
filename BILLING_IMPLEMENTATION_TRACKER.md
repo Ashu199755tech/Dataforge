@@ -18,7 +18,7 @@
 | **Phase 5** | **Automated Invoicing, Tax & Payment Ledger Engine** | `2f1012b` | **Completed** | 5 / 5 Passed (21/21 Billing Total) | 2026-11-09 |
 | **Phase 6** | **Interactive Cost Estimator & Plan Comparison Calculator** | `6df92a2` | **Completed** | 6 / 6 Passed (27/27 Billing Total) | 2026-11-09 |
 | **Phase 7** | **Budget Management, Threshold Alerts & Notification System** | `—` | *Awaiting Gate 6* | — | — |
-| **Phase 8** | **Administrative Pricing, Discounts & Auditing Console** | `—` | *Awaiting Gate 7* | — | — |
+| **Phase 8** | **Administrative Pricing, Discounts & Auditing Console** | `100%` | **Completed** | `04ff9b8` | 5/5 passed |
 | **Phase 9** | **End-to-End Validation, Chaos Testing & Final Hardening** | `—` | *Awaiting Gate 8* | — | — |
 
 ---
@@ -126,5 +126,27 @@
 - [x] Add automated test suite `test_budget_alerts.py` (5/5 passed).
 - [x] Full platform regression suite: 437 passed, 3 skipped, 0 failures.
 - [x] Frontend production build: 0 TypeScript errors.
+
+---
+
+## 10. Phase 8 Implementation Checklist
+- [x] Create `BillingAuditLog` model in `backend/app/models/billing.py` capturing `admin_user_id`, `admin_email`, `action`, `resource_type`, `resource_id`, `before_state`, `after_state`, and `justification`.
+- [x] Expose Pydantic validation schemas in `backend/app/schemas/billing.py`: `PricingVersionCreate`, `CustomEnterpriseAgreementRequest`, `BillingAdjustmentRequest`, `BillingAuditLogResponse`.
+- [x] Implement administrative pricing governance service `AdminPricingService` in `backend/app/services/admin_pricing_service.py`:
+  - `publish_new_pricing_version`: version incrementing, immutable validity windows (`effective_from`, `effective_to`), past invoices untouched.
+  - `configure_custom_enterprise_agreement`: bespoke volume tiers, custom quotas, tenant subscription binding.
+  - `apply_invoice_adjustment`: manual SLA goodwill credits/deductions, subtotal & 18% tax recalculation.
+  - `list_audit_logs`: paginated audit history retrieval.
+- [x] Expose RBAC-guarded REST APIs (`require_role(["Admin"])`):
+  - `GET /api/v1/billing/admin/plans`
+  - `POST /api/v1/billing/admin/plans/{id}/pricing-versions`
+  - `POST /api/v1/billing/admin/custom-agreement`
+  - `POST /api/v1/billing/admin/invoices/{id}/adjustments`
+  - `GET /api/v1/billing/admin/audit-logs`
+- [x] Implement Admin Pricing & Audit Console tab in `BillingPage.tsx` with tier version management, custom enterprise agreement creator, manual invoice adjustment tool, and audit state diff inspector.
+- [x] Add automated test suite `backend/tests/test_admin_pricing_audit.py` (5/5 passed).
+- [x] Full platform regression suite: 442 passed, 3 skipped, 0 failures.
+- [x] Frontend production build: 0 TypeScript errors.
+
 
 

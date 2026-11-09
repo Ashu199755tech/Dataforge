@@ -56,7 +56,7 @@ def test_seed_default_subscription_plans(db: Session):
     assert starter.name == "Starter Plan"
     assert starter.tier_level == 1
     assert len(starter.pricing_versions) >= 1
-    v1_starter = starter.pricing_versions[0]
+    v1_starter = next(v for v in starter.pricing_versions if v.version_number == 1)
     assert float(v1_starter.monthly_base_price) == 9999.00
     assert float(v1_starter.annual_base_price) == 99990.00
     assert v1_starter.included_pipeline_runs == 10000
@@ -67,7 +67,7 @@ def test_seed_default_subscription_plans(db: Session):
     pro = next(p for p in plans if p.plan_code == "professional")
     assert pro.name == "Professional Plan"
     assert pro.tier_level == 2
-    v1_pro = pro.pricing_versions[0]
+    v1_pro = next(v for v in pro.pricing_versions if v.version_number == 1)
     assert float(v1_pro.monthly_base_price) == 29999.00
     assert v1_pro.included_pipeline_runs == 50000
     assert pro.features["spark_engine"] is True
