@@ -1,10 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 from typing import List, Optional, Dict, Any
+from datetime import datetime, timezone
 
 from backend.app.core.database import get_db
 from backend.app.services.billing_service import BillingService
 from backend.app.services.metering_service import UsageMeteringEngine
+from backend.app.services.rating_engine import RatingEngine
 from backend.app.schemas.billing import (
     SubscriptionPlanResponse,
     SubscriptionPlanCreate,
@@ -13,7 +15,10 @@ from backend.app.schemas.billing import (
     CustomerSubscriptionUpdate,
     BillingOverviewResponse,
     PipelineUsageLedgerResponse,
-    PipelineUsageOverrideRequest
+    PipelineUsageOverrideRequest,
+    ConsumptionSummaryResponse,
+    DailyConsumptionItem,
+    UsageAggregationResponse
 )
 from backend.app.api.deps import get_current_user
 from backend.app.core.rbac import require_role
@@ -125,6 +130,58 @@ def list_pipeline_usage(
         offset=offset
     )
     return records
+
+
+@router.get("/usage/summary", response_model=ConsumptionSummaryResponse)
+def get_consumption_summary(
+    workspace_id: Optional[str] = None,
+    period_key: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Retrieves full consumption summary with ADF-parity classification breakdowns and engine splits."""
+    return RatingEngine.get_consumption_summary(
+        db=db,
+        workspace_id=workspace_id,
+        period_key=period_key
+    )
+
+
+@router.get("/usage/daily", response_model=List[DailyConsumptionItem])
+def get_daily_consumption(
+    workspace_id: Optional[str] = None,
+    period_key: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Retrieves daily breakdown of executions and charges for trend charts."""
+    tenant = BillingService.get_or_create_default_tenant(db, workspace_id)
+    now = datetime.now(timezone.utc)
+    effective_period = period_key or now.strftime("%Y-%m")
+    return RatingEngine.get_daily_consumption(
+        db=db,
+        tenant_id=tenant.id,
+        period_key=effective_period
+    )
+
+
+@router.post("/usage/recalculate", response_model=UsageAggregationResponse)
+def recalculate_usage_rating(
+    workspace_id: Optional[str] = None,
+    period_key: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(["Admin", "Owner"]))
+):
+    """Triggers on-demand re-rating of all usage records against current active subscription rules."""
+    tenant = BillingService.get_or_create_default_tenant(db, workspace_id)
+    now = datetime.now(timezone.utc)
+    effective_period = period_key or now.strftime("%Y-%m")
+    return RatingEngine.aggregate_usage_for_period(
+        db=db,
+        tenant_id=tenant.id,
+        period_key=effective_period,
+        workspace_id=workspace_id
+    )
 
 
 @router.get("/usage/{run_id}", response_model=PipelineUsageLedgerResponse)

@@ -171,3 +171,67 @@ class PipelineUsageOverrideRequest(BaseModel):
     is_billable: bool
     reason: str
 
+
+class UsageAggregationResponse(BaseModel):
+    id: str
+    tenant_id: str
+    workspace_id: Optional[str] = None
+    subscription_id: Optional[str] = None
+    period_key: str
+    total_runs: int
+    billable_runs: int
+    non_billable_runs: int
+    basic_runs: int
+    standard_runs: int
+    advanced_runs: int
+    complex_runs: int
+    copy_engine_runs: int
+    spark_runs: int
+    sql_pushdown_runs: int
+    hybrid_runs: int
+    spark_node_hours: float
+    included_runs_consumed: int
+    overage_runs: int
+    total_overage_charge: float
+    spark_compute_charge: float
+    total_charge: float
+    last_calculated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class DailyConsumptionItem(BaseModel):
+    date: str  # YYYY-MM-DD
+    total_runs: int
+    billable_runs: int
+    non_billable_runs: int
+    basic_runs: int
+    standard_runs: int
+    advanced_runs: int
+    complex_runs: int
+    spark_runs: int
+    copy_runs: int
+    sql_runs: int
+    estimated_charges: float
+
+
+class ConsumptionSummaryResponse(BaseModel):
+    period_key: str
+    plan_name: str
+    tier_level: int
+    included_runs: int
+    consumed_runs: int
+    remaining_runs: int
+    overage_runs: int
+    total_runs: int
+    billable_runs: int
+    non_billable_runs: int
+    classification_breakdown: Dict[str, int]
+    engine_breakdown: Dict[str, int]
+    spark_node_hours: float
+    estimated_overage_charge: float
+    estimated_spark_compute_charge: float
+    estimated_total_software_charge: float
+    daily_consumption: List[DailyConsumptionItem]
+
+

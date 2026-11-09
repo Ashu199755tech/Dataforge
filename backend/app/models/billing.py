@@ -150,3 +150,39 @@ class PipelineUsageLedger(Base):
     pipeline_run = relationship("PipelineRun")
     pricing_version = relationship("PricingConfigVersion")
 
+
+class UsageAggregation(Base):
+    """
+    Aggregated usage and rating rollups for billing periods (e.g. YYYY-MM).
+    Supports high-performance reporting and fast rating recalculation.
+    """
+    __tablename__ = "usage_aggregations"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(String(36), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+    workspace_id = Column(String(36), nullable=True, index=True)
+    subscription_id = Column(String(36), ForeignKey("customer_subscriptions.id", ondelete="SET NULL"), nullable=True, index=True)
+    period_key = Column(String(7), nullable=False, index=True)  # 'YYYY-MM'
+    total_runs = Column(Integer, default=0, nullable=False)
+    billable_runs = Column(Integer, default=0, nullable=False)
+    non_billable_runs = Column(Integer, default=0, nullable=False)
+    basic_runs = Column(Integer, default=0, nullable=False)
+    standard_runs = Column(Integer, default=0, nullable=False)
+    advanced_runs = Column(Integer, default=0, nullable=False)
+    complex_runs = Column(Integer, default=0, nullable=False)
+    copy_engine_runs = Column(Integer, default=0, nullable=False)
+    spark_runs = Column(Integer, default=0, nullable=False)
+    sql_pushdown_runs = Column(Integer, default=0, nullable=False)
+    hybrid_runs = Column(Integer, default=0, nullable=False)
+    spark_node_hours = Column(Numeric(10, 2), default=0.00, nullable=False)
+    included_runs_consumed = Column(Integer, default=0, nullable=False)
+    overage_runs = Column(Integer, default=0, nullable=False)
+    total_overage_charge = Column(Numeric(12, 2), default=0.00, nullable=False)
+    spark_compute_charge = Column(Numeric(12, 2), default=0.00, nullable=False)
+    total_charge = Column(Numeric(12, 2), default=0.00, nullable=False)
+    last_calculated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    tenant = relationship("Tenant")
+    subscription = relationship("CustomerSubscription")
+
+

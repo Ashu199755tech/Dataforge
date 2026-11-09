@@ -586,3 +586,49 @@ export interface PipelineUsageLedgerEntry {
   recorded_at: string;
 }
 
+export interface DailyConsumptionItem {
+  date: string;
+  total_runs: number;
+  billable_runs: number;
+  non_billable_runs: number;
+  basic_runs: number;
+  standard_runs: number;
+  advanced_runs: number;
+  complex_runs: number;
+  spark_runs: number;
+  copy_runs: number;
+  sql_runs: number;
+  estimated_charges: number;
+}
+
+export interface ConsumptionSummary {
+  period_key: string;
+  plan_name: string;
+  tier_level: number;
+  included_runs: number;
+  consumed_runs: number;
+  remaining_runs: number;
+  overage_runs: number;
+  total_runs: number;
+  billable_runs: number;
+  non_billable_runs: number;
+  classification_breakdown: {
+    Basic: number;
+    Standard: number;
+    Advanced: number;
+    Complex: number;
+  };
+  engine_breakdown: {
+    CopyEngine: number;
+    SparkEngine: number;
+    SqlPushdownEngine: number;
+    Hybrid: number;
+  };
+  spark_node_hours: number;
+  estimated_overage_charge: number;
+  estimated_spark_compute_charge: number;
+  estimated_total_software_charge: number;
+  daily_consumption: DailyConsumptionItem[];
+}
+
+

@@ -30,7 +30,8 @@ import {
   BillingOverview, 
   SubscriptionPlan, 
   CustomerSubscription,
-  PipelineUsageLedgerEntry
+  PipelineUsageLedgerEntry,
+  ConsumptionSummary
 } from '../types';
 
 export const BillingPage: React.FC = () => {
@@ -40,6 +41,7 @@ export const BillingPage: React.FC = () => {
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [recentRuns, setRecentRuns] = useState<any[]>([]);
   const [usageLedger, setUsageLedger] = useState<PipelineUsageLedgerEntry[]>([]);
+  const [consumptionSummary, setConsumptionSummary] = useState<ConsumptionSummary | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isUpdatingSub, setIsUpdatingSub] = useState<boolean>(false);
   const [billingPeriodToggle, setBillingPeriodToggle] = useState<'Monthly' | 'Annual'>('Monthly');
@@ -61,17 +63,19 @@ export const BillingPage: React.FC = () => {
     setIsLoading(true);
     setActionErrorMsg(null);
     try {
-      const [overviewRes, plansRes, runsRes, usageRes] = await Promise.all([
+      const [overviewRes, plansRes, runsRes, usageRes, summaryRes] = await Promise.all([
         api.get('/billing/overview'),
         api.get('/billing/plans'),
         api.get('/runs?limit=15').catch(() => ({ data: [] })),
-        api.get('/billing/usage?limit=50').catch(() => ({ data: [] }))
+        api.get('/billing/usage?limit=50').catch(() => ({ data: [] })),
+        api.get('/billing/usage/summary').catch(() => ({ data: null }))
       ]);
 
       setOverview(overviewRes.data);
       setPlans(plansRes.data);
       setRecentRuns(runsRes.data || []);
       setUsageLedger(usageRes.data || []);
+      setConsumptionSummary(summaryRes.data);
       if (overviewRes.data?.billing_period) {
         setBillingPeriodToggle(overviewRes.data.billing_period as 'Monthly' | 'Annual');
       }
@@ -127,6 +131,18 @@ export const BillingPage: React.FC = () => {
     } catch (err: any) {
       console.error('Failed to override billability', err);
       setActionErrorMsg(err.response?.data?.detail || 'Billability override failed.');
+    }
+  };
+
+  const handleRecalculateRating = async () => {
+    try {
+      await api.post('/billing/usage/recalculate');
+      setActionSuccessMsg('Usage rating & rollups recalculated successfully.');
+      await fetchData();
+      setTimeout(() => setActionSuccessMsg(null), 4000);
+    } catch (err: any) {
+      console.error('Failed to recalculate rating', err);
+      setActionErrorMsg(err.response?.data?.detail || 'Recalculation failed.');
     }
   };
 
@@ -946,53 +962,181 @@ export const BillingPage: React.FC = () => {
       {/* TAB 4: CONSUMPTION BREAKDOWN */}
       {activeTab === 'consumption' && (
         <div className="space-y-6">
-          <div className="p-5 rounded-xl bg-slate-900 border border-slate-800">
-            <h3 className="text-sm font-bold text-white">Engine-Wise Execution Distribution</h3>
-            <p className="text-xs text-slate-400 mt-0.5">ADF-Parity consumption breakdown across DataForge compute paradigms.</p>
+          {/* Header with Recalculate Action */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl bg-slate-900 border border-slate-800">
+            <div>
+              <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                <Clock className="h-4 w-4 text-brand-400" />
+                ADF-Parity Consumption Metrics & Multi-Engine Distribution
+              </h3>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Aggregated consumption metrics across Parallel Copy, Spark compute, and in-database SQL Pushdown engines.
+              </p>
+            </div>
+            <button
+              onClick={handleRecalculateRating}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 transition"
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+              Recalculate Rollups
+            </button>
+          </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-5">
-              <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-slate-300">Parallel Copy Engine</span>
-                  <span className="p-1.5 rounded bg-blue-500/10 text-blue-400"><Server className="h-4 w-4" /></span>
-                </div>
-                <div className="mt-3">
-                  <span className="text-2xl font-bold text-white font-mono">{recentRuns.length}</span>
-                  <span className="text-xs text-slate-400 block mt-0.5">Streaming pipeline runs</span>
-                </div>
-                <div className="mt-3 text-[11px] text-emerald-400 flex items-center gap-1 font-mono">
-                  <span>Bounded memory: &le;64 MB/partition</span>
-                </div>
+          {/* Engine Distribution Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 flex flex-col justify-between">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-slate-300">Parallel Copy Engine</span>
+                <span className="p-1.5 rounded bg-blue-500/10 text-blue-400"><Server className="h-4 w-4" /></span>
               </div>
-
-              <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-slate-300">Distributed Spark Engine</span>
-                  <span className="p-1.5 rounded bg-purple-500/10 text-purple-400"><Zap className="h-4 w-4" /></span>
-                </div>
-                <div className="mt-3">
-                  <span className="text-2xl font-bold text-white font-mono">0</span>
-                  <span className="text-xs text-slate-400 block mt-0.5">Heavy ETL worker node-hours</span>
-                </div>
-                <div className="mt-3 text-[11px] text-slate-400 font-mono">
-                  <span>Rate: ₹45.00 / node-hour</span>
-                </div>
+              <div className="mt-3">
+                <span className="text-2xl font-bold text-white font-mono">
+                  {consumptionSummary?.engine_breakdown.CopyEngine ?? 0}
+                </span>
+                <span className="text-xs text-slate-400 block mt-0.5">Streaming pipeline runs</span>
               </div>
-
-              <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-slate-300">In-DB SQL Pushdown</span>
-                  <span className="p-1.5 rounded bg-emerald-500/10 text-emerald-400"><ShieldCheck className="h-4 w-4" /></span>
-                </div>
-                <div className="mt-3">
-                  <span className="text-2xl font-bold text-white font-mono">0</span>
-                  <span className="text-xs text-slate-400 block mt-0.5">Zero-egress warehouse transforms</span>
-                </div>
-                <div className="mt-3 text-[11px] text-emerald-400 font-mono">
-                  <span>Network Egress: ₹0.00</span>
-                </div>
+              <div className="mt-3 text-[11px] text-emerald-400 font-mono">
+                Memory: &le;64 MB/partition
               </div>
             </div>
+
+            <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 flex flex-col justify-between">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-slate-300">Managed Spark Engine</span>
+                <span className="p-1.5 rounded bg-purple-500/10 text-purple-400"><Zap className="h-4 w-4" /></span>
+              </div>
+              <div className="mt-3">
+                <div className="flex items-baseline gap-2">
+                  <span className="text-2xl font-bold text-white font-mono">
+                    {consumptionSummary?.engine_breakdown.SparkEngine ?? 0}
+                  </span>
+                  <span className="text-xs text-slate-400 font-mono">
+                    ({consumptionSummary?.spark_node_hours.toFixed(2) ?? '0.00'} node-hrs)
+                  </span>
+                </div>
+                <span className="text-xs text-slate-400 block mt-0.5">Heavy ETL & PySpark jobs</span>
+              </div>
+              <div className="mt-3 text-[11px] text-purple-400 font-mono">
+                Compute Charge: ₹{consumptionSummary?.estimated_spark_compute_charge.toFixed(2) ?? '0.00'}
+              </div>
+            </div>
+
+            <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 flex flex-col justify-between">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-slate-300">In-DB SQL Pushdown</span>
+                <span className="p-1.5 rounded bg-emerald-500/10 text-emerald-400"><ShieldCheck className="h-4 w-4" /></span>
+              </div>
+              <div className="mt-3">
+                <span className="text-2xl font-bold text-white font-mono">
+                  {consumptionSummary?.engine_breakdown.SqlPushdownEngine ?? 0}
+                </span>
+                <span className="text-xs text-slate-400 block mt-0.5">Zero-egress warehouse transforms</span>
+              </div>
+              <div className="mt-3 text-[11px] text-emerald-400 font-mono">
+                Network Egress: ₹0.00 (Free)
+              </div>
+            </div>
+
+            <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 flex flex-col justify-between">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-slate-300">Hybrid DAGs</span>
+                <span className="p-1.5 rounded bg-amber-500/10 text-amber-400"><Layers className="h-4 w-4" /></span>
+              </div>
+              <div className="mt-3">
+                <span className="text-2xl font-bold text-white font-mono">
+                  {consumptionSummary?.engine_breakdown.Hybrid ?? 0}
+                </span>
+                <span className="text-xs text-slate-400 block mt-0.5">Multi-engine pipelines</span>
+              </div>
+              <div className="mt-3 text-[11px] text-slate-400 font-mono">
+                Auto Engine Affinity
+              </div>
+            </div>
+          </div>
+
+          {/* Classification Complexity Splits */}
+          <div className="p-5 rounded-xl bg-slate-900 border border-slate-800 space-y-4">
+            <h4 className="text-xs font-bold text-white uppercase tracking-wider">
+              Execution Complexity Distribution
+            </h4>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="p-3 bg-slate-950/60 rounded-lg border border-slate-800">
+                <span className="text-[11px] text-slate-400 block">Basic (2–5 acts)</span>
+                <span className="text-xl font-bold text-white font-mono mt-1 block">
+                  {consumptionSummary?.classification_breakdown.Basic ?? 0}
+                </span>
+                <span className="text-[10px] text-slate-500">Rate: ₹0.50</span>
+              </div>
+              <div className="p-3 bg-slate-950/60 rounded-lg border border-slate-800">
+                <span className="text-[11px] text-slate-400 block">Standard (6–15 acts)</span>
+                <span className="text-xl font-bold text-white font-mono mt-1 block">
+                  {consumptionSummary?.classification_breakdown.Standard ?? 0}
+                </span>
+                <span className="text-[10px] text-slate-500">Rate: ₹1.50</span>
+              </div>
+              <div className="p-3 bg-slate-950/60 rounded-lg border border-slate-800">
+                <span className="text-[11px] text-slate-400 block">Advanced (16–30 acts)</span>
+                <span className="text-xl font-bold text-white font-mono mt-1 block">
+                  {consumptionSummary?.classification_breakdown.Advanced ?? 0}
+                </span>
+                <span className="text-[10px] text-slate-500">Rate: ₹3.00</span>
+              </div>
+              <div className="p-3 bg-slate-950/60 rounded-lg border border-slate-800">
+                <span className="text-[11px] text-slate-400 block">Complex (31+ acts)</span>
+                <span className="text-xl font-bold text-white font-mono mt-1 block">
+                  {consumptionSummary?.classification_breakdown.Complex ?? 0}
+                </span>
+                <span className="text-[10px] text-slate-500">Rate: ₹5.00 / Custom</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Daily Consumption Trend Table / Visualizer */}
+          <div className="p-5 rounded-xl bg-slate-900 border border-slate-800 space-y-4">
+            <h4 className="text-xs font-bold text-white uppercase tracking-wider">
+              Daily Consumption Timeline (ADF Report Parity)
+            </h4>
+
+            {(!consumptionSummary?.daily_consumption || consumptionSummary.daily_consumption.length === 0) ? (
+              <div className="py-8 text-center text-slate-500 text-xs">
+                No daily execution history recorded in the current period yet.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-800 text-slate-400 text-[11px] uppercase tracking-wider">
+                      <th className="py-2.5 px-3">Date</th>
+                      <th className="py-2.5 px-3">Total Executions</th>
+                      <th className="py-2.5 px-3">Billable</th>
+                      <th className="py-2.5 px-3">Non-Billable</th>
+                      <th className="py-2.5 px-3">Basic</th>
+                      <th className="py-2.5 px-3">Standard</th>
+                      <th className="py-2.5 px-3">Advanced</th>
+                      <th className="py-2.5 px-3">Spark Runs</th>
+                      <th className="py-2.5 px-3 text-right">Estimated Surcharges</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/60 font-mono">
+                    {consumptionSummary.daily_consumption.map((day) => (
+                      <tr key={day.date} className="hover:bg-slate-800/30 transition">
+                        <td className="py-2.5 px-3 text-white font-semibold">{day.date}</td>
+                        <td className="py-2.5 px-3 text-slate-200">{day.total_runs}</td>
+                        <td className="py-2.5 px-3 text-emerald-400">{day.billable_runs}</td>
+                        <td className="py-2.5 px-3 text-slate-500">{day.non_billable_runs}</td>
+                        <td className="py-2.5 px-3 text-slate-300">{day.basic_runs}</td>
+                        <td className="py-2.5 px-3 text-slate-300">{day.standard_runs}</td>
+                        <td className="py-2.5 px-3 text-slate-300">{day.advanced_runs}</td>
+                        <td className="py-2.5 px-3 text-purple-400">{day.spark_runs}</td>
+                        <td className="py-2.5 px-3 text-right font-bold text-white">
+                          ₹{day.estimated_charges.toFixed(2)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </div>
       )}
