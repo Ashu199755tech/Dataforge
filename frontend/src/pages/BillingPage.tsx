@@ -21,11 +21,31 @@ import {
   RefreshCw,
   Sliders,
   ChevronRight,
+  ChevronLeft,
   Download,
   FileText,
   Building,
-  Info
+  Info,
+  Search,
+  Filter,
+  X,
+  Copy,
+  ExternalLink,
+  BarChart3,
+  PieChart
 } from 'lucide-react';
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+  Legend,
+  AreaChart,
+  Area
+} from 'recharts';
 import { 
   BillingOverview, 
   SubscriptionPlan, 
@@ -48,10 +68,20 @@ export const BillingPage: React.FC = () => {
   const [actionSuccessMsg, setActionSuccessMsg] = useState<string | null>(null);
   const [actionErrorMsg, setActionErrorMsg] = useState<string | null>(null);
 
+  // Drawer state for run details
+  const [selectedRunForDrawer, setSelectedRunForDrawer] = useState<PipelineUsageLedgerEntry | null>(null);
+
   // Filters for Usage Ledger
+  const [searchQuery, setSearchQuery] = useState<string>('');
   const [filterEngine, setFilterEngine] = useState<string>('ALL');
   const [filterClassification, setFilterClassification] = useState<string>('ALL');
   const [filterBillable, setFilterBillable] = useState<string>('ALL');
+  const [filterDateRange, setFilterDateRange] = useState<'all' | 'today' | '7d' | '30d'>('all');
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const pageSize = 15;
+
+  // Consumption Visualizer view mode
+  const [consumptionChartMode, setConsumptionChartMode] = useState<'tiers' | 'engines'>('tiers');
 
   // Estimator State
   const [estRuns, setEstRuns] = useState<number>(35000);
@@ -67,7 +97,7 @@ export const BillingPage: React.FC = () => {
         api.get('/billing/overview'),
         api.get('/billing/plans'),
         api.get('/runs?limit=15').catch(() => ({ data: [] })),
-        api.get('/billing/usage?limit=50').catch(() => ({ data: [] })),
+        api.get('/billing/usage?limit=100').catch(() => ({ data: [] })),
         api.get('/billing/usage/summary').catch(() => ({ data: null }))
       ]);
 
@@ -126,6 +156,9 @@ export const BillingPage: React.FC = () => {
         reason: reason
       });
       setActionSuccessMsg(`Run successfully updated to ${nextBillable ? 'Billable' : 'Non-Billable'}.`);
+      if (selectedRunForDrawer && selectedRunForDrawer.id === ledgerId) {
+        setSelectedRunForDrawer(prev => prev ? { ...prev, is_billable: nextBillable, non_billable_reason: nextBillable ? undefined : reason } : null);
+      }
       await fetchData();
       setTimeout(() => setActionSuccessMsg(null), 4000);
     } catch (err: any) {
@@ -145,6 +178,125 @@ export const BillingPage: React.FC = () => {
       setActionErrorMsg(err.response?.data?.detail || 'Recalculation failed.');
     }
   };
+
+  const handleExportCSV = () => {
+    const recordsToExport = usageLedger.length > 0 ? usageLedger : recentRuns.map((r: any) => ({
+      id: r.id,
+      pipeline_run_id: r.id,
+      pipeline_name: r.pipeline_name || r.pipeline_id?.substring(0, 8) || 'Ad-Hoc',
+      execution_engine: r.engine || 'CopyEngine',
+      activity_count: r.activity_runs ? r.activity_runs.length : 1,
+      classification: 'Standard',
+      execution_status: r.status,
+      is_billable: r.status !== 'Cancelled',
+      calculated_charge: r.status !== 'Cancelled' ? 1.50 : 0.0,
+      started_at: r.started_at
+    }));
+
+    if (recordsToExport.length === 0) {
+      alert('No usage records available to export.');
+      return;
+    }
+
+    const headers = [
+      'Record ID', 'Run ID', 'Pipeline Name', 'Execution Engine', 
+      'Activities', 'Classification', 'Status', 'Is Billable', 
+      'Calculated Charge (INR)', 'Timestamp'
+    ];
+    const rows = recordsToExport.map((r: any) => [
+      r.id,
+      r.pipeline_run_id,
+      `"${(r.pipeline_name || '').replace(/"/g, '""')}"`,
+      r.execution_engine,
+      r.activity_count,
+      r.classification,
+      r.execution_status,
+      r.is_billable ? 'Yes' : 'No',
+      r.calculated_charge,
+      r.started_at
+    ]);
+
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `dataforge_usage_ledger_${overview?.tenant?.name || 'export'}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleExportJSON = () => {
+    if (!consumptionSummary) return;
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(consumptionSummary, null, 2));
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute("href", dataStr);
+    downloadAnchor.setAttribute("download", `dataforge_consumption_summary_${consumptionSummary.period_key}.json`);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+  };
+
+  // Filtered & Paginated usage entries
+  const filteredUsage = (() => {
+    const sourceList: any[] = usageLedger.length > 0 ? usageLedger : recentRuns.map((r: any) => {
+      const acts = r.activity_runs ? r.activity_runs.length : 1;
+      let classification = 'Basic';
+      let rate = 0.50;
+      if (acts >= 6 && acts <= 15) { classification = 'Standard'; rate = 1.50; }
+      else if (acts >= 16 && acts <= 30) { classification = 'Advanced'; rate = 3.00; }
+      else if (acts > 30) { classification = 'Complex'; rate = 5.00; }
+      return {
+        id: r.id,
+        pipeline_run_id: r.id,
+        pipeline_name: r.pipeline_name || r.pipeline_id?.substring(0, 8) || 'Ad-Hoc',
+        execution_engine: r.engine || 'CopyEngine',
+        activity_count: acts,
+        classification: classification,
+        execution_status: r.status,
+        started_at: r.started_at,
+        duration_seconds: r.duration_seconds || 10,
+        rows_processed: (r.total_rows_read || 0) + (r.total_rows_written || 0),
+        bytes_processed: r.total_bytes_processed || 0,
+        is_billable: r.status !== 'Cancelled',
+        calculated_charge: r.status !== 'Cancelled' ? rate : 0.0,
+        non_billable_reason: r.status === 'Cancelled' ? 'UserCancelled' : undefined
+      };
+    });
+
+    return sourceList.filter((item) => {
+      // Search
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const matchesName = item.pipeline_name?.toLowerCase().includes(q);
+        const matchesRunId = item.pipeline_run_id?.toLowerCase().includes(q);
+        if (!matchesName && !matchesRunId) return false;
+      }
+      // Engine
+      if (filterEngine !== 'ALL' && item.execution_engine !== filterEngine) return false;
+      // Classification
+      if (filterClassification !== 'ALL' && item.classification !== filterClassification) return false;
+      // Billability
+      if (filterBillable === 'BILLABLE' && !item.is_billable) return false;
+      if (filterBillable === 'NON_BILLABLE' && item.is_billable) return false;
+      // Date Range
+      if (filterDateRange !== 'all' && item.started_at) {
+        const itemDate = new Date(item.started_at);
+        const now = new Date();
+        if (filterDateRange === 'today') {
+          if (itemDate.toDateString() !== now.toDateString()) return false;
+        } else if (filterDateRange === '7d') {
+          if (now.getTime() - itemDate.getTime() > 7 * 86400000) return false;
+        } else if (filterDateRange === '30d') {
+          if (now.getTime() - itemDate.getTime() > 30 * 86400000) return false;
+        }
+      }
+      return true;
+    });
+  })();
+
+  const totalPages = Math.max(1, Math.ceil(filteredUsage.length / pageSize));
+  const paginatedUsage = filteredUsage.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   // Estimator Calculations
   const calculateEstimator = () => {
@@ -300,7 +452,6 @@ export const BillingPage: React.FC = () => {
         <div className="space-y-6">
           {/* Top 4 KPI Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {/* Card 1: Active Subscription */}
             <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 flex flex-col justify-between">
               <div className="flex items-start justify-between">
                 <div>
@@ -322,7 +473,6 @@ export const BillingPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Card 2: Consumed Runs */}
             <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 flex flex-col justify-between">
               <div className="flex items-start justify-between">
                 <div>
@@ -352,7 +502,6 @@ export const BillingPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Card 3: Estimated Current Charges */}
             <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 flex flex-col justify-between">
               <div className="flex items-start justify-between">
                 <div>
@@ -371,7 +520,6 @@ export const BillingPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Card 4: Next Billing Cycle */}
             <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 flex flex-col justify-between">
               <div className="flex items-start justify-between">
                 <div>
@@ -469,103 +617,12 @@ export const BillingPage: React.FC = () => {
               </div>
             </div>
           </div>
-
-          {/* Recent Live Pipeline Runs Usage Table */}
-          <div className="p-5 rounded-xl bg-slate-900 border border-slate-800 space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-bold text-white">Recent Metered Pipeline Executions</h3>
-                <p className="text-xs text-slate-400 mt-0.5">Live execution audit trail feeding into the monthly usage ledger.</p>
-              </div>
-              <button
-                onClick={() => setActiveTab('usage')}
-                className="text-xs text-brand-400 hover:text-brand-300 flex items-center gap-1"
-              >
-                View Full Usage Ledger <ChevronRight className="h-3.5 w-3.5" />
-              </button>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead>
-                  <tr className="border-b border-slate-800 text-slate-400 text-[11px] uppercase tracking-wider">
-                    <th className="py-2.5 px-3">Run ID</th>
-                    <th className="py-2.5 px-3">Pipeline</th>
-                    <th className="py-2.5 px-3">Engine</th>
-                    <th className="py-2.5 px-3">Status</th>
-                    <th className="py-2.5 px-3">Duration</th>
-                    <th className="py-2.5 px-3">Classification</th>
-                    <th className="py-2.5 px-3 text-right">Billable Charge</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-800/60 font-mono">
-                  {recentRuns.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} className="py-8 text-center text-slate-500 font-sans">
-                        No recent execution records found in active workspace.
-                      </td>
-                    </tr>
-                  ) : (
-                    recentRuns.map((r: any) => {
-                      const acts = r.activity_runs ? r.activity_runs.length : 1;
-                      let classification = 'Basic';
-                      let rate = '₹0.50';
-                      if (acts >= 6 && acts <= 15) { classification = 'Standard'; rate = '₹1.50'; }
-                      else if (acts >= 16 && acts <= 30) { classification = 'Advanced'; rate = '₹3.00'; }
-                      else if (acts > 30) { classification = 'Complex'; rate = '₹5.00'; }
-
-                      const isBillable = r.status !== 'Cancelled';
-
-                      return (
-                        <tr key={r.id} className="hover:bg-slate-800/30 transition">
-                          <td className="py-2.5 px-3 text-slate-300 truncate max-w-[120px]" title={r.id}>
-                            {r.id.substring(0, 8)}...
-                          </td>
-                          <td className="py-2.5 px-3 text-white font-medium font-sans truncate max-w-[150px]">
-                            {r.pipeline_name || r.pipeline_id?.substring(0, 8) || 'Ad-Hoc Run'}
-                          </td>
-                          <td className="py-2.5 px-3 text-slate-300">
-                            <span className="px-1.5 py-0.5 rounded text-[10px] bg-slate-800 border border-slate-700">
-                              {r.engine || 'Copy Engine'}
-                            </span>
-                          </td>
-                          <td className="py-2.5 px-3">
-                            <span className={`px-2 py-0.5 rounded text-[10px] font-sans font-medium ${
-                              r.status === 'Completed' || r.status === 'Succeeded'
-                                ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                                : r.status === 'Failed'
-                                ? 'bg-red-500/10 text-red-400 border border-red-500/20'
-                                : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
-                            }`}>
-                              {r.status}
-                            </span>
-                          </td>
-                          <td className="py-2.5 px-3 text-slate-400">
-                            {r.duration_seconds ? `${r.duration_seconds.toFixed(1)}s` : '—'}
-                          </td>
-                          <td className="py-2.5 px-3 font-sans text-slate-300">
-                            {classification} ({acts} act)
-                          </td>
-                          <td className="py-2.5 px-3 text-right">
-                            <span className={isBillable ? 'text-white font-bold' : 'text-slate-500 line-through'}>
-                              {isBillable ? (overview.remaining_runs > 0 ? 'Included' : rate) : 'Non-billable'}
-                            </span>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
         </div>
       )}
 
       {/* TAB 2: PLANS & TIERS */}
       {activeTab === 'plans' && (
         <div className="space-y-6">
-          {/* Billing Period Selector */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl bg-slate-900 border border-slate-800">
             <div>
               <h3 className="text-sm font-bold text-white">Commercial Subscription Tiers</h3>
@@ -601,7 +658,6 @@ export const BillingPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Plan Cards Grid */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {plans.map((p) => {
               const pricing = p.active_pricing;
@@ -652,7 +708,6 @@ export const BillingPage: React.FC = () => {
                       </span>
                     </div>
 
-                    {/* Features List */}
                     <div className="mt-5 space-y-3 text-xs">
                       <div className="flex items-center gap-2.5 text-slate-200">
                         <Check className="h-4 w-4 text-emerald-400 shrink-0" />
@@ -734,26 +789,6 @@ export const BillingPage: React.FC = () => {
               );
             })}
           </div>
-
-          {/* Enterprise Custom Banner */}
-          <div className="p-6 rounded-2xl bg-gradient-to-r from-slate-900 via-brand-950/30 to-slate-900 border border-slate-800 flex flex-col md:flex-row items-center justify-between gap-6">
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <Building className="h-5 w-5 text-brand-400" />
-                <h4 className="text-base font-bold text-white">Need Custom Volume Licensing or Custom Connectors?</h4>
-              </div>
-              <p className="text-xs text-slate-400 max-w-2xl">
-                For organizations with over 1,000,000 pipeline executions/month, hybrid air-gapped private clusters, or custom compliance auditing requirements, we offer tailored Enterprise Agreements.
-              </p>
-            </div>
-            <a
-              href="mailto:enterprise@dataflow.enterprise"
-              className="px-4 py-2.5 rounded-xl text-xs font-semibold text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 whitespace-nowrap transition flex items-center gap-2 shrink-0"
-            >
-              Contact Enterprise Sales
-              <ArrowUpRight className="h-4 w-4" />
-            </a>
-          </div>
         </div>
       )}
 
@@ -764,12 +799,12 @@ export const BillingPage: React.FC = () => {
             <div>
               <h3 className="text-sm font-bold text-white">Immutable Pipeline Usage Ledger</h3>
               <p className="text-xs text-slate-400 mt-0.5">
-                Every pipeline run generates an idempotent usage entry with complexity classification and billable status.
+                Every pipeline execution generates an immutable usage record with complexity classification and billable status. Click any row for details.
               </p>
             </div>
             <div className="flex items-center gap-2">
               <button 
-                onClick={() => alert('Exporting usage ledger as CSV...')}
+                onClick={handleExportCSV}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-300 bg-slate-800 hover:bg-slate-700 border border-slate-700 transition"
               >
                 <Download className="h-3.5 w-3.5" />
@@ -778,63 +813,63 @@ export const BillingPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Filter Bar */}
-          <div className="flex flex-wrap items-center gap-3 p-3 bg-slate-950/60 rounded-xl border border-slate-800 text-xs">
-            <div className="flex items-center gap-2">
-              <span className="text-slate-400 font-medium">Engine:</span>
-              <select
-                value={filterEngine}
-                onChange={(e) => setFilterEngine(e.target.value)}
-                className="bg-slate-900 border border-slate-700 text-white rounded-lg px-2.5 py-1 text-xs outline-none focus:border-brand-500"
-              >
-                <option value="ALL">All Engines</option>
-                <option value="CopyEngine">CopyEngine</option>
-                <option value="SparkEngine">SparkEngine</option>
-                <option value="SqlPushdownEngine">SqlPushdownEngine</option>
-                <option value="Hybrid">Hybrid</option>
-              </select>
+          {/* Search & Advanced Filters */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5 p-3.5 bg-slate-950/70 rounded-xl border border-slate-800 text-xs">
+            <div className="relative">
+              <Search className="h-3.5 w-3.5 text-slate-400 absolute left-2.5 top-2.5" />
+              <input
+                type="text"
+                placeholder="Search pipeline or run ID..."
+                value={searchQuery}
+                onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+                className="w-full bg-slate-900 border border-slate-700 text-white rounded-lg pl-8 pr-2.5 py-1.5 text-xs outline-none focus:border-brand-500"
+              />
             </div>
 
-            <div className="flex items-center gap-2">
-              <span className="text-slate-400 font-medium">Classification:</span>
-              <select
-                value={filterClassification}
-                onChange={(e) => setFilterClassification(e.target.value)}
-                className="bg-slate-900 border border-slate-700 text-white rounded-lg px-2.5 py-1 text-xs outline-none focus:border-brand-500"
-              >
-                <option value="ALL">All Tiers</option>
-                <option value="Basic">Basic (2–5 act)</option>
-                <option value="Standard">Standard (6–15 act)</option>
-                <option value="Advanced">Advanced (16–30 act)</option>
-                <option value="Complex">Complex (31+ act)</option>
-              </select>
-            </div>
+            <select
+              value={filterEngine}
+              onChange={(e) => { setFilterEngine(e.target.value); setCurrentPage(1); }}
+              className="bg-slate-900 border border-slate-700 text-white rounded-lg px-2.5 py-1.5 text-xs outline-none focus:border-brand-500"
+            >
+              <option value="ALL">All Engines</option>
+              <option value="CopyEngine">Parallel Copy Engine</option>
+              <option value="SparkEngine">Distributed Spark Engine</option>
+              <option value="SqlPushdownEngine">In-DB SQL Pushdown</option>
+              <option value="Hybrid">Hybrid DAGs</option>
+            </select>
 
-            <div className="flex items-center gap-2">
-              <span className="text-slate-400 font-medium">Billability:</span>
-              <select
-                value={filterBillable}
-                onChange={(e) => setFilterBillable(e.target.value)}
-                className="bg-slate-900 border border-slate-700 text-white rounded-lg px-2.5 py-1 text-xs outline-none focus:border-brand-500"
-              >
-                <option value="ALL">All Runs</option>
-                <option value="BILLABLE">Billable Only</option>
-                <option value="NON_BILLABLE">Non-Billable Only</option>
-              </select>
-            </div>
+            <select
+              value={filterClassification}
+              onChange={(e) => { setFilterClassification(e.target.value); setCurrentPage(1); }}
+              className="bg-slate-900 border border-slate-700 text-white rounded-lg px-2.5 py-1.5 text-xs outline-none focus:border-brand-500"
+            >
+              <option value="ALL">All Complexity Tiers</option>
+              <option value="Basic">Basic (1–5 activities)</option>
+              <option value="Standard">Standard (6–15 activities)</option>
+              <option value="Advanced">Advanced (16–30 activities)</option>
+              <option value="Complex">Complex (31+ activities)</option>
+            </select>
 
-            {(filterEngine !== 'ALL' || filterClassification !== 'ALL' || filterBillable !== 'ALL') && (
-              <button
-                onClick={() => {
-                  setFilterEngine('ALL');
-                  setFilterClassification('ALL');
-                  setFilterBillable('ALL');
-                }}
-                className="text-xs text-brand-400 hover:text-brand-300 ml-auto"
-              >
-                Clear Filters
-              </button>
-            )}
+            <select
+              value={filterBillable}
+              onChange={(e) => { setFilterBillable(e.target.value); setCurrentPage(1); }}
+              className="bg-slate-900 border border-slate-700 text-white rounded-lg px-2.5 py-1.5 text-xs outline-none focus:border-brand-500"
+            >
+              <option value="ALL">All Billability</option>
+              <option value="BILLABLE">Billable Only</option>
+              <option value="NON_BILLABLE">Non-Billable (System/Cancelled)</option>
+            </select>
+
+            <select
+              value={filterDateRange}
+              onChange={(e) => { setFilterDateRange(e.target.value as any); setCurrentPage(1); }}
+              className="bg-slate-900 border border-slate-700 text-white rounded-lg px-2.5 py-1.5 text-xs outline-none focus:border-brand-500"
+            >
+              <option value="all">All Dates</option>
+              <option value="today">Today</option>
+              <option value="7d">Last 7 Days</option>
+              <option value="30d">Last 30 Days</option>
+            </select>
           </div>
 
           <div className="overflow-x-auto">
@@ -845,63 +880,35 @@ export const BillingPage: React.FC = () => {
                   <th className="py-2.5 px-3">Run ID</th>
                   <th className="py-2.5 px-3">Pipeline</th>
                   <th className="py-2.5 px-3">Engine</th>
-                  <th className="py-2.5 px-3">Activities</th>
+                  <th className="py-2.5 px-3 text-center">Activities</th>
                   <th className="py-2.5 px-3">Tier</th>
                   <th className="py-2.5 px-3">Status</th>
                   <th className="py-2.5 px-3">Billable</th>
                   <th className="py-2.5 px-3 text-right">Charge</th>
-                  <th className="py-2.5 px-3 text-right">Admin Action</th>
+                  <th className="py-2.5 px-3 text-right">Details</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/60 font-mono">
-                {(() => {
-                  const itemsToRender = usageLedger.length > 0 ? usageLedger.filter((item) => {
-                    if (filterEngine !== 'ALL' && item.execution_engine !== filterEngine) return false;
-                    if (filterClassification !== 'ALL' && item.classification !== filterClassification) return false;
-                    if (filterBillable === 'BILLABLE' && !item.is_billable) return false;
-                    if (filterBillable === 'NON_BILLABLE' && item.is_billable) return false;
-                    return true;
-                  }) : recentRuns.map((r: any) => {
-                    const acts = r.activity_runs ? r.activity_runs.length : 1;
-                    let classification: any = 'Basic';
-                    let rate = 0.50;
-                    if (acts >= 6 && acts <= 15) { classification = 'Standard'; rate = 1.50; }
-                    else if (acts >= 16 && acts <= 30) { classification = 'Advanced'; rate = 3.00; }
-                    else if (acts > 30) { classification = 'Complex'; rate = 5.00; }
-                    return {
-                      id: r.id,
-                      pipeline_run_id: r.id,
-                      pipeline_name: r.pipeline_name || r.pipeline_id?.substring(0, 8) || 'Ad-Hoc',
-                      execution_engine: r.engine || 'CopyEngine',
-                      activity_count: acts,
-                      classification: classification,
-                      execution_status: r.status,
-                      started_at: r.started_at,
-                      is_billable: r.status !== 'Cancelled',
-                      calculated_charge: r.status !== 'Cancelled' ? rate : 0.0,
-                      non_billable_reason: r.status === 'Cancelled' ? 'UserCancelled' : undefined
-                    };
-                  });
-
-                  if (itemsToRender.length === 0) {
-                    return (
-                      <tr>
-                        <td colSpan={10} className="py-8 text-center text-slate-500 font-sans">
-                          No matching usage entries found for the selected filters.
-                        </td>
-                      </tr>
-                    );
-                  }
-
-                  return itemsToRender.map((entry: any) => (
-                    <tr key={entry.id} className="hover:bg-slate-800/30 transition">
+                {paginatedUsage.length === 0 ? (
+                  <tr>
+                    <td colSpan={10} className="py-8 text-center text-slate-500 font-sans">
+                      No matching pipeline usage entries found.
+                    </td>
+                  </tr>
+                ) : (
+                  paginatedUsage.map((entry: any) => (
+                    <tr 
+                      key={entry.id} 
+                      onClick={() => setSelectedRunForDrawer(entry)}
+                      className="hover:bg-slate-800/40 transition cursor-pointer group"
+                    >
                       <td className="py-2.5 px-3 text-slate-400 text-[11px]">
                         {entry.started_at ? new Date(entry.started_at).toLocaleString() : 'Recent'}
                       </td>
                       <td className="py-2.5 px-3 text-slate-300 truncate max-w-[100px]" title={entry.pipeline_run_id}>
                         {entry.pipeline_run_id.substring(0, 8)}...
                       </td>
-                      <td className="py-2.5 px-3 text-white font-sans font-medium truncate max-w-[130px]">
+                      <td className="py-2.5 px-3 text-white font-sans font-medium truncate max-w-[150px] group-hover:text-brand-300 transition">
                         {entry.pipeline_name}
                       </td>
                       <td className="py-2.5 px-3 text-slate-300">
@@ -939,47 +946,75 @@ export const BillingPage: React.FC = () => {
                         </span>
                       </td>
                       <td className="py-2.5 px-3 text-right font-sans">
-                        {usageLedger.length > 0 && entry.id ? (
-                          <button
-                            onClick={() => handleOverrideBillability(entry.id, entry.is_billable)}
-                            className="px-2 py-1 rounded text-[10px] text-slate-300 bg-slate-800 hover:bg-slate-700 border border-slate-700 transition"
-                          >
-                            {entry.is_billable ? 'Waive' : 'Bill'}
-                          </button>
-                        ) : (
-                          <span className="text-slate-600 text-[10px]">—</span>
-                        )}
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setSelectedRunForDrawer(entry); }}
+                          className="px-2 py-1 rounded text-[10px] text-brand-400 hover:text-brand-300 hover:bg-slate-800 transition"
+                        >
+                          View Breakdown
+                        </button>
                       </td>
                     </tr>
-                  ));
-                })()}
+                  ))
+                )}
               </tbody>
             </table>
+          </div>
+
+          {/* Pagination Toolbar */}
+          <div className="flex items-center justify-between pt-3 border-t border-slate-800 text-xs">
+            <span className="text-slate-400">
+              Showing {Math.min(filteredUsage.length, (currentPage - 1) * pageSize + 1)} to {Math.min(filteredUsage.length, currentPage * pageSize)} of {filteredUsage.length} metered runs
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                disabled={currentPage <= 1}
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed text-slate-300 transition"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <span className="font-mono text-slate-300 px-2">Page {currentPage} of {totalPages}</span>
+              <button
+                disabled={currentPage >= totalPages}
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed text-slate-300 transition"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
           </div>
         </div>
       )}
 
-      {/* TAB 4: CONSUMPTION BREAKDOWN */}
+      {/* TAB 4: CONSUMPTION BREAKDOWN & CHARTS */}
       {activeTab === 'consumption' && (
         <div className="space-y-6">
-          {/* Header with Recalculate Action */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl bg-slate-900 border border-slate-800">
             <div>
               <h3 className="text-sm font-bold text-white flex items-center gap-2">
                 <Clock className="h-4 w-4 text-brand-400" />
-                ADF-Parity Consumption Metrics & Multi-Engine Distribution
+                ADF-Parity Visual Consumption Reports & Engine Splits
               </h3>
               <p className="text-xs text-slate-400 mt-0.5">
-                Aggregated consumption metrics across Parallel Copy, Spark compute, and in-database SQL Pushdown engines.
+                Aggregated consumption metrics, Spark node-hours, in-DB SQL Pushdown, and daily trend curves.
               </p>
             </div>
-            <button
-              onClick={handleRecalculateRating}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 transition"
-            >
-              <RefreshCw className="h-3.5 w-3.5" />
-              Recalculate Rollups
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleExportJSON}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-300 bg-slate-800 hover:bg-slate-700 border border-slate-700 transition"
+              >
+                <Download className="h-3.5 w-3.5" />
+                Export JSON
+              </button>
+              <button
+                onClick={handleRecalculateRating}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-brand-600 hover:bg-brand-500 shadow-sm transition"
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+                Recalculate Rollups
+              </button>
+            </div>
           </div>
 
           {/* Engine Distribution Cards */}
@@ -1017,7 +1052,7 @@ export const BillingPage: React.FC = () => {
                 <span className="text-xs text-slate-400 block mt-0.5">Heavy ETL & PySpark jobs</span>
               </div>
               <div className="mt-3 text-[11px] text-purple-400 font-mono">
-                Compute Charge: ₹{consumptionSummary?.estimated_spark_compute_charge.toFixed(2) ?? '0.00'}
+                Rate: ₹45.00 / node-hour
               </div>
             </div>
 
@@ -1046,95 +1081,78 @@ export const BillingPage: React.FC = () => {
                 <span className="text-2xl font-bold text-white font-mono">
                   {consumptionSummary?.engine_breakdown.Hybrid ?? 0}
                 </span>
-                <span className="text-xs text-slate-400 block mt-0.5">Multi-engine pipelines</span>
+                <span className="text-xs text-slate-400 block mt-0.5">Multi-engine DAG executions</span>
               </div>
               <div className="mt-3 text-[11px] text-slate-400 font-mono">
-                Auto Engine Affinity
+                Automatic Engine Affinity
               </div>
             </div>
           </div>
 
-          {/* Classification Complexity Splits */}
+          {/* Recharts Graphical Consumption Visualizer */}
           <div className="p-5 rounded-xl bg-slate-900 border border-slate-800 space-y-4">
-            <h4 className="text-xs font-bold text-white uppercase tracking-wider">
-              Execution Complexity Distribution
-            </h4>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <div className="p-3 bg-slate-950/60 rounded-lg border border-slate-800">
-                <span className="text-[11px] text-slate-400 block">Basic (2–5 acts)</span>
-                <span className="text-xl font-bold text-white font-mono mt-1 block">
-                  {consumptionSummary?.classification_breakdown.Basic ?? 0}
-                </span>
-                <span className="text-[10px] text-slate-500">Rate: ₹0.50</span>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                  <BarChart3 className="h-4 w-4 text-brand-400" />
+                  Daily Execution Volume & Complexity Progression
+                </h4>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Visual activity complexity and engine distribution over time.
+                </p>
               </div>
-              <div className="p-3 bg-slate-950/60 rounded-lg border border-slate-800">
-                <span className="text-[11px] text-slate-400 block">Standard (6–15 acts)</span>
-                <span className="text-xl font-bold text-white font-mono mt-1 block">
-                  {consumptionSummary?.classification_breakdown.Standard ?? 0}
-                </span>
-                <span className="text-[10px] text-slate-500">Rate: ₹1.50</span>
-              </div>
-              <div className="p-3 bg-slate-950/60 rounded-lg border border-slate-800">
-                <span className="text-[11px] text-slate-400 block">Advanced (16–30 acts)</span>
-                <span className="text-xl font-bold text-white font-mono mt-1 block">
-                  {consumptionSummary?.classification_breakdown.Advanced ?? 0}
-                </span>
-                <span className="text-[10px] text-slate-500">Rate: ₹3.00</span>
-              </div>
-              <div className="p-3 bg-slate-950/60 rounded-lg border border-slate-800">
-                <span className="text-[11px] text-slate-400 block">Complex (31+ acts)</span>
-                <span className="text-xl font-bold text-white font-mono mt-1 block">
-                  {consumptionSummary?.classification_breakdown.Complex ?? 0}
-                </span>
-                <span className="text-[10px] text-slate-500">Rate: ₹5.00 / Custom</span>
+
+              <div className="flex items-center gap-1.5 bg-slate-950 p-1 rounded-lg border border-slate-800 self-start sm:self-auto text-xs">
+                <button
+                  onClick={() => setConsumptionChartMode('tiers')}
+                  className={`px-2.5 py-1 rounded transition ${
+                    consumptionChartMode === 'tiers' ? 'bg-brand-600 text-white font-semibold' : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  By Complexity
+                </button>
+                <button
+                  onClick={() => setConsumptionChartMode('engines')}
+                  className={`px-2.5 py-1 rounded transition ${
+                    consumptionChartMode === 'engines' ? 'bg-brand-600 text-white font-semibold' : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  By Engine
+                </button>
               </div>
             </div>
-          </div>
-
-          {/* Daily Consumption Trend Table / Visualizer */}
-          <div className="p-5 rounded-xl bg-slate-900 border border-slate-800 space-y-4">
-            <h4 className="text-xs font-bold text-white uppercase tracking-wider">
-              Daily Consumption Timeline (ADF Report Parity)
-            </h4>
 
             {(!consumptionSummary?.daily_consumption || consumptionSummary.daily_consumption.length === 0) ? (
-              <div className="py-8 text-center text-slate-500 text-xs">
-                No daily execution history recorded in the current period yet.
+              <div className="py-12 text-center text-slate-500 text-xs font-sans">
+                No daily execution time-series recorded in the current period yet.
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead>
-                    <tr className="border-b border-slate-800 text-slate-400 text-[11px] uppercase tracking-wider">
-                      <th className="py-2.5 px-3">Date</th>
-                      <th className="py-2.5 px-3">Total Executions</th>
-                      <th className="py-2.5 px-3">Billable</th>
-                      <th className="py-2.5 px-3">Non-Billable</th>
-                      <th className="py-2.5 px-3">Basic</th>
-                      <th className="py-2.5 px-3">Standard</th>
-                      <th className="py-2.5 px-3">Advanced</th>
-                      <th className="py-2.5 px-3">Spark Runs</th>
-                      <th className="py-2.5 px-3 text-right">Estimated Surcharges</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-800/60 font-mono">
-                    {consumptionSummary.daily_consumption.map((day) => (
-                      <tr key={day.date} className="hover:bg-slate-800/30 transition">
-                        <td className="py-2.5 px-3 text-white font-semibold">{day.date}</td>
-                        <td className="py-2.5 px-3 text-slate-200">{day.total_runs}</td>
-                        <td className="py-2.5 px-3 text-emerald-400">{day.billable_runs}</td>
-                        <td className="py-2.5 px-3 text-slate-500">{day.non_billable_runs}</td>
-                        <td className="py-2.5 px-3 text-slate-300">{day.basic_runs}</td>
-                        <td className="py-2.5 px-3 text-slate-300">{day.standard_runs}</td>
-                        <td className="py-2.5 px-3 text-slate-300">{day.advanced_runs}</td>
-                        <td className="py-2.5 px-3 text-purple-400">{day.spark_runs}</td>
-                        <td className="py-2.5 px-3 text-right font-bold text-white">
-                          ₹{day.estimated_charges.toFixed(2)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="h-64 w-full pt-4">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={consumptionSummary.daily_consumption}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.4} />
+                    <XAxis dataKey="date" stroke="#94a3b8" fontSize={11} />
+                    <YAxis stroke="#94a3b8" fontSize={11} allowDecimals={false} />
+                    <Tooltip 
+                      contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '8px', fontSize: '11px', color: '#fff' }}
+                    />
+                    <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
+                    {consumptionChartMode === 'tiers' ? (
+                      <>
+                        <Bar dataKey="basic_runs" name="Basic (₹0.50)" stackId="a" fill="#3b82f6" />
+                        <Bar dataKey="standard_runs" name="Standard (₹1.50)" stackId="a" fill="#10b981" />
+                        <Bar dataKey="advanced_runs" name="Advanced (₹3.00)" stackId="a" fill="#f59e0b" />
+                        <Bar dataKey="complex_runs" name="Complex (₹5.00)" stackId="a" fill="#ec4899" />
+                      </>
+                    ) : (
+                      <>
+                        <Bar dataKey="copy_runs" name="Copy Engine" stackId="b" fill="#3b82f6" />
+                        <Bar dataKey="spark_runs" name="Spark Engine" stackId="b" fill="#a855f7" />
+                        <Bar dataKey="sql_runs" name="SQL Pushdown" stackId="b" fill="#10b981" />
+                      </>
+                    )}
+                  </BarChart>
+                </ResponsiveContainer>
               </div>
             )}
           </div>
@@ -1272,7 +1290,6 @@ export const BillingPage: React.FC = () => {
       {/* TAB 7: COST ESTIMATOR */}
       {activeTab === 'estimator' && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Inputs Section */}
           <div className="lg:col-span-7 p-6 rounded-2xl bg-slate-900 border border-slate-800 space-y-6">
             <div>
               <h3 className="text-base font-bold text-white flex items-center gap-2">
@@ -1284,7 +1301,6 @@ export const BillingPage: React.FC = () => {
               </p>
             </div>
 
-            {/* Slider 1: Expected Monthly Runs */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-semibold text-slate-200">Expected Monthly Pipeline Executions</label>
@@ -1306,7 +1322,6 @@ export const BillingPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Slider 2: Average Activities per Pipeline */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-semibold text-slate-200">Average Activities per Pipeline</label>
@@ -1329,7 +1344,6 @@ export const BillingPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Slider 3: Spark Worker Node-Hours */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-semibold text-slate-200">Managed Spark Worker Node-Hours</label>
@@ -1351,7 +1365,6 @@ export const BillingPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Toggle Billing Frequency */}
             <div className="pt-2 border-t border-slate-800 flex items-center justify-between">
               <span className="text-xs text-slate-300 font-medium">Billing Commitment:</span>
               <div className="flex items-center gap-2 bg-slate-950 p-1 rounded-lg border border-slate-800">
@@ -1375,7 +1388,6 @@ export const BillingPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Results Summary Section */}
           <div className="lg:col-span-5 p-6 rounded-2xl bg-gradient-to-b from-slate-900 to-brand-950/30 border border-slate-800 flex flex-col justify-between space-y-6">
             <div>
               <span className="text-[11px] font-semibold text-brand-400 uppercase tracking-wider block">
@@ -1411,7 +1423,6 @@ export const BillingPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* ADF Comparison Widget */}
               <div className="mt-5 p-4 rounded-xl bg-slate-950/80 border border-slate-800 space-y-2">
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-slate-400">Azure Data Factory Equivalent:</span>
@@ -1440,6 +1451,164 @@ export const BillingPage: React.FC = () => {
               <Sparkles className="h-4 w-4" />
               Subscribe to {estResult.recPlan.toUpperCase()} Plan
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Slide-Over Drawer: Usage Breakdown Details */}
+      {selectedRunForDrawer && (
+        <div className="fixed inset-0 z-50 overflow-hidden flex justify-end bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-lg bg-slate-900 border-l border-slate-800 shadow-2xl flex flex-col h-full animate-in slide-in-from-right duration-300">
+            {/* Drawer Header */}
+            <div className="p-5 border-b border-slate-800 flex items-start justify-between">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="p-1.5 rounded-lg bg-brand-500/10 text-brand-400">
+                    <Layers className="h-4 w-4" />
+                  </span>
+                  <h3 className="text-sm font-bold text-white truncate max-w-[280px]">
+                    {selectedRunForDrawer.pipeline_name}
+                  </h3>
+                </div>
+                <div className="flex items-center gap-2 mt-2 text-[11px] text-slate-400 font-mono">
+                  <span>Run ID: {selectedRunForDrawer.pipeline_run_id}</span>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(selectedRunForDrawer.pipeline_run_id);
+                      alert('Copied Run ID to clipboard!');
+                    }}
+                    className="hover:text-white"
+                  >
+                    <Copy className="h-3 w-3" />
+                  </button>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setSelectedRunForDrawer(null)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Drawer Body */}
+            <div className="flex-1 overflow-y-auto p-5 space-y-5 text-xs">
+              {/* Badges Bar */}
+              <div className="flex flex-wrap items-center gap-2">
+                <span className={`px-2 py-0.5 rounded text-[11px] font-semibold ${
+                  selectedRunForDrawer.execution_status === 'Succeeded' || selectedRunForDrawer.execution_status === 'Completed'
+                    ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                    : 'bg-red-500/10 text-red-400 border border-red-500/20'
+                }`}>
+                  {selectedRunForDrawer.execution_status}
+                </span>
+
+                <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                  {selectedRunForDrawer.execution_engine}
+                </span>
+
+                <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                  {selectedRunForDrawer.classification} ({selectedRunForDrawer.activity_count} activities)
+                </span>
+              </div>
+
+              {/* Execution Telemetry Grid */}
+              <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800 space-y-2.5">
+                <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                  Execution Telemetry
+                </h4>
+                <div className="grid grid-cols-2 gap-3 pt-1">
+                  <div>
+                    <span className="text-slate-500 block text-[10px]">Execution Duration</span>
+                    <span className="text-white font-mono font-medium">{Number(selectedRunForDrawer.duration_seconds).toFixed(2)}s</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 block text-[10px]">Started At</span>
+                    <span className="text-white font-mono text-[11px]">
+                      {new Date(selectedRunForDrawer.started_at).toLocaleTimeString()}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 block text-[10px]">Rows Processed</span>
+                    <span className="text-white font-mono">{selectedRunForDrawer.rows_processed?.toLocaleString() || 0}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 block text-[10px]">Bytes Moved</span>
+                    <span className="text-white font-mono">{((selectedRunForDrawer.bytes_processed || 0) / 1024 / 1024).toFixed(2)} MB</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Billability Evaluation Card */}
+              <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                    Billability Status & Determination
+                  </h4>
+                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                    selectedRunForDrawer.is_billable
+                      ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                      : 'bg-slate-800 text-slate-400 border border-slate-700'
+                  }`}>
+                    {selectedRunForDrawer.is_billable ? 'Billable Run' : 'Non-Billable'}
+                  </span>
+                </div>
+
+                <p className="text-slate-300 text-[11px] leading-relaxed">
+                  {selectedRunForDrawer.is_billable
+                    ? 'Execution commenced on customer instruction. Standard complexity rate applied under active commercial subscription agreement.'
+                    : `Execution exempted from orchestration billing. Reason: ${selectedRunForDrawer.non_billable_reason || 'PlatformSystemError or Pre-start cancellation'}.`}
+                </p>
+              </div>
+
+              {/* Financial Calculation Breakdown */}
+              <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800 space-y-2.5">
+                <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                  Itemized Financial Breakdown
+                </h4>
+                <div className="space-y-1.5 pt-1">
+                  <div className="flex justify-between text-slate-300">
+                    <span>Applicable Complexity Tier:</span>
+                    <span className="font-mono text-white">{selectedRunForDrawer.classification}</span>
+                  </div>
+                  <div className="flex justify-between text-slate-300">
+                    <span>Base Tier Rate:</span>
+                    <span className="font-mono text-white">
+                      ₹{selectedRunForDrawer.classification === 'Basic' ? '0.50' : selectedRunForDrawer.classification === 'Standard' ? '1.50' : selectedRunForDrawer.classification === 'Advanced' ? '3.00' : '5.00'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-slate-300">
+                    <span>Monthly Allowance Status:</span>
+                    <span className="font-mono text-emerald-400">Included / Metered</span>
+                  </div>
+                  <div className="flex justify-between text-white font-bold pt-2 border-t border-slate-800">
+                    <span>Calculated Run Surcharge:</span>
+                    <span className="font-mono text-brand-400 text-sm">
+                      ₹{Number(selectedRunForDrawer.calculated_charge).toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Drawer Footer Actions */}
+            <div className="p-4 border-t border-slate-800 flex items-center justify-between gap-3 bg-slate-950/50">
+              <button
+                onClick={() => handleOverrideBillability(selectedRunForDrawer.id, selectedRunForDrawer.is_billable)}
+                className="px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-300 bg-slate-800 hover:bg-slate-700 border border-slate-700 transition flex items-center gap-2"
+              >
+                <Sliders className="h-3.5 w-3.5" />
+                {selectedRunForDrawer.is_billable ? 'Waive Billability' : 'Reinstate Billable'}
+              </button>
+
+              <button
+                onClick={() => setSelectedRunForDrawer(null)}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 transition"
+              >
+                Close Drawer
+              </button>
+            </div>
           </div>
         </div>
       )}

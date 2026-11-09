@@ -14,7 +14,7 @@
 | **Phase 1** | **Dynamic Pricing & Subscription Configuration Engine** | `4735d36` | **Completed** | 6 / 6 Passed (Billing Suite) | 2026-11-09 |
 | **Phase 2** | **Pipeline Usage Metering & Immutable Ledger Engine** | `a926496` | **Completed** | 6 / 6 Passed (12/12 Billing Total) | 2026-11-09 |
 | **Phase 3** | **Rating & Usage Aggregation Engine** | `18fc461` | **Completed** | 4 / 4 Passed (16/16 Billing Total) | 2026-11-09 |
-| **Phase 4** | **Billing Dashboard & Cost Management UI** | `—` | *Awaiting Gate 3* | — | — |
+| **Phase 4** | **Billing Dashboard & Cost Management UI** | `PENDING_COMMIT` | **Completed** | 16 / 16 Billing + Frontend Build Verified | 2026-11-09 |
 | **Phase 5** | **Automated Invoicing, Tax & Payment Ledger Engine** | `—` | *Awaiting Gate 4* | — | — |
 | **Phase 6** | **Interactive Cost Estimator & Plan Comparison Calculator** | `—` | *Awaiting Gate 5* | — | — |
 | **Phase 7** | **Budget Management, Threshold Alerts & Notification System** | `—` | *Awaiting Gate 6* | — | — |
@@ -73,3 +73,15 @@
 - [x] Add automated test suite `test_rating_engine.py` (4/4 passed).
 - [x] Full platform regression suite: 421 passed, 0 failures.
 - [x] Frontend production build: 0 TypeScript errors.
+
+---
+
+## 6. Phase 4 Implementation Checklist
+- [x] Integrate interactive Recharts visualizer in Consumption Details (stacked bar chart by complexity tier & execution engine with dark tooltip styling).
+- [x] Implement slide-over Run Details Drawer displaying run telemetry, byte/row metrics, billability rationale, and itemized surcharge breakdown.
+- [x] Implement administrative billability toggle (Waive / Reinstate) inside the Run Details Drawer with reason prompt.
+- [x] Build multi-attribute filter toolbar for Usage Ledger: search query (pipeline name & run ID), engine dropdown, classification tier, billability status, and date range filters (Today, 7d, 30d, All).
+- [x] Implement client-side pagination (15 items/page) with entry counters and previous/next page navigation controls.
+- [x] Implement browser export capabilities: CSV export for Usage Ledger and formatted JSON export for Consumption Summary.
+- [x] Verify complete frontend build (`tsc && vite build`) with zero compiler errors.
+
