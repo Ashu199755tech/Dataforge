@@ -1,5 +1,11 @@
 from typing import Dict, Any, Iterator, Optional, List, BinaryIO
-import pyorc
+
+try:
+    import pyorc
+    HAS_PYORC = True
+except ImportError:
+    pyorc = None
+    HAS_PYORC = False
 
 from backend.app.formats.base import BaseFormatReader, BaseFormatWriter
 from backend.app.formats.models import SchemaDefinition, ColumnSchema, DataType
@@ -44,6 +50,8 @@ class OrcFormatHandler(BaseFormatReader, BaseFormatWriter):
         limit: Optional[int] = None,
         columns: Optional[List[str]] = None
     ) -> Iterator[Dict[str, Any]]:
+        if not HAS_PYORC or pyorc is None:
+            raise RuntimeError("pyorc is not installed. Please install pyorc to process ORC files.")
         reader = pyorc.Reader(stream)
         schema = reader.schema
         field_names = [f for f in schema.fields.keys()]
@@ -63,6 +71,8 @@ class OrcFormatHandler(BaseFormatReader, BaseFormatWriter):
                 break
 
     def infer_schema(self, stream: BinaryIO, max_records: int = 100) -> SchemaDefinition:
+        if not HAS_PYORC or pyorc is None:
+            raise RuntimeError("pyorc is not installed. Please install pyorc to process ORC files.")
         start_pos = stream.tell() if hasattr(stream, "tell") else 0
         reader = pyorc.Reader(stream)
         schema = reader.schema
@@ -83,6 +93,8 @@ class OrcFormatHandler(BaseFormatReader, BaseFormatWriter):
         target_stream: BinaryIO,
         schema: Optional[SchemaDefinition] = None
     ) -> int:
+        if not HAS_PYORC or pyorc is None:
+            raise RuntimeError("pyorc is not installed. Please install pyorc to process ORC files.")
         start_pos = target_stream.tell() if hasattr(target_stream, "tell") else 0
         all_records = list(records)
         if not all_records:

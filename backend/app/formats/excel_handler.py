@@ -1,6 +1,12 @@
 from typing import Dict, Any, Iterator, Optional, List, BinaryIO
 import io
-import openpyxl
+
+try:
+    import openpyxl
+    HAS_OPENPYXL = True
+except ImportError:
+    openpyxl = None
+    HAS_OPENPYXL = False
 
 from backend.app.formats.base import BaseFormatReader, BaseFormatWriter
 from backend.app.formats.models import SchemaDefinition, ColumnSchema, DataType

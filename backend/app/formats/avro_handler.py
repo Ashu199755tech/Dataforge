@@ -1,5 +1,11 @@
 from typing import Dict, Any, Iterator, Optional, List, BinaryIO
-import fastavro
+
+try:
+    import fastavro
+    HAS_FASTAVRO = True
+except ImportError:
+    fastavro = None
+    HAS_FASTAVRO = False
 
 from backend.app.formats.base import BaseFormatReader, BaseFormatWriter
 from backend.app.formats.models import SchemaDefinition, ColumnSchema, DataType
