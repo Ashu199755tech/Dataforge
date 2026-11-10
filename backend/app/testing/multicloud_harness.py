@@ -58,10 +58,15 @@ def azurite_context(port: int = AZURITE_PORT) -> Iterator[str]:
         yield conn_str
         return
 
-    tmp_dir = tempfile.mkdtemp(prefix="azurite_harness_")
     node_path = os.path.expanduser("~/.local/node/bin")
     env = os.environ.copy()
     env["PATH"] = f"{node_path}:{env.get('PATH', '')}"
+
+    azurite_bin = shutil.which("azurite") or shutil.which("azurite", path=env["PATH"])
+    if not azurite_bin:
+        raise RuntimeError("Azurite emulator binary ('azurite') is not installed in PATH")
+
+    tmp_dir = tempfile.mkdtemp(prefix="azurite_harness_")
 
     proc = subprocess.Popen(
         [

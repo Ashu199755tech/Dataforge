@@ -1,6 +1,12 @@
+import os
+import shutil
 import pytest
 
 pytest.importorskip("moto", reason="moto[s3] not installed")
+
+node_path = os.path.expanduser("~/.local/node/bin")
+env_path = f"{node_path}:{os.environ.get('PATH', '')}"
+has_azurite = bool(shutil.which("azurite") or shutil.which("azurite", path=env_path))
 
 from backend.app.testing.multicloud_scenarios import (
     run_scenario_1_s3_to_adls_streaming,
@@ -19,12 +25,14 @@ class TestMultiCloudVerificationScenarios:
     against local emulators (Azurite, Moto AWS S3, Mock GCS, Relational DBs).
     """
 
+    @pytest.mark.skipif(not has_azurite, reason="Azurite emulator not installed")
     def test_scenario_1_s3_to_adls_direct_streaming(self):
         res = run_scenario_1_s3_to_adls_streaming()
         assert res["status"] == "Passed", f"Scenario 1 failed: {res.get('assertions')}"
         for assertion in res.get("assertions", []):
             assert assertion["passed"] is True, f"Failed assertion: {assertion}"
 
+    @pytest.mark.skipif(not has_azurite, reason="Azurite emulator not installed")
     def test_scenario_2_adls_to_s3_transcoding(self):
         res = run_scenario_2_adls_to_s3_transcoding()
         assert res["status"] == "Passed", f"Scenario 2 failed: {res.get('assertions')}"
@@ -43,6 +51,7 @@ class TestMultiCloudVerificationScenarios:
         for assertion in res.get("assertions", []):
             assert assertion["passed"] is True, f"Failed assertion: {assertion}"
 
+    @pytest.mark.skipif(not has_azurite, reason="Azurite emulator not installed")
     def test_scenario_5_cloud_to_database_upsert(self):
         res = run_scenario_5_cloud_to_database_upsert()
         assert res["status"] == "Passed", f"Scenario 5 failed: {res.get('assertions')}"

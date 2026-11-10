@@ -116,10 +116,14 @@ AZURITE_PORT = 10150
 
 @pytest.fixture(scope="module")
 def azurite_server():
-    tmp_dir = tempfile.mkdtemp(prefix="azurite_workspace_")
     node_path = os.path.expanduser("~/.local/node/bin")
     env = os.environ.copy()
     env["PATH"] = f"{node_path}:{env.get('PATH', '')}"
+
+    if not shutil.which("azurite") and not shutil.which("azurite", path=env["PATH"]):
+        pytest.skip("Azurite emulator binary ('azurite') not installed in PATH")
+
+    tmp_dir = tempfile.mkdtemp(prefix="azurite_workspace_")
 
     proc = subprocess.Popen(
         [
