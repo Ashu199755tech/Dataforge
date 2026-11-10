@@ -51,6 +51,16 @@ import {
   CartesianGrid 
 } from 'recharts';
 
+function formatBytes(bytes?: number, decimals = 1): string {
+  if (bytes === undefined || bytes === null || isNaN(bytes) || bytes <= 0) return '0 B';
+  const k = 1024;
+  const dm = decimals < 0 ? 0 : decimals;
+  const sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  const val = parseFloat((bytes / Math.pow(k, i)).toFixed(dm));
+  return `${val} ${sizes[i] || 'B'}`;
+}
+
 export const ObservabilityPage: React.FC = () => {
   const { activeProject } = useAppStore();
 
@@ -91,29 +101,48 @@ export const ObservabilityPage: React.FC = () => {
   const [isSubmittingAlert, setIsSubmittingAlert] = useState<boolean>(false);
 
   const fetchData = async () => {
-    if (!activeProject) return;
     setIsLoading(true);
     try {
-      const [ovRes, copyRes, fleetRes, diagRes, rulesRes, eventsRes, runsRes] = await Promise.all([
-        api.get(`/observability/overview?project_id=${activeProject.id}`),
-        api.get(`/observability/copy-performance?project_id=${activeProject.id}&limit=50`),
-        api.get(`/observability/fleet-health?project_id=${activeProject.id}`),
-        api.get(`/observability/failure-diagnostics?project_id=${activeProject.id}&days=7`),
+      const projectParam = activeProject?.id ? `project_id=${encodeURIComponent(activeProject.id)}` : '';
+      const withParam = (url: string) => {
+        if (!projectParam) return url;
+        return url.includes('?') ? `${url}&${projectParam}` : `${url}?${projectParam}`;
+      };
+
+      const [ovRes, copyRes, fleetRes, diagRes, rulesRes, eventsRes, runsRes] = await Promise.allSettled([
+        api.get(withParam('/observability/overview')),
+        api.get(withParam('/observability/copy-performance?limit=50')),
+        api.get(withParam('/observability/fleet-health')),
+        api.get(withParam('/observability/failure-diagnostics?days=7')),
         api.get('/alerts/rules'),
         api.get('/alerts/events'),
         api.get('/runs?status=all')
       ]);
 
-      setOverview(ovRes.data);
-      setCopyPerf(copyRes.data);
-      setFleet(fleetRes.data);
-      setDiagnostics(diagRes.data);
-      setAlertRules(rulesRes.data || []);
-      setAlertEvents(eventsRes.data || []);
-      setRuns(runsRes.data || []);
-
-      if (runsRes.data && runsRes.data.length > 0 && !selectedRunIdForTrace) {
-        setSelectedRunIdForTrace(runsRes.data[0].id);
+      if (ovRes.status === 'fulfilled' && ovRes.value?.data) {
+        setOverview(ovRes.value.data);
+      }
+      if (copyRes.status === 'fulfilled' && copyRes.value?.data) {
+        setCopyPerf(copyRes.value.data);
+      }
+      if (fleetRes.status === 'fulfilled' && fleetRes.value?.data) {
+        setFleet(fleetRes.value.data);
+      }
+      if (diagRes.status === 'fulfilled' && diagRes.value?.data) {
+        setDiagnostics(diagRes.value.data);
+      }
+      if (rulesRes.status === 'fulfilled' && rulesRes.value?.data) {
+        setAlertRules(rulesRes.value.data || []);
+      }
+      if (eventsRes.status === 'fulfilled' && eventsRes.value?.data) {
+        setAlertEvents(eventsRes.value.data || []);
+      }
+      if (runsRes.status === 'fulfilled' && runsRes.value?.data) {
+        const fetchedRuns = runsRes.value.data || [];
+        setRuns(fetchedRuns);
+        if (fetchedRuns.length > 0 && !selectedRunIdForTrace) {
+          setSelectedRunIdForTrace(fetchedRuns[0].id);
+        }
       }
 
       setLastRefreshedAt(new Date());
@@ -126,7 +155,7 @@ export const ObservabilityPage: React.FC = () => {
 
   useEffect(() => {
     fetchData();
-  }, [activeProject]);
+  }, [activeProject?.id]);
 
   useEffect(() => {
     let interval: any = null;
@@ -138,7 +167,7 @@ export const ObservabilityPage: React.FC = () => {
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [autoRefresh, activeProject]);
+  }, [autoRefresh, activeProject?.id]);
 
   const loadTrace = async (runId: string) => {
     if (!runId) return;
@@ -213,6 +242,25 @@ export const ObservabilityPage: React.FC = () => {
     setTimeout(() => setCopiedPrometheus(false), 2000);
   };
 
+  // Safe calculated overview statistics
+  const successRate = overview?.success_rate_pct ?? overview?.success_rate_24h_pct ?? 100;
+  const fleetCpu = fleet?.fleet_cpu_usage_pct ?? 0;
+  const fleetMem = fleet?.fleet_memory_usage_pct ?? 0;
+  const onlineRuntimes = fleet?.online_count ?? 0;
+  const totalRuntimes = fleet?.total_runtimes ?? 0;
+  const activeSlots = fleet?.active_tasks ?? 0;
+  const totalSlots = fleet?.total_concurrency_capacity ?? 0;
+  const slotPct = totalSlots > 0 ? Math.min((activeSlots / totalSlots) * 100, 100) : 0;
+  const avgTp = copyPerf?.average_throughput_mb_sec ?? 0;
+  const peakTp = copyPerf?.peak_throughput_mb_sec ?? 0;
+  const totalVolumeHuman = copyPerf?.total_bytes_human || formatBytes(copyPerf?.total_bytes_transferred);
+
+  // Formatted trend for area chart
+  const trendData = (copyPerf?.throughput_trend || []).map((t, idx) => ({
+    ...t,
+    displayTime: t.hour || (t.time ? (t.time.includes(' ') ? t.time.split(' ')[1] : t.time) : `T-${idx}`)
+  }));
+
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
       {/* Header */}
@@ -283,14 +331,14 @@ export const ObservabilityPage: React.FC = () => {
           </div>
           <div className="flex items-baseline gap-2">
             <span className="text-2xl font-bold text-slate-100 font-mono">
-              {overview ? overview.success_rate_24h_pct : 100}%
+              {typeof successRate === 'number' ? successRate.toFixed(1) : '100.0'}%
             </span>
             <span className="text-[11px] text-slate-500">pipeline executions</span>
           </div>
           <div className="w-full bg-slate-800 h-1.5 rounded-full mt-3 overflow-hidden">
             <div 
               className="bg-emerald-500 h-full rounded-full transition-all"
-              style={{ width: `${overview ? overview.success_rate_24h_pct : 100}%` }}
+              style={{ width: `${Math.min(Math.max(successRate, 0), 100)}%` }}
             />
           </div>
         </div>
@@ -303,18 +351,18 @@ export const ObservabilityPage: React.FC = () => {
           </div>
           <div className="flex items-baseline gap-2">
             <span className="text-2xl font-bold text-slate-100 font-mono">
-              {fleet ? fleet.fleet_cpu_usage_pct : 0}%
+              {fleetCpu.toFixed(1)}%
             </span>
             <span className="text-[11px] text-slate-500">
-              {fleet ? `${fleet.online_count}/${fleet.total_runtimes} online` : '0 online'}
+              {fleet ? `${onlineRuntimes}/${totalRuntimes} online` : '0 online'}
             </span>
           </div>
           <div className="w-full bg-slate-800 h-1.5 rounded-full mt-3 overflow-hidden">
             <div 
               className={`h-full rounded-full transition-all ${
-                (fleet?.fleet_cpu_usage_pct || 0) > 80 ? 'bg-rose-500' : 'bg-brand-500'
+                fleetCpu > 80 ? 'bg-rose-500' : 'bg-brand-500'
               }`}
-              style={{ width: `${fleet ? Math.min(fleet.fleet_cpu_usage_pct, 100) : 0}%` }}
+              style={{ width: `${Math.min(fleetCpu, 100)}%` }}
             />
           </div>
         </div>
@@ -327,15 +375,15 @@ export const ObservabilityPage: React.FC = () => {
           </div>
           <div className="flex items-baseline gap-2">
             <span className="text-2xl font-bold text-slate-100 font-mono">
-              {copyPerf ? copyPerf.average_throughput_mb_sec : 0}
+              {avgTp.toFixed(1)}
             </span>
             <span className="text-[11px] text-slate-400 font-mono">MB/s</span>
             <span className="text-[11px] text-slate-500 ml-auto">
-              Peak: {copyPerf ? copyPerf.peak_throughput_mb_sec : 0} MB/s
+              Peak: {peakTp.toFixed(1)} MB/s
             </span>
           </div>
           <div className="text-[11px] text-slate-500 mt-2 truncate">
-            Total volume: <span className="text-slate-300 font-mono">{copyPerf?.total_bytes_human || '0 B'}</span>
+            Total volume: <span className="text-slate-300 font-mono">{totalVolumeHuman}</span>
           </div>
         </div>
 
@@ -347,30 +395,26 @@ export const ObservabilityPage: React.FC = () => {
           </div>
           <div className="flex items-baseline gap-2">
             <span className="text-2xl font-bold text-slate-100 font-mono">
-              {fleet ? fleet.active_tasks : 0}
+              {activeSlots}
             </span>
             <span className="text-[11px] text-slate-400 font-mono">
-              / {fleet ? fleet.total_concurrency_capacity : 0} slots
+              / {totalSlots} slots
             </span>
           </div>
           <div className="w-full bg-slate-800 h-1.5 rounded-full mt-3 overflow-hidden">
             <div 
               className="bg-indigo-500 h-full rounded-full transition-all"
-              style={{ 
-                width: `${fleet && fleet.total_concurrency_capacity > 0 
-                  ? Math.min((fleet.active_tasks / fleet.total_concurrency_capacity) * 100, 100) 
-                  : 0}%` 
-              }}
+              style={{ width: `${slotPct}%` }}
             />
           </div>
         </div>
       </div>
 
       {/* Module Navigation Tabs */}
-      <div className="flex items-center gap-1 border-b border-slate-800">
+      <div className="flex items-center gap-1 border-b border-slate-800 overflow-x-auto">
         <button
           onClick={() => setActiveTab('copy_perf')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-medium border-b-2 transition-all ${
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-medium border-b-2 whitespace-nowrap transition-all ${
             activeTab === 'copy_perf'
               ? 'border-brand-500 text-brand-400 bg-brand-500/5'
               : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-700'
@@ -382,7 +426,7 @@ export const ObservabilityPage: React.FC = () => {
 
         <button
           onClick={() => setActiveTab('fleet_health')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-medium border-b-2 transition-all ${
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-medium border-b-2 whitespace-nowrap transition-all ${
             activeTab === 'fleet_health'
               ? 'border-brand-500 text-brand-400 bg-brand-500/5'
               : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-700'
@@ -394,7 +438,7 @@ export const ObservabilityPage: React.FC = () => {
 
         <button
           onClick={() => setActiveTab('diagnostics')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-medium border-b-2 transition-all ${
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-medium border-b-2 whitespace-nowrap transition-all ${
             activeTab === 'diagnostics'
               ? 'border-brand-500 text-brand-400 bg-brand-500/5'
               : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-700'
@@ -406,7 +450,7 @@ export const ObservabilityPage: React.FC = () => {
 
         <button
           onClick={() => setActiveTab('alerts')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-medium border-b-2 transition-all ${
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-medium border-b-2 whitespace-nowrap transition-all ${
             activeTab === 'alerts'
               ? 'border-brand-500 text-brand-400 bg-brand-500/5'
               : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-700'
@@ -418,7 +462,7 @@ export const ObservabilityPage: React.FC = () => {
 
         <button
           onClick={() => setActiveTab('telemetry')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-medium border-b-2 transition-all ${
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-medium border-b-2 whitespace-nowrap transition-all ${
             activeTab === 'telemetry'
               ? 'border-brand-500 text-brand-400 bg-brand-500/5'
               : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-700'
@@ -437,19 +481,19 @@ export const ObservabilityPage: React.FC = () => {
             <div className="p-4 bg-slate-900/40 border border-slate-800 rounded-lg">
               <span className="text-[11px] text-slate-400 uppercase tracking-wider block">Total Moved Rows</span>
               <span className="text-xl font-bold font-mono text-slate-100 mt-1 block">
-                {copyPerf?.total_rows_transferred.toLocaleString() || 0}
+                {(copyPerf?.total_rows_transferred ?? 0).toLocaleString()}
               </span>
             </div>
             <div className="p-4 bg-slate-900/40 border border-slate-800 rounded-lg">
               <span className="text-[11px] text-slate-400 uppercase tracking-wider block">Total Transferred Volume</span>
               <span className="text-xl font-bold font-mono text-brand-400 mt-1 block">
-                {copyPerf?.total_bytes_human || '0 B'}
+                {totalVolumeHuman}
               </span>
             </div>
             <div className="p-4 bg-slate-900/40 border border-slate-800 rounded-lg">
               <span className="text-[11px] text-slate-400 uppercase tracking-wider block">Peak Throughput</span>
               <span className="text-xl font-bold font-mono text-emerald-400 mt-1 block">
-                {copyPerf?.peak_throughput_mb_sec || 0} MB/s
+                {peakTp.toFixed(1)} MB/s
               </span>
             </div>
             <div className="p-4 bg-slate-900/40 border border-slate-800 rounded-lg">
@@ -457,7 +501,7 @@ export const ObservabilityPage: React.FC = () => {
               <span className={`text-xl font-bold font-mono mt-1 block ${
                 (copyPerf?.total_rejected_rows || 0) > 0 ? 'text-amber-400' : 'text-slate-300'
               }`}>
-                {copyPerf?.total_rejected_rows || 0}
+                {(copyPerf?.total_rejected_rows ?? 0).toLocaleString()}
               </span>
             </div>
           </div>
@@ -469,9 +513,9 @@ export const ObservabilityPage: React.FC = () => {
               Throughput Trend (Hourly Average MB/s)
             </h3>
             <div className="h-64 w-full">
-              {copyPerf && copyPerf.throughput_trend && copyPerf.throughput_trend.length > 0 ? (
+              {trendData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={copyPerf.throughput_trend} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                  <AreaChart data={trendData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                     <defs>
                       <linearGradient id="tpGradient" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="#0284c7" stopOpacity={0.8}/>
@@ -479,7 +523,7 @@ export const ObservabilityPage: React.FC = () => {
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                    <XAxis dataKey="hour" stroke="#64748b" tick={{ fontSize: 11 }} />
+                    <XAxis dataKey="displayTime" stroke="#64748b" tick={{ fontSize: 11 }} />
                     <YAxis stroke="#64748b" tick={{ fontSize: 11 }} unit=" MB/s" />
                     <Tooltip 
                       contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '8px', fontSize: '12px' }} 
@@ -510,7 +554,7 @@ export const ObservabilityPage: React.FC = () => {
                 Recent Data Movement Transfer Ledger
               </h3>
               <span className="text-xs text-slate-500 font-mono">
-                {copyPerf?.recent_transfers.length || 0} transfers
+                {copyPerf?.recent_transfers?.length || 0} transfers
               </span>
             </div>
             <div className="overflow-x-auto">
@@ -528,47 +572,58 @@ export const ObservabilityPage: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/60">
-                  {copyPerf && copyPerf.recent_transfers.length > 0 ? (
-                    copyPerf.recent_transfers.map((tx) => (
-                      <tr key={tx.activity_id} className="hover:bg-slate-800/30 transition-colors font-mono">
-                        <td className="py-3 px-4 font-sans font-medium text-slate-200">
-                          {tx.activity_name}
-                        </td>
-                        <td className="py-3 px-4 text-slate-400 font-sans">
-                          {tx.pipeline_name}
-                        </td>
-                        <td className="py-3 px-4 text-right text-slate-300">
-                          {tx.rows_read.toLocaleString()} / {tx.rows_written.toLocaleString()}
-                        </td>
-                        <td className="py-3 px-4 text-right">
-                          {tx.rejected_rows > 0 ? (
-                            <span className="text-rose-400 font-semibold">{tx.rejected_rows}</span>
-                          ) : (
-                            <span className="text-slate-500">0</span>
-                          )}
-                        </td>
-                        <td className="py-3 px-4 text-right text-brand-300">
-                          {tx.bytes_human}
-                        </td>
-                        <td className="py-3 px-4 text-right text-slate-400">
-                          {tx.duration_seconds.toFixed(1)}s
-                        </td>
-                        <td className="py-3 px-4 text-right">
-                          <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-brand-500/10 text-brand-400 border border-brand-500/20">
-                            {tx.throughput_mb_sec} MB/s
-                          </span>
-                        </td>
-                        <td className="py-3 px-4">
-                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-sans font-semibold ${
-                            tx.status === 'Succeeded' 
-                              ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                              : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
-                          }`}>
-                            {tx.status}
-                          </span>
-                        </td>
-                      </tr>
-                    ))
+                  {copyPerf && copyPerf.recent_transfers && copyPerf.recent_transfers.length > 0 ? (
+                    copyPerf.recent_transfers.map((tx, idx) => {
+                      const key = tx.activity_run_id || tx.activity_id || `tx-${idx}`;
+                      const rowsRead = tx.rows_read ?? tx.rows_written ?? 0;
+                      const rowsWritten = tx.rows_written ?? 0;
+                      const rejected = tx.rejected_rows ?? 0;
+                      const volume = tx.bytes_human || formatBytes(tx.bytes_transferred);
+                      const durSec = tx.duration_seconds != null ? `${tx.duration_seconds.toFixed(1)}s` : '0.0s';
+                      const tp = (tx.throughput_mb_sec ?? 0).toFixed(1);
+                      const pipeName = tx.pipeline_name || 'Direct Pipeline';
+
+                      return (
+                        <tr key={key} className="hover:bg-slate-800/30 transition-colors font-mono">
+                          <td className="py-3 px-4 font-sans font-medium text-slate-200">
+                            {tx.activity_name || 'Copy Activity'}
+                          </td>
+                          <td className="py-3 px-4 text-slate-400 font-sans">
+                            {pipeName}
+                          </td>
+                          <td className="py-3 px-4 text-right text-slate-300">
+                            {rowsRead.toLocaleString()} / {rowsWritten.toLocaleString()}
+                          </td>
+                          <td className="py-3 px-4 text-right">
+                            {rejected > 0 ? (
+                              <span className="text-rose-400 font-semibold">{rejected}</span>
+                            ) : (
+                              <span className="text-slate-500">0</span>
+                            )}
+                          </td>
+                          <td className="py-3 px-4 text-right text-brand-300">
+                            {volume}
+                          </td>
+                          <td className="py-3 px-4 text-right text-slate-400">
+                            {durSec}
+                          </td>
+                          <td className="py-3 px-4 text-right">
+                            <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-brand-500/10 text-brand-400 border border-brand-500/20">
+                              {tp} MB/s
+                            </span>
+                          </td>
+                          <td className="py-3 px-4">
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-sans font-semibold ${
+                              tx.status === 'Succeeded' 
+                                ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                                : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+                            }`}>
+                              {tx.status}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })
                   ) : (
                     <tr>
                       <td colSpan={8} className="py-8 text-center text-slate-500">
@@ -591,14 +646,14 @@ export const ObservabilityPage: React.FC = () => {
             <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-4">
               <div className="flex items-center justify-between text-xs text-slate-400 mb-2 font-medium">
                 <span>Fleet CPU Utilization</span>
-                <span className="font-mono text-slate-200">{fleet?.fleet_cpu_usage_pct || 0}%</span>
+                <span className="font-mono text-slate-200">{fleetCpu.toFixed(1)}%</span>
               </div>
               <div className="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden">
                 <div 
                   className={`h-full rounded-full transition-all ${
-                    (fleet?.fleet_cpu_usage_pct || 0) > 85 ? 'bg-rose-500' : 'bg-brand-500'
+                    fleetCpu > 85 ? 'bg-rose-500' : 'bg-brand-500'
                   }`}
-                  style={{ width: `${fleet?.fleet_cpu_usage_pct || 0}%` }}
+                  style={{ width: `${Math.min(fleetCpu, 100)}%` }}
                 />
               </div>
               <span className="text-[11px] text-slate-500 mt-2 block">
@@ -609,12 +664,12 @@ export const ObservabilityPage: React.FC = () => {
             <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-4">
               <div className="flex items-center justify-between text-xs text-slate-400 mb-2 font-medium">
                 <span>Fleet RAM Utilization</span>
-                <span className="font-mono text-slate-200">{fleet?.fleet_memory_usage_pct || 0}%</span>
+                <span className="font-mono text-slate-200">{fleetMem.toFixed(1)}%</span>
               </div>
               <div className="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden">
                 <div 
                   className="bg-purple-500 h-full rounded-full transition-all"
-                  style={{ width: `${fleet?.fleet_memory_usage_pct || 0}%` }}
+                  style={{ width: `${Math.min(fleetMem, 100)}%` }}
                 />
               </div>
               <span className="text-[11px] text-slate-500 mt-2 block">
@@ -626,17 +681,13 @@ export const ObservabilityPage: React.FC = () => {
               <div className="flex items-center justify-between text-xs text-slate-400 mb-2 font-medium">
                 <span>Concurrency Slots Utilization</span>
                 <span className="font-mono text-slate-200">
-                  {fleet?.active_tasks || 0} / {fleet?.total_concurrency_capacity || 0}
+                  {activeSlots} / {totalSlots}
                 </span>
               </div>
               <div className="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden">
                 <div 
                   className="bg-indigo-500 h-full rounded-full transition-all"
-                  style={{ 
-                    width: `${fleet && fleet.total_concurrency_capacity > 0 
-                      ? (fleet.active_tasks / fleet.total_concurrency_capacity) * 100 
-                      : 0}%` 
-                  }}
+                  style={{ width: `${slotPct}%` }}
                 />
               </div>
               <span className="text-[11px] text-slate-500 mt-2 block">
@@ -647,69 +698,79 @@ export const ObservabilityPage: React.FC = () => {
 
           {/* Node Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {fleet && fleet.runtimes.length > 0 ? (
-              fleet.runtimes.map((rt) => (
-                <div key={rt.id} className="bg-slate-900/50 border border-slate-800 rounded-xl p-4 hover:border-slate-700 transition-all">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <div className="p-1.5 bg-slate-800 rounded-md text-brand-400">
-                        <Cpu className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <h4 className="text-xs font-bold text-slate-200">{rt.name}</h4>
-                        <span className="text-[10px] text-slate-400 font-mono">
-                          {rt.runtime_type} • {rt.agent_os || 'Linux'}
-                        </span>
-                      </div>
-                    </div>
-                    <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                      rt.status === 'Online'
-                        ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                        : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
-                    }`}>
-                      <span className={`w-1.5 h-1.5 rounded-full ${rt.status === 'Online' ? 'bg-emerald-400 animate-pulse' : 'bg-rose-400'}`} />
-                      {rt.status}
-                    </span>
-                  </div>
+            {fleet && fleet.runtimes && fleet.runtimes.length > 0 ? (
+              fleet.runtimes.map((rt) => {
+                const cpuCores = rt.cpu_cores ?? 2;
+                const nodeCpu = rt.cpu_usage_pct ?? 0;
+                const memTotal = rt.memory_total_bytes ?? 8589934592;
+                const memUsed = rt.memory_used_bytes ?? 0;
+                const memPct = rt.memory_usage_pct ?? (memTotal > 0 ? (memUsed / memTotal) * 100 : 0);
+                const activeTaskCount = rt.active_task_count ?? rt.active_tasks ?? 0;
+                const concLimit = rt.concurrency_limit ?? 4;
 
-                  <div className="space-y-3 pt-2 border-t border-slate-800/80 text-xs">
-                    <div>
-                      <div className="flex justify-between text-[11px] text-slate-400 mb-1">
-                        <span>CPU ({rt.cpu_cores} cores)</span>
-                        <span className="font-mono text-slate-300">{rt.cpu_usage_pct.toFixed(1)}%</span>
+                return (
+                  <div key={rt.id} className="bg-slate-900/50 border border-slate-800 rounded-xl p-4 hover:border-slate-700 transition-all">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <div className="p-1.5 bg-slate-800 rounded-md text-brand-400">
+                          <Cpu className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <h4 className="text-xs font-bold text-slate-200">{rt.name}</h4>
+                          <span className="text-[10px] text-slate-400 font-mono">
+                            {rt.runtime_type} • {rt.agent_os || 'Linux'}
+                          </span>
+                        </div>
                       </div>
-                      <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
-                        <div 
-                          className="bg-brand-500 h-full rounded-full" 
-                          style={{ width: `${Math.min(rt.cpu_usage_pct, 100)}%` }} 
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <div className="flex justify-between text-[11px] text-slate-400 mb-1">
-                        <span>Memory</span>
-                        <span className="font-mono text-slate-300">
-                          {(rt.memory_used_bytes / (1024 * 1024 * 1024)).toFixed(1)} / {(rt.memory_total_bytes / (1024 * 1024 * 1024)).toFixed(1)} GB ({rt.memory_usage_pct.toFixed(1)}%)
-                        </span>
-                      </div>
-                      <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
-                        <div 
-                          className="bg-purple-500 h-full rounded-full" 
-                          style={{ width: `${Math.min(rt.memory_usage_pct, 100)}%` }} 
-                        />
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1">
-                      <span>Active Tasks: <strong className="text-slate-200 font-mono">{rt.active_tasks} / {rt.concurrency_limit}</strong></span>
-                      <span className="text-slate-500 text-[10px]">
-                        HB: {rt.last_heartbeat_at ? new Date(rt.last_heartbeat_at).toLocaleTimeString() : 'N/A'}
+                      <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                        rt.status === 'Online'
+                          ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                          : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+                      }`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${rt.status === 'Online' ? 'bg-emerald-400 animate-pulse' : 'bg-rose-400'}`} />
+                        {rt.status}
                       </span>
                     </div>
+
+                    <div className="space-y-3 pt-2 border-t border-slate-800/80 text-xs">
+                      <div>
+                        <div className="flex justify-between text-[11px] text-slate-400 mb-1">
+                          <span>CPU ({cpuCores} cores)</span>
+                          <span className="font-mono text-slate-300">{nodeCpu.toFixed(1)}%</span>
+                        </div>
+                        <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                          <div 
+                            className="bg-brand-500 h-full rounded-full" 
+                            style={{ width: `${Math.min(nodeCpu, 100)}%` }} 
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <div className="flex justify-between text-[11px] text-slate-400 mb-1">
+                          <span>Memory</span>
+                          <span className="font-mono text-slate-300">
+                            {formatBytes(memUsed)} / {formatBytes(memTotal)} ({memPct.toFixed(1)}%)
+                          </span>
+                        </div>
+                        <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                          <div 
+                            className="bg-purple-500 h-full rounded-full" 
+                            style={{ width: `${Math.min(memPct, 100)}%` }} 
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1">
+                        <span>Active Tasks: <strong className="text-slate-200 font-mono">{activeTaskCount} / {concLimit}</strong></span>
+                        <span className="text-slate-500 text-[10px]">
+                          HB: {rt.last_heartbeat_at ? new Date(rt.last_heartbeat_at).toLocaleTimeString() : 'N/A'}
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              ))
+                );
+              })
             ) : (
               <div className="col-span-full py-12 text-center text-slate-500">
                 No integration runtimes registered. Navigate to Integration Runtimes to provision agents.
@@ -732,61 +793,68 @@ export const ObservabilityPage: React.FC = () => {
               </p>
             </div>
             <span className="px-3 py-1 rounded-full text-xs font-mono bg-rose-500/10 text-rose-400 border border-rose-500/20">
-              {diagnostics?.clusters.length || 0} recurring error patterns
+              {diagnostics?.clusters?.length || 0} recurring error patterns
             </span>
           </div>
 
           <div className="space-y-4">
-            {diagnostics && diagnostics.clusters.length > 0 ? (
-              diagnostics.clusters.map((cluster, idx) => (
-                <div key={idx} className="bg-slate-900/60 border border-slate-800 rounded-xl p-5 hover:border-slate-700 transition-all">
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 mb-3">
-                    <div className="flex items-center gap-2.5">
-                      <div className="p-2 bg-rose-500/10 border border-rose-500/20 rounded-lg text-rose-400">
-                        <AlertTriangle className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <h4 className="text-sm font-bold text-slate-100 flex items-center gap-2">
-                          {cluster.error_category}
-                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 font-mono">
-                            {cluster.occurrence_count} occurrences
+            {diagnostics && diagnostics.clusters && diagnostics.clusters.length > 0 ? (
+              diagnostics.clusters.map((cluster, idx) => {
+                const errMsg = cluster.sample_error || cluster.representative_message || 'Activity execution failed without explicit error trace';
+                const pipelines = cluster.affected_pipelines || [];
+
+                return (
+                  <div key={cluster.cluster_id || idx} className="bg-slate-900/60 border border-slate-800 rounded-xl p-5 hover:border-slate-700 transition-all">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 mb-3">
+                      <div className="flex items-center gap-2.5">
+                        <div className="p-2 bg-rose-500/10 border border-rose-500/20 rounded-lg text-rose-400">
+                          <AlertTriangle className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-bold text-slate-100 flex items-center gap-2">
+                            {cluster.error_category}
+                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 font-mono">
+                              {cluster.occurrence_count} occurrences
+                            </span>
+                          </h4>
+                          <span className="text-[11px] text-slate-400">
+                            Last seen: {cluster.last_seen_at ? new Date(cluster.last_seen_at).toLocaleString() : 'Recently'}
                           </span>
-                        </h4>
-                        <span className="text-[11px] text-slate-400">
-                          Last seen: {cluster.last_seen_at ? new Date(cluster.last_seen_at).toLocaleString() : 'Recently'}
-                        </span>
+                        </div>
                       </div>
+
+                      {pipelines.length > 0 && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-[11px] text-slate-400 font-medium">Affected:</span>
+                          <div className="flex flex-wrap gap-1">
+                            {pipelines.slice(0, 3).map((p, i) => (
+                              <span key={i} className="text-[10px] px-2 py-0.5 bg-slate-800 text-brand-300 rounded border border-slate-700">
+                                {p}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
 
-                    <div className="flex items-center gap-2">
-                      <span className="text-[11px] text-slate-400 font-medium">Affected:</span>
-                      <div className="flex flex-wrap gap-1">
-                        {cluster.affected_pipelines.slice(0, 3).map((p, i) => (
-                          <span key={i} className="text-[10px] px-2 py-0.5 bg-slate-800 text-brand-300 rounded border border-slate-700">
-                            {p}
-                          </span>
-                        ))}
-                      </div>
+                    {/* Sample Raw Error Snippet */}
+                    <div className="bg-slate-950 p-3 rounded-lg border border-slate-800/80 font-mono text-xs text-rose-300/90 overflow-x-auto my-3">
+                      {errMsg}
                     </div>
+
+                    {/* Remediation Box */}
+                    {cluster.suggested_remediation && (
+                      <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg flex items-start gap-2.5 text-xs text-emerald-300">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                        <div>
+                          <strong className="font-semibold block text-emerald-200">Suggested Automated Remediation:</strong>
+                          <span>{cluster.suggested_remediation}</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
-
-                  {/* Sample Raw Error Snippet */}
-                  <div className="bg-slate-950 p-3 rounded-lg border border-slate-800/80 font-mono text-xs text-rose-300/90 overflow-x-auto my-3">
-                    {cluster.sample_error}
-                  </div>
-
-                  {/* Remediation Box */}
-                  {cluster.suggested_remediation && (
-                    <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg flex items-start gap-2.5 text-xs text-emerald-300">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-                      <div>
-                        <strong className="font-semibold block text-emerald-200">Suggested Automated Remediation:</strong>
-                        <span>{cluster.suggested_remediation}</span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ))
+                );
+              })
             ) : (
               <div className="bg-slate-900/30 border border-slate-800 rounded-xl p-12 text-center text-slate-400">
                 <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto mb-2" />
@@ -1027,11 +1095,14 @@ export const ObservabilityPage: React.FC = () => {
                   }}
                   className="bg-slate-950 border border-slate-700 text-slate-200 text-xs rounded-lg px-2.5 py-1.5 font-mono focus:outline-none focus:border-brand-500"
                 >
-                  {runs.map((r) => (
-                    <option key={r.id} value={r.id}>
-                      Run {r.id.slice(0, 8)} ({r.status}) - {r.duration_seconds.toFixed(1)}s
-                    </option>
-                  ))}
+                  {runs.map((r) => {
+                    const durText = r.duration_seconds != null ? `${r.duration_seconds.toFixed(1)}s` : (r.status === 'Running' ? 'In Progress' : 'N/A');
+                    return (
+                      <option key={r.id} value={r.id}>
+                        Run {r.id.slice(0, 8)} ({r.status}) - {durText}
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
             </div>
@@ -1046,24 +1117,26 @@ export const ObservabilityPage: React.FC = () => {
                   </div>
                   <div>
                     <span className="text-slate-400 block text-[10px] uppercase tracking-wider">Root Pipeline</span>
-                    <span className="font-medium text-slate-200">{activeTrace.pipeline_name}</span>
+                    <span className="font-medium text-slate-200">{activeTrace.pipeline_name || 'Pipeline'}</span>
                   </div>
                   <div>
                     <span className="text-slate-400 block text-[10px] uppercase tracking-wider">Total Duration</span>
-                    <span className="font-mono text-slate-200">{activeTrace.duration_ms} ms</span>
+                    <span className="font-mono text-slate-200">{activeTrace.duration_ms ?? 0} ms</span>
                   </div>
                   <div>
                     <span className="text-slate-400 block text-[10px] uppercase tracking-wider">Total Spans</span>
-                    <span className="font-mono text-slate-200">{activeTrace.spans.length}</span>
+                    <span className="font-mono text-slate-200">{activeTrace.spans?.length || 0}</span>
                   </div>
                 </div>
 
                 {/* Spans Waterfall */}
                 <div className="space-y-2 pt-2">
-                  {activeTrace.spans.map((span) => {
+                  {(activeTrace.spans || []).map((span) => {
                     const isRoot = !span.parent_span_id;
-                    const pct = activeTrace.duration_ms > 0 
-                      ? Math.max((span.duration_ms / activeTrace.duration_ms) * 100, 5) 
+                    const traceDur = activeTrace.duration_ms || 0;
+                    const spanDur = span.duration_ms || 0;
+                    const pct = traceDur > 0 
+                      ? Math.max((spanDur / traceDur) * 100, 5) 
                       : 100;
 
                     return (
@@ -1085,7 +1158,7 @@ export const ObservabilityPage: React.FC = () => {
                             <span className="font-bold text-slate-200">{span.name}</span>
                           </div>
                           <div className="flex items-center gap-3">
-                            <span className="font-mono text-slate-400 text-[11px]">{span.duration_ms} ms</span>
+                            <span className="font-mono text-slate-400 text-[11px]">{spanDur} ms</span>
                             <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
                               span.status_code === 'OK' 
                                 ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
@@ -1109,7 +1182,7 @@ export const ObservabilityPage: React.FC = () => {
                           <span className="px-1.5 py-0.5 bg-slate-800/90 text-slate-400 rounded">
                             span_id: {span.span_id.slice(0, 8)}
                           </span>
-                          {Object.entries(span.attributes).map(([k, v]) => (
+                          {span.attributes && Object.entries(span.attributes).map(([k, v]) => (
                             <span key={k} className="px-1.5 py-0.5 bg-slate-800/60 text-slate-300 rounded">
                               {k}: <strong className="text-slate-100">{String(v)}</strong>
                             </span>
@@ -1268,4 +1341,5 @@ export const ObservabilityPage: React.FC = () => {
     </div>
   );
 };
+
 export default ObservabilityPage;

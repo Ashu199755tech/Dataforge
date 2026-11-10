@@ -297,34 +297,39 @@ export interface AlertRule {
 }
 
 export interface CopyDataTransferRecord {
-  activity_id: string;
+  activity_id?: string;
+  activity_run_id?: string;
   activity_name: string;
-  pipeline_run_id: string;
-  pipeline_name: string;
-  rows_read: number;
-  rows_written: number;
-  rejected_rows: number;
-  bytes_transferred: number;
-  bytes_human: string;
-  duration_seconds: number;
-  throughput_mb_sec: number;
+  pipeline_run_id?: string;
+  pipeline_name?: string;
+  rows_read?: number;
+  rows_written?: number;
+  rejected_rows?: number;
+  bytes_transferred?: number;
+  bytes_human?: string;
+  duration_seconds?: number;
+  throughput_mb_sec?: number;
   status: string;
-  ended_at: string | null;
+  started_at?: string | null;
+  ended_at?: string | null;
 }
 
 export interface CopyDataPerformanceMetrics {
-  total_copy_activities: number;
-  total_rows_transferred: number;
-  total_bytes_transferred: number;
-  total_bytes_human: string;
-  average_throughput_mb_sec: number;
-  peak_throughput_mb_sec: number;
-  total_rejected_rows: number;
-  throughput_trend: Array<{
-    hour: string;
-    throughput_mb_sec: number;
-    bytes_transferred: number;
-    rows_transferred: number;
+  total_copy_activities?: number;
+  total_rows_transferred?: number;
+  total_bytes_transferred?: number;
+  total_bytes_human?: string;
+  average_throughput_mb_sec?: number;
+  peak_throughput_mb_sec?: number;
+  total_rejected_rows?: number;
+  average_duration_seconds?: number;
+  throughput_trend?: Array<{
+    hour?: string;
+    time?: string;
+    displayTime?: string;
+    throughput_mb_sec?: number;
+    bytes_transferred?: number;
+    rows_transferred?: number;
   }>;
   recent_transfers: CopyDataTransferRecord[];
 }
@@ -334,13 +339,14 @@ export interface RuntimeAgentTelemetry {
   name: string;
   runtime_type: string;
   status: string;
-  cpu_cores: number;
-  cpu_usage_pct: number;
-  memory_total_bytes: number;
-  memory_used_bytes: number;
-  memory_usage_pct: number;
-  active_tasks: number;
-  concurrency_limit: number;
+  cpu_cores?: number;
+  cpu_usage_pct?: number;
+  memory_total_bytes?: number;
+  memory_used_bytes?: number;
+  memory_usage_pct?: number;
+  active_tasks?: number;
+  active_task_count?: number;
+  concurrency_limit?: number;
   agent_version?: string;
   agent_os?: string;
   last_heartbeat_at?: string;
@@ -351,6 +357,8 @@ export interface RuntimeFleetOverview {
   online_count: number;
   offline_count: number;
   fleet_cpu_usage_pct: number;
+  fleet_memory_total_bytes?: number;
+  fleet_memory_used_bytes?: number;
   fleet_memory_usage_pct: number;
   active_tasks: number;
   total_concurrency_capacity: number;
@@ -358,19 +366,22 @@ export interface RuntimeFleetOverview {
 }
 
 export interface ErrorCluster {
+  cluster_id?: string;
   error_category: string;
   occurrence_count: number;
   first_seen_at?: string;
   last_seen_at?: string;
-  sample_error: string;
+  sample_error?: string;
+  representative_message?: string;
   affected_pipelines: string[];
   affected_activities: string[];
   suggested_remediation?: string;
 }
 
 export interface FailureDiagnosticsResponse {
-  period_days: number;
+  period_days?: number;
   total_failures: number;
+  failure_rate_pct?: number;
   clusters: ErrorCluster[];
 }
 
@@ -380,32 +391,36 @@ export interface OtelSpan {
   parent_span_id?: string | null;
   name: string;
   kind: string;
-  start_time_iso: string;
+  start_time_iso?: string;
   end_time_iso?: string | null;
   duration_ms: number;
   status_code: string;
   status_message?: string | null;
   attributes: Record<string, any>;
-  events: Array<Record<string, any>>;
+  events?: Array<Record<string, any>>;
 }
 
 export interface OtelTraceResponse {
   trace_id: string;
-  pipeline_run_id: string;
-  pipeline_name: string;
-  status: string;
-  start_time: string;
+  pipeline_run_id?: string;
+  pipeline_name?: string;
+  status?: string;
+  start_time?: string;
   end_time?: string | null;
   duration_ms: number;
   spans: OtelSpan[];
 }
 
 export interface ObservabilityOverview {
+  project_id?: string;
+  total_pipeline_runs?: number;
+  active_runs?: number;
+  active_runs_count?: number;
+  success_rate_pct?: number;
+  success_rate_24h_pct?: number;
   copy_performance: CopyDataPerformanceMetrics;
   fleet_overview: RuntimeFleetOverview;
   failure_diagnostics: FailureDiagnosticsResponse;
-  active_runs_count: number;
-  success_rate_24h_pct: number;
 }
 
 export interface AlertEvent {
