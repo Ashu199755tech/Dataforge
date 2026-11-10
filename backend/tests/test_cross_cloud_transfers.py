@@ -4,7 +4,9 @@ import shutil
 import io
 import pytest
 import boto3
-from moto import mock_aws
+
+moto = pytest.importorskip("moto", reason="moto[s3] not installed")
+mock_aws = moto.mock_aws
 
 from backend.app.connectors.storage.local import LocalStorageConnector
 from backend.app.connectors.storage.aws_s3 import AmazonS3Connector

@@ -183,6 +183,10 @@ def test_custom_activity_failure_exit_code():
 
 def test_stored_procedure_postgresql(db_session, test_project):
     """Test StoredProcedureActivity against live PostgreSQL database."""
+    from backend.app.testing.multicloud_harness import is_port_listening
+    if not is_port_listening("127.0.0.1", 5433):
+        pytest.skip("Local PostgreSQL daemon on port 5433 not available")
+
     pg_config = {
         "host": "localhost",
         "port": 5433,

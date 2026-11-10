@@ -10,7 +10,10 @@ from typing import Iterator, Dict, Any, Optional
 from datetime import datetime, timezone
 
 import boto3
-from moto import mock_aws
+try:
+    from moto import mock_aws
+except ImportError:
+    mock_aws = None
 
 from backend.app.connectors.storage.models import StorageItem, StorageCapability
 from backend.app.connectors.storage.local import LocalStorageConnector

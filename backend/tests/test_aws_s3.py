@@ -1,7 +1,9 @@
 import os
 import io
 import pytest
-from moto import mock_aws
+
+moto = pytest.importorskip("moto", reason="moto[s3] not installed")
+mock_aws = moto.mock_aws
 import boto3
 
 from backend.app.connectors.storage.models import (

@@ -336,7 +336,7 @@ def test_api_consumption_summary_and_daily(client: TestClient, admin_token: str,
     UsageMeteringEngine.record_pipeline_execution(db, run.id)
 
     # 1. Summary endpoint
-    res_summary = client.get(f"/api/v1/billing/usage/summary?period_key={period_key}", headers=headers)
+    res_summary = client.get(f"/api/v1/billing/usage/summary?period_key={period_key}&workspace_id={rating_setup['workspace'].id}", headers=headers)
     assert res_summary.status_code == 200
     summary = res_summary.json()
     assert summary["period_key"] == period_key
@@ -346,7 +346,7 @@ def test_api_consumption_summary_and_daily(client: TestClient, admin_token: str,
     assert "daily_consumption" in summary
 
     # 2. Daily endpoint
-    res_daily = client.get(f"/api/v1/billing/usage/daily?period_key={period_key}", headers=headers)
+    res_daily = client.get(f"/api/v1/billing/usage/daily?period_key={period_key}&workspace_id={rating_setup['workspace'].id}", headers=headers)
     assert res_daily.status_code == 200
     daily_items = res_daily.json()
     assert isinstance(daily_items, list)
@@ -355,7 +355,7 @@ def test_api_consumption_summary_and_daily(client: TestClient, admin_token: str,
     assert "billable_runs" in daily_items[0]
 
     # 3. Recalculate endpoint
-    res_recalc = client.post(f"/api/v1/billing/usage/recalculate?period_key={period_key}", headers=headers)
+    res_recalc = client.post(f"/api/v1/billing/usage/recalculate?period_key={period_key}&workspace_id={rating_setup['workspace'].id}", headers=headers)
     assert res_recalc.status_code == 200
     recalc = res_recalc.json()
     assert recalc["period_key"] == period_key

@@ -1,4 +1,7 @@
 import pytest
+
+pytest.importorskip("moto", reason="moto[s3] not installed")
+
 from backend.app.testing.multicloud_scenarios import (
     run_scenario_1_s3_to_adls_streaming,
     run_scenario_2_adls_to_s3_transcoding,

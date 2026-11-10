@@ -192,6 +192,8 @@ class TestProductionConcurrencyAndLoad:
 
     def test_concurrent_agent_task_dispatch_and_no_duplicate_assignment(self, db_session: Session, hardening_setup):
         """Verifies 10 concurrent agent workers polling queue do not receive duplicate tasks."""
+        if db_session.bind.dialect.name == "sqlite":
+            pytest.skip("Concurrent multi-threaded dispatch test requires PostgreSQL with row-level locks")
         proj = hardening_setup["project"]
 
         # Create Self-Hosted Runtime
@@ -255,6 +257,8 @@ class TestProductionConcurrencyAndLoad:
 
     def test_concurrent_heartbeat_storm(self, db_session: Session, hardening_setup):
         """Verifies concurrent heartbeat requests from multiple agents update telemetry without deadlock."""
+        if db_session.bind.dialect.name == "sqlite":
+            pytest.skip("Concurrent multi-threaded heartbeat storm test requires PostgreSQL")
         proj = hardening_setup["project"]
 
         rt_in = RuntimeCreate(

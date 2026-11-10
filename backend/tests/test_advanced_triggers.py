@@ -233,9 +233,12 @@ def test_storage_event_trigger_detection_and_deduplication(db_session: Session, 
 
 def test_pipeline_dependency_and_circular_prevention(db_session: Session, test_setup):
     """Verifies pipeline dependency triggering and circular dependency rejection."""
-    pipe_a = test_setup["pipe_a"]
-    pipe_b = test_setup["pipe_b"]
-    pipe_c = test_setup["pipe_c"]
+    proj = test_setup["project"]
+    pipe_a = Pipeline(id=str(uuid.uuid4()), project_id=proj.id, name=f"Pipe_Dep_A_{uuid.uuid4().hex[:6]}", definition_json={"activities": []})
+    pipe_b = Pipeline(id=str(uuid.uuid4()), project_id=proj.id, name=f"Pipe_Dep_B_{uuid.uuid4().hex[:6]}", definition_json={"activities": []})
+    pipe_c = Pipeline(id=str(uuid.uuid4()), project_id=proj.id, name=f"Pipe_Dep_C_{uuid.uuid4().hex[:6]}", definition_json={"activities": []})
+    db_session.add_all([pipe_a, pipe_b, pipe_c])
+    db_session.commit()
 
     # 1. Trigger 1: Pipe A -> Pipe B
     t1 = TriggerService.create_trigger(db_session, TriggerCreate(

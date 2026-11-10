@@ -34,6 +34,9 @@ from backend.app.execution.runner import PipelineRunner
 @pytest.fixture(scope="module")
 def e2e_connections():
     """Sets up live PostgreSQL and MySQL connections for end-to-end integration tests."""
+    from backend.app.testing.multicloud_harness import is_port_listening
+    if not is_port_listening("127.0.0.1", 5433) or not is_port_listening("127.0.0.1", 3307):
+        pytest.skip("Local PostgreSQL (5433) or MySQL (3307) test daemon not available")
     db: Session = SessionLocal()
     try:
         proj = db.query(Project).first()
