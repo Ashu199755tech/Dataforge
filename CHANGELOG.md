@@ -4,6 +4,23 @@ All notable changes to the DataForge Enterprise Platform are documented in this 
 
 ---
 
+## [1.5.0] - 2026-11-10 - Enterprise CI/CD Pipeline & Production Rollout (Render & Supabase)
+
+### Added
+- **Multi-Environment GitHub Actions Pipeline (`ci-cd.yml`):**
+  - Automated Quality Gate running on all pushes and PRs to `master`, `main`, `test`, and `dev`.
+  - Python 3.12 dependency caching, system library provisioning (`gcc`, `libpq-dev`), and full backend test execution.
+  - Node.js 20 environment, dependency caching, and strict frontend production build verification (`tsc && vite build`).
+  - Production deployment stage triggered automatically upon merge/push to `master`, communicating directly with Render Deployment REST API and performing healthcheck validation.
+- **Test Suite Portability & Concurrency Hardening:**
+  - File-backed SQLite connection pooling in `database.py` resolving SQLite multi-threaded segfaults during headless CI.
+  - Test guards for external services (live daemon socket check, Azurite emulator detection, Moto S3 fallback, Java runtime version flexibility, and CRC32C fallback calculations).
+- **Production Infrastructure Integration:**
+  - Live production web service on Render (`https://dataforge-15mi.onrender.com`).
+  - Production PostgreSQL database integration hosted on Supabase (`aws-0-ap-south-1.pooler.supabase.com`).
+
+---
+
 ## [1.4.0] - 2026-11-09 - Pricing, Billing & Usage-Based Monetization Module (Phases 0–9)
 
 ### Added
