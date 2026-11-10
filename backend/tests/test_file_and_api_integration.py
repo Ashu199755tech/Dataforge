@@ -39,26 +39,34 @@ def test_registry_contains_phase5_activities():
 
 
 def test_web_activity_get_request():
-    """Test WebActivity executing a GET request against live health endpoint."""
-    context = ActivityExecutionContext(
-        activity_id="act-web-1",
-        activity_name="CheckHealthEndpoint",
-        activity_type="WebActivity",
-        pipeline_run_id="run-web-1",
-        config={
-            "url": "http://127.0.0.1:8000/health",
-            "method": "GET",
-            "timeout_seconds": 10
-        }
-    )
+    """Test WebActivity executing a GET request."""
+    with patch("httpx.Client.request") as mock_req:
+        mock_resp = MagicMock()
+        mock_resp.is_error = False
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {"status": "healthy"}
+        mock_resp.text = json.dumps({"status": "healthy"})
+        mock_req.return_value = mock_resp
 
-    activity = WebActivity(context=context)
-    result = activity.execute()
+        context = ActivityExecutionContext(
+            activity_id="act-web-1",
+            activity_name="CheckHealthEndpoint",
+            activity_type="WebActivity",
+            pipeline_run_id="run-web-1",
+            config={
+                "url": "http://127.0.0.1:8000/health",
+                "method": "GET",
+                "timeout_seconds": 10
+            }
+        )
 
-    assert result.status == "Succeeded"
-    assert result.output_variables["status_code"] == 200
-    assert result.output_variables["response"]["status"] == "healthy"
-    assert result.output_variables["duration_seconds"] >= 0
+        activity = WebActivity(context=context)
+        result = activity.execute()
+
+        assert result.status == "Succeeded"
+        assert result.output_variables["status_code"] == 200
+        assert result.output_variables["response"]["status"] == "healthy"
+        assert result.output_variables["duration_seconds"] >= 0
 
 
 def test_webhook_activity_callback_success():

@@ -8,7 +8,7 @@ from backend.app.formats.csv_handler import CsvFormatHandler
 from backend.app.formats.json_handler import JsonFormatHandler, JsonLinesFormatHandler
 from backend.app.formats.parquet_handler import ParquetFormatHandler
 from backend.app.formats.avro_handler import AvroFormatHandler
-from backend.app.formats.orc_handler import OrcFormatHandler
+from backend.app.formats.orc_handler import OrcFormatHandler, HAS_PYORC
 from backend.app.formats.excel_handler import ExcelFormatHandler
 from backend.app.formats.text_handler import TextFormatHandler
 
@@ -184,6 +184,7 @@ class TestAvroFormat:
         assert "name" in names
 
 
+@pytest.mark.skipif(not HAS_PYORC, reason="pyorc is not installed")
 class TestOrcFormat:
     def test_orc_write_and_read(self):
         handler = OrcFormatHandler(options={"compression": "zlib"})

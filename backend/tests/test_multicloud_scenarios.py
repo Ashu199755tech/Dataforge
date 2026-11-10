@@ -45,6 +45,7 @@ class TestMultiCloudVerificationScenarios:
         for assertion in res.get("assertions", []):
             assert assertion["passed"] is True, f"Failed assertion: {assertion}"
 
+    @pytest.mark.skipif(not has_azurite, reason="Azurite emulator not installed")
     def test_scenario_4_database_to_multicloud_parquet(self):
         res = run_scenario_4_database_to_multicloud_parquet()
         assert res["status"] == "Passed", f"Scenario 4 failed: {res.get('assertions')}"
