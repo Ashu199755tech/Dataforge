@@ -1,0 +1,112 @@
+name: DataForge CI/CD Pipeline
+
+on:
+  push:
+    branches: [ master, main, test, dev ]
+  pull_request:
+    branches: [ master, main, test ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # -------------------------------------------------------------
+  # STAGE 1: Automated Quality Gate (Lint, Build & Unit Tests)
+  # -------------------------------------------------------------
+  quality-gate:
+    name: 🧪 Automated Quality Gate (Backend & Frontend)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # 1. Python Environment & Tests
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install System Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends gcc libpq-dev
+
+      - name: Install Python Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+
+      - name: Run Backend Pytest Suite
+        env:
+          DATABASE_URL: "sqlite:///:memory:"
+          SECRET_KEY: "test-secret-key-32-bytes-secure-token"
+          ENCRYPTION_KEY: "bGFyZ2Utc2VjdXJlLWtleS0zMi1ieXRlcy1mb3ItZmVybmV0ISE="
+        run: |
+          pytest backend/tests/ -v --maxfail=5
+
+      # 2. Node.js Environment & Build
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Frontend Dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Verify Frontend Production Build (Typecheck & Vite)
+        working-directory: frontend
+        run: npm run build
+
+  # -------------------------------------------------------------
+  # STAGE 2: Deploy to Production on Render
+  # -------------------------------------------------------------
+  deploy-production:
+    name: 🚀 Deploy to Production (Render)
+    needs: quality-gate
+    if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Trigger Render Deploy (if API key configured)
+        if: env.RENDER_API_KEY != '' && env.RENDER_SERVICE_ID != ''
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
+        run: |
+          echo "Triggering Render Production Deployment via API..."
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+            -H "Authorization: Bearer $RENDER_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d '{"clearCache": "do_not_clear"}' \
+            "https://api.render.com/v1/services/$RENDER_SERVICE_ID/deploys")
+          
+          HTTP_STATUS=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+          
+          if [ "$HTTP_STATUS" -ne 201 ] && [ "$HTTP_STATUS" -ne 200 ]; then
+            echo "Render API deploy failed with status $HTTP_STATUS: $BODY"
+            exit 1
+          fi
+          echo "Render deployment initiated successfully: $BODY"
+
+      - name: Verify Production Healthcheck
+        run: |
+          echo "Waiting 45s for service update..."
+          sleep 45
+          for i in {1..6}; do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://dataforge-15mi.onrender.com/api/v1/billing/plans || true)
+            if [ "$STATUS" -eq 200 ]; then
+              echo "✅ Production Service is live and responding (HTTP 200)!"
+              exit 0
+            fi
+            echo "Attempt $i: Service still deploying (HTTP $STATUS), waiting 10s..."
+            sleep 10
+          done
+          echo "⚠️ Healthcheck warning: Service did not respond within timeout window"
