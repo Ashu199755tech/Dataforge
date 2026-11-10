@@ -95,3 +95,9 @@ dev = [
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["backend*"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["backend/tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
