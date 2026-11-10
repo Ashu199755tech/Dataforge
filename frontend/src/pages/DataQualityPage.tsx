@@ -8,7 +8,8 @@ import {
   AlertTriangle, 
   BarChart3, 
   Layers,
-  ArrowUpRight
+  ArrowUpRight,
+  ArrowLeft
 } from 'lucide-react';
 
 export const DataQualityPage: React.FC = () => {
@@ -61,9 +62,24 @@ export const DataQualityPage: React.FC = () => {
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-white tracking-tight">Enterprise Data Quality</h1>
-          <p className="text-xs text-slate-400">Rule evaluations, SLA compliance, and data governance scorecards</p>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => {
+              if (window.history.length > 1) {
+                window.history.back();
+              } else {
+                useAppStore.getState().setCurrentTab('dashboard');
+              }
+            }}
+            className="p-2 rounded-lg bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-400 hover:text-white transition shadow-sm flex items-center justify-center group"
+            title="Go back (Alt + Left Arrow)"
+          >
+            <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
+          </button>
+          <div>
+            <h1 className="text-xl font-bold text-white tracking-tight">Enterprise Data Quality</h1>
+            <p className="text-xs text-slate-400">Rule evaluations, SLA compliance, and data governance scorecards</p>
+          </div>
         </div>
       </div>
 

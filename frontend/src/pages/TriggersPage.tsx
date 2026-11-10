@@ -27,7 +27,8 @@ import {
   Settings,
   MoreVertical,
   Copy,
-  X
+  X,
+  ArrowLeft
 } from 'lucide-react';
 
 const COMMON_TIMEZONES = [
@@ -442,16 +443,31 @@ export const TriggersPage: React.FC = () => {
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <h1 className="text-xl font-bold text-white tracking-tight">Advanced Trigger Manager</h1>
-            <span className="px-2 py-0.5 rounded-full text-[10px] bg-brand-500/20 text-brand-300 font-semibold border border-brand-500/30">
-              Enterprise Orchestration
-            </span>
+        <div className="flex items-start gap-3">
+          <button
+            onClick={() => {
+              if (window.history.length > 1) {
+                window.history.back();
+              } else {
+                useAppStore.getState().setCurrentTab('dashboard');
+              }
+            }}
+            className="p-2 mt-0.5 rounded-lg bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-400 hover:text-white transition shadow-sm flex items-center justify-center group"
+            title="Go back (Alt + Left Arrow)"
+          >
+            <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
+          </button>
+          <div>
+            <div className="flex items-center gap-2.5">
+              <h1 className="text-xl font-bold text-white tracking-tight">Advanced Trigger Manager</h1>
+              <span className="px-2 py-0.5 rounded-full text-[10px] bg-brand-500/20 text-brand-300 font-semibold border border-brand-500/30">
+                Enterprise Orchestration
+              </span>
+            </div>
+            <p className="text-xs text-slate-400 mt-1">
+              Configure Schedule, Tumbling Window, Multi-Cloud Storage Event, and Pipeline Dependency Triggers.
+            </p>
           </div>
-          <p className="text-xs text-slate-400 mt-1">
-            Configure Schedule, Tumbling Window, Multi-Cloud Storage Event, and Pipeline Dependency Triggers.
-          </p>
         </div>
         <div className="flex items-center gap-2.5">
           <button

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useAppStore } from '../store/useAppStore';
 import { PipelineRun, ActivityRun, ExecutionLog, TimelineItem, AlertEvent, AlertRule } from '../types';
 import api from '../api/client';
 import { 
@@ -29,7 +30,8 @@ import {
   ShieldAlert,
   ArrowRight,
   Database,
-  Code
+  Code,
+  ArrowLeft
 } from 'lucide-react';
 
 export const RunsMonitorPage: React.FC = () => {
@@ -187,17 +189,32 @@ export const RunsMonitorPage: React.FC = () => {
     <div className="p-6 space-y-6 max-w-7xl mx-auto text-slate-200">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <Activity className="h-5 w-5 text-brand-400" />
-            <h1 className="text-xl font-bold text-white tracking-tight">Monitoring & Observability</h1>
-            <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-brand-500/10 text-brand-400 border border-brand-500/20">
-              ADF Parity v1.0
-            </span>
+        <div className="flex items-start gap-3">
+          <button
+            onClick={() => {
+              if (window.history.length > 1) {
+                window.history.back();
+              } else {
+                useAppStore.getState().setCurrentTab('dashboard');
+              }
+            }}
+            className="p-2 mt-0.5 rounded-lg bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-400 hover:text-white transition shadow-sm flex items-center justify-center group"
+            title="Go back (Alt + Left Arrow)"
+          >
+            <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
+          </button>
+          <div>
+            <div className="flex items-center gap-2">
+              <Activity className="h-5 w-5 text-brand-400" />
+              <h1 className="text-xl font-bold text-white tracking-tight">Monitoring & Observability</h1>
+              <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-brand-500/10 text-brand-400 border border-brand-500/20">
+                ADF Parity v1.0
+              </span>
+            </div>
+            <p className="text-xs text-slate-400 mt-1">
+              Real-time pipeline Gantt timeline, throughput telemetry, diagnostics, and SLA alerts
+            </p>
           </div>
-          <p className="text-xs text-slate-400 mt-1">
-            Real-time pipeline Gantt timeline, throughput telemetry, diagnostics, and SLA alerts
-          </p>
         </div>
 
         {/* Global Controls */}

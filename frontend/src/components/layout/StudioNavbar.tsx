@@ -6,6 +6,9 @@ import {
   HelpCircle, 
   Settings, 
   ChevronDown, 
+  ChevronLeft,
+  ChevronRight,
+  ArrowLeft,
   GitBranch, 
   FolderGit2, 
   UploadCloud, 
@@ -51,8 +54,26 @@ interface GitDiffSummary {
   total_changes: number;
 }
 
+const TAB_LABELS: Record<string, string> = {
+  dashboard: 'Home',
+  pipelines: 'Data Pipelines',
+  designer: 'Pipeline Designer',
+  dataflows: 'Data Flows',
+  connections: 'Connections',
+  datasets: 'Datasets',
+  triggers: 'Triggers',
+  runs: 'Pipeline Runs',
+  observability: 'Fleet & Alerts',
+  runtimes: 'Runtime Manager',
+  deployments: 'Deployments & CI/CD',
+  lineage: 'Data Lineage',
+  dq: 'Data Quality',
+  billing: 'Billing & Costs'
+};
+
 export const StudioNavbar: React.FC = () => {
   const { 
+    currentTab,
     workspaces, 
     activeWorkspace, 
     setActiveWorkspace,
@@ -165,7 +186,7 @@ export const StudioNavbar: React.FC = () => {
       <header className="h-[50px] border-b border-slate-800 bg-slate-900/95 backdrop-blur-md px-3.5 flex items-center justify-between sticky top-0 z-40 select-none">
         
         {/* ================= LEFT SECTION: BRAND, WORKSPACE & ENV ================= */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
           {/* Original DataForge Logo Mark */}
           <div 
             onClick={() => setCurrentTab('dashboard')}
@@ -188,7 +209,31 @@ export const StudioNavbar: React.FC = () => {
             </div>
           </div>
 
-          <div className="h-4 w-[1px] bg-slate-800 mx-1" />
+          {/* In-app Browser History Controls */}
+          <div className="flex items-center gap-0.5 bg-slate-950/70 p-0.5 rounded-md border border-slate-800">
+            <button
+              onClick={() => {
+                if (window.history.length > 1) {
+                  window.history.back();
+                } else {
+                  setCurrentTab('dashboard');
+                }
+              }}
+              className="p-1 rounded text-slate-400 hover:text-white hover:bg-slate-800 transition"
+              title="Go Back (Alt + Left Arrow)"
+            >
+              <ChevronLeft className="h-3.5 w-3.5" />
+            </button>
+            <button
+              onClick={() => window.history.forward()}
+              className="p-1 rounded text-slate-400 hover:text-white hover:bg-slate-800 transition"
+              title="Go Forward (Alt + Right Arrow)"
+            >
+              <ChevronRight className="h-3.5 w-3.5" />
+            </button>
+          </div>
+
+          <div className="h-4 w-[1px] bg-slate-800 mx-0.5 hidden sm:block" />
 
           {/* Workspace Switcher Dropdown */}
           <div className="relative">
@@ -284,6 +329,14 @@ export const StudioNavbar: React.FC = () => {
               </div>
             )}
           </div>
+
+          {/* Active Page Breadcrumb */}
+          {currentTab !== 'dashboard' && (
+            <div className="hidden lg:flex items-center gap-1.5 text-xs text-slate-400 pl-0.5">
+              <span className="text-slate-600">/</span>
+              <span className="text-slate-200 font-medium">{TAB_LABELS[currentTab] || currentTab}</span>
+            </div>
+          )}
         </div>
 
         {/* ================= CENTER SECTION: GLOBAL SEARCH ================= */}

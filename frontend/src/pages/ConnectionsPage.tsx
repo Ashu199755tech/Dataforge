@@ -19,11 +19,12 @@ import {
   FolderTree,
   ShieldCheck,
   Lock,
-  Globe2
+  Globe2,
+  ArrowLeft
 } from 'lucide-react';
 
 export const ConnectionsPage: React.FC = () => {
-  const { connections, activeProject, fetchConnections } = useAppStore();
+  const { connections, activeProject, fetchConnections, setCurrentTab } = useAppStore();
   const [testingId, setTestingId] = useState<string | null>(null);
   const [testResult, setTestResult] = useState<{ id: string; success: boolean; message: string; latency?: number } | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -287,9 +288,24 @@ export const ConnectionsPage: React.FC = () => {
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
       {/* Page Header */}
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-white tracking-tight">Enterprise Connections</h1>
-          <p className="text-xs text-slate-400">Multi-cloud storage credentials (AWS S3, Azure ADLS/Blob, Google Cloud Storage) and relational databases</p>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => {
+              if (window.history.length > 1) {
+                window.history.back();
+              } else {
+                setCurrentTab('dashboard');
+              }
+            }}
+            className="p-2 rounded-lg bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-400 hover:text-white transition shadow-sm flex items-center justify-center group"
+            title="Go back (Alt + Left Arrow)"
+          >
+            <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
+          </button>
+          <div>
+            <h1 className="text-xl font-bold text-white tracking-tight">Enterprise Connections</h1>
+            <p className="text-xs text-slate-400">Multi-cloud storage credentials (AWS S3, Azure ADLS/Blob, Google Cloud Storage) and relational databases</p>
+          </div>
         </div>
         <button
           onClick={() => setShowAddModal(true)}

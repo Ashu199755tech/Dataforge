@@ -21,7 +21,8 @@ import {
   ChevronRight,
   Database,
   Terminal,
-  X
+  X,
+  ArrowLeft
 } from 'lucide-react';
 import api from '../api/client';
 
@@ -309,20 +310,35 @@ export const DeploymentsPage: React.FC = () => {
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-500 text-white shadow-lg shadow-brand-500/20">
-            <Rocket className="h-6 w-6" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
-              Deployments & CI/CD
-              <span className="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 font-normal border border-slate-700">
-                Release Management
-              </span>
-            </h1>
-            <p className="text-xs text-slate-400">
-              Multi-environment promotion, dry-run DAG pre-validation, approval governance, and automated CI/CD
-            </p>
+        <div className="flex items-start gap-3">
+          <button
+            onClick={() => {
+              if (window.history.length > 1) {
+                window.history.back();
+              } else {
+                useAppStore.getState().setCurrentTab('dashboard');
+              }
+            }}
+            className="p-2 mt-1 rounded-lg bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-400 hover:text-white transition shadow-sm flex items-center justify-center group"
+            title="Go back (Alt + Left Arrow)"
+          >
+            <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
+          </button>
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-500 text-white shadow-lg shadow-brand-500/20">
+              <Rocket className="h-6 w-6" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
+                Deployments & CI/CD
+                <span className="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 font-normal border border-slate-700">
+                  Release Management
+                </span>
+              </h1>
+              <p className="text-xs text-slate-400">
+                Multi-environment promotion, dry-run DAG pre-validation, approval governance, and automated CI/CD
+              </p>
+            </div>
           </div>
         </div>
 

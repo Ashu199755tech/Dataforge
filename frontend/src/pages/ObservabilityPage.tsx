@@ -38,7 +38,8 @@ import {
   Eye,
   Plus,
   ShieldAlert,
-  Play
+  Play,
+  ArrowLeft
 } from 'lucide-react';
 import { 
   ResponsiveContainer, 
@@ -216,7 +217,20 @@ export const ObservabilityPage: React.FC = () => {
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-5">
-        <div>
+        <div className="flex items-start gap-3">
+          <button
+            onClick={() => {
+              if (window.history.length > 1) {
+                window.history.back();
+              } else {
+                useAppStore.getState().setCurrentTab('dashboard');
+              }
+            }}
+            className="p-2 mt-0.5 rounded-lg bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-400 hover:text-white transition shadow-sm flex items-center justify-center group"
+            title="Go back (Alt + Left Arrow)"
+          >
+            <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
+          </button>
           <div className="flex items-center gap-3">
             <div className="p-2 bg-brand-500/10 border border-brand-500/20 rounded-lg text-brand-400">
               <Activity className="w-5 h-5" />

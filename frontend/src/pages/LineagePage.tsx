@@ -26,7 +26,8 @@ import {
   Compass, 
   CheckCircle2, 
   AlertTriangle,
-  RotateCcw
+  RotateCcw,
+  ArrowLeft
 } from 'lucide-react';
 import api from '../api/client';
 import { useAppStore } from '../store/useAppStore';
@@ -285,20 +286,35 @@ export const LineagePage: React.FC = () => {
     <div className="flex flex-col h-full bg-slate-950 text-white font-sans overflow-hidden">
       {/* Top Header */}
       <div className="p-4 border-b border-slate-800 bg-slate-900/80 flex flex-wrap items-center justify-between gap-4 shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-gradient-to-tr from-brand-600 to-cyan-500 text-white shadow-lg shadow-brand-500/20">
-            <Network className="h-6 w-6" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
-              Data Lineage & Impact Analysis
-              <span className="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 font-normal border border-slate-700">
-                End-to-End Governance
-              </span>
-            </h1>
-            <p className="text-xs text-slate-400">
-              Interactive source-to-sink graph with column-level precision and downstream impact simulation
-            </p>
+        <div className="flex items-start gap-3">
+          <button
+            onClick={() => {
+              if (window.history.length > 1) {
+                window.history.back();
+              } else {
+                useAppStore.getState().setCurrentTab('dashboard');
+              }
+            }}
+            className="p-2 mt-1 rounded-lg bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-400 hover:text-white transition shadow-sm flex items-center justify-center group"
+            title="Go back (Alt + Left Arrow)"
+          >
+            <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
+          </button>
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-gradient-to-tr from-brand-600 to-cyan-500 text-white shadow-lg shadow-brand-500/20">
+              <Network className="h-6 w-6" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
+                Data Lineage & Impact Analysis
+                <span className="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 font-normal border border-slate-700">
+                  End-to-End Governance
+                </span>
+              </h1>
+              <p className="text-xs text-slate-400">
+                Interactive source-to-sink graph with column-level precision and downstream impact simulation
+              </p>
+            </div>
           </div>
         </div>
 

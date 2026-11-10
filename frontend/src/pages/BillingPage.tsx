@@ -38,7 +38,8 @@ import {
   Trash2,
   Edit3,
   ShieldAlert,
-  Target
+  Target,
+  ArrowLeft
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -889,7 +890,20 @@ export const BillingPage: React.FC = () => {
     <div className="p-6 max-w-7xl mx-auto space-y-6">
       {/* Top Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-slate-800 pb-5">
-        <div>
+        <div className="flex items-start gap-3">
+          <button
+            onClick={() => {
+              if (window.history.length > 1) {
+                window.history.back();
+              } else {
+                useAppStore.getState().setCurrentTab('dashboard');
+              }
+            }}
+            className="p-2 mt-1 rounded-lg bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-400 hover:text-white transition shadow-sm flex items-center justify-center group"
+            title="Go back (Alt + Left Arrow)"
+          >
+            <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
+          </button>
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-xl bg-brand-500/10 border border-brand-500/20 text-brand-400">
               <CreditCard className="h-6 w-6" />

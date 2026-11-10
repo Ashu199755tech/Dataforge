@@ -34,7 +34,8 @@ import {
   ArrowRight,
   Database,
   RefreshCw,
-  Power
+  Power,
+  ArrowLeft
 } from 'lucide-react';
 
 export const PipelinesListPage: React.FC = () => {
@@ -319,17 +320,32 @@ export const PipelinesListPage: React.FC = () => {
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <GitBranch className="h-5 w-5 text-brand-400" />
-            <h1 className="text-xl font-bold text-white tracking-tight">Data Pipelines</h1>
-            <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-brand-500/10 text-brand-400 border border-brand-500/20">
-              Enterprise CI/CD & DAG Orchestration
-            </span>
+        <div className="flex items-start gap-3">
+          <button
+            onClick={() => {
+              if (window.history.length > 1) {
+                window.history.back();
+              } else {
+                setCurrentTab('dashboard');
+              }
+            }}
+            className="p-2 mt-0.5 rounded-lg bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-400 hover:text-white transition shadow-sm flex items-center justify-center group"
+            title="Go back (Alt + Left Arrow)"
+          >
+            <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
+          </button>
+          <div>
+            <div className="flex items-center gap-2">
+              <GitBranch className="h-5 w-5 text-brand-400" />
+              <h1 className="text-xl font-bold text-white tracking-tight">Data Pipelines</h1>
+              <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-brand-500/10 text-brand-400 border border-brand-500/20">
+                Enterprise CI/CD & DAG Orchestration
+              </span>
+            </div>
+            <p className="text-xs text-slate-400 mt-1">
+              Visual ETL/ELT workflows, version snapshots, Dev/Test/Prod promotion, and declarative Git sync. Click any pipeline to view details and options.
+            </p>
           </div>
-          <p className="text-xs text-slate-400 mt-1">
-            Visual ETL/ELT workflows, version snapshots, Dev/Test/Prod promotion, and declarative Git sync. Click any pipeline to view details and options.
-          </p>
         </div>
 
         <div className="flex items-center gap-2">

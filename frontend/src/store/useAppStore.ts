@@ -4,8 +4,68 @@ import api from '../api/client';
 
 export type EnvironmentType = 'Development' | 'Testing' | 'Staging' | 'Production';
 
+export type TabType = 
+  | 'dashboard' 
+  | 'pipelines' 
+  | 'designer' 
+  | 'dataflows' 
+  | 'connections' 
+  | 'datasets' 
+  | 'triggers' 
+  | 'runs' 
+  | 'dq' 
+  | 'runtimes' 
+  | 'deployments' 
+  | 'lineage' 
+  | 'observability' 
+  | 'billing';
+
+export const VALID_TABS: readonly TabType[] = [
+  'dashboard', 
+  'pipelines', 
+  'designer', 
+  'dataflows', 
+  'connections', 
+  'datasets', 
+  'triggers', 
+  'runs', 
+  'dq', 
+  'runtimes', 
+  'deployments', 
+  'lineage', 
+  'observability', 
+  'billing'
+] as const;
+
+export function parseRouteFromHash(hashStr: string): { tab: TabType; pipelineId: string | null } {
+  if (!hashStr) return { tab: 'dashboard', pipelineId: null };
+  const clean = hashStr.replace(/^#\/?/, '').trim();
+  if (!clean) return { tab: 'dashboard', pipelineId: null };
+
+  const parts = clean.split('/');
+  const rawTab = parts[0];
+  const pipelineId = parts[1] || null;
+
+  const tab: TabType = (VALID_TABS as readonly string[]).includes(rawTab)
+    ? (rawTab as TabType)
+    : 'dashboard';
+
+  return { tab, pipelineId };
+}
+
+export function buildRouteHash(tab: TabType, pipelineId?: string | null): string {
+  if (tab === 'designer' && pipelineId) {
+    return `#/designer/${pipelineId}`;
+  }
+  return `#/${tab}`;
+}
+
+const initialRoute = typeof window !== 'undefined'
+  ? parseRouteFromHash(window.location.hash)
+  : { tab: 'dashboard' as TabType, pipelineId: null };
+
 interface AppState {
-  currentTab: 'dashboard' | 'pipelines' | 'designer' | 'dataflows' | 'connections' | 'datasets' | 'triggers' | 'runs' | 'dq' | 'runtimes' | 'deployments' | 'lineage' | 'observability' | 'billing';
+  currentTab: TabType;
   selectedPipelineId: string | null;
   selectedEnvironment: EnvironmentType;
   isSidebarCollapsed: boolean;
@@ -17,8 +77,8 @@ interface AppState {
   pipelines: Pipeline[];
   isLoading: boolean;
   
-  setCurrentTab: (tab: 'dashboard' | 'pipelines' | 'designer' | 'dataflows' | 'connections' | 'datasets' | 'triggers' | 'runs' | 'dq' | 'runtimes' | 'deployments' | 'lineage' | 'observability' | 'billing') => void;
-  setSelectedPipelineId: (id: string | null) => void;
+  setCurrentTab: (tab: TabType, pushHistory?: boolean) => void;
+  setSelectedPipelineId: (id: string | null, pushHistory?: boolean) => void;
   setSelectedEnvironment: (env: EnvironmentType) => void;
   setSidebarCollapsed: (collapsed: boolean) => void;
   toggleSidebar: () => void;
@@ -30,8 +90,8 @@ interface AppState {
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
-  currentTab: 'dashboard',
-  selectedPipelineId: null,
+  currentTab: initialRoute.tab,
+  selectedPipelineId: initialRoute.pipelineId,
   selectedEnvironment: 'Development',
   isSidebarCollapsed: typeof window !== 'undefined' ? localStorage.getItem('dataforge_sidebar_collapsed') === 'true' : false,
   workspaces: [],
@@ -42,8 +102,34 @@ export const useAppStore = create<AppState>((set, get) => ({
   pipelines: [],
   isLoading: false,
 
-  setCurrentTab: (tab) => set({ currentTab: tab }),
-  setSelectedPipelineId: (id) => set({ selectedPipelineId: id }),
+  setCurrentTab: (tab, pushHistory = true) => {
+    const prevTab = get().currentTab;
+    const prevPipelineId = get().selectedPipelineId;
+    if (prevTab === tab && (!prevPipelineId || tab !== 'designer')) {
+      return;
+    }
+
+    const newPipelineId = tab === 'designer' ? prevPipelineId : null;
+    set({ currentTab: tab, selectedPipelineId: newPipelineId });
+
+    if (pushHistory && typeof window !== 'undefined') {
+      const targetHash = buildRouteHash(tab, newPipelineId);
+      if (window.location.hash !== targetHash) {
+        window.history.pushState({ tab, selectedPipelineId: newPipelineId }, '', targetHash);
+      }
+    }
+  },
+
+  setSelectedPipelineId: (id, pushHistory = true) => {
+    set({ selectedPipelineId: id });
+    const tab = get().currentTab;
+    if (tab === 'designer' && id && pushHistory && typeof window !== 'undefined') {
+      const targetHash = buildRouteHash('designer', id);
+      if (window.location.hash !== targetHash) {
+        window.history.pushState({ tab: 'designer', selectedPipelineId: id }, '', targetHash);
+      }
+    }
+  },
   setSelectedEnvironment: (env) => set({ selectedEnvironment: env }),
   setSidebarCollapsed: (collapsed) => {
     try {

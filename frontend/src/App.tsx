@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { useAppStore } from './store/useAppStore';
+import { useAppStore, parseRouteFromHash } from './store/useAppStore';
 import { StudioNavbar } from './components/layout/StudioNavbar';
 import { StudioSidebar } from './components/layout/StudioSidebar';
 import { DataForgeHomePage } from './pages/DataForgeHomePage';
@@ -18,11 +18,38 @@ import { ObservabilityPage } from './pages/ObservabilityPage';
 import { BillingPage } from './pages/BillingPage';
 
 export const App: React.FC = () => {
-  const { currentTab, fetchInitialData } = useAppStore();
+  const { currentTab, fetchInitialData, setCurrentTab, setSelectedPipelineId } = useAppStore();
 
   useEffect(() => {
     fetchInitialData();
   }, [fetchInitialData]);
+
+  // Handle browser back/forward buttons & URL hash changes
+  useEffect(() => {
+    // If no initial hash present, establish base hash state without adding extra history entry
+    if (typeof window !== 'undefined' && !window.location.hash) {
+      window.history.replaceState({ tab: 'dashboard', selectedPipelineId: null }, '', '#/dashboard');
+    }
+
+    const handleRouteChange = () => {
+      const { tab, pipelineId } = parseRouteFromHash(window.location.hash);
+      const state = useAppStore.getState();
+      if (state.currentTab !== tab) {
+        state.setCurrentTab(tab, false);
+      }
+      if (state.selectedPipelineId !== pipelineId) {
+        state.setSelectedPipelineId(pipelineId, false);
+      }
+    };
+
+    window.addEventListener('popstate', handleRouteChange);
+    window.addEventListener('hashchange', handleRouteChange);
+
+    return () => {
+      window.removeEventListener('popstate', handleRouteChange);
+      window.removeEventListener('hashchange', handleRouteChange);
+    };
+  }, [setCurrentTab, setSelectedPipelineId]);
 
   const renderContent = () => {
     switch (currentTab) {

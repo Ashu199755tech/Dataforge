@@ -11,7 +11,8 @@ import {
   Search, 
   Database,
   Table,
-  Play
+  Play,
+  ArrowLeft
 } from 'lucide-react';
 import { DataFlowCanvas } from './DataFlowCanvas';
 
@@ -85,14 +86,29 @@ export const DataFlowsListPage: React.FC = () => {
     <div className="p-6 space-y-6">
       {/* Top Banner */}
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-slate-100 flex items-center gap-2">
-            <Workflow className="h-6 w-6 text-brand-400" />
-            <span>Visual Data Flows (ETL)</span>
-          </h1>
-          <p className="text-xs text-slate-400 mt-1">
-            Build graphical data transformation graphs compiled to high-speed vectorized Polars and Spark execution.
-          </p>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => {
+              if (window.history.length > 1) {
+                window.history.back();
+              } else {
+                useAppStore.getState().setCurrentTab('dashboard');
+              }
+            }}
+            className="p-2 rounded-lg bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-400 hover:text-white transition shadow-sm flex items-center justify-center group"
+            title="Go back (Alt + Left Arrow)"
+          >
+            <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
+          </button>
+          <div>
+            <h1 className="text-xl font-bold text-slate-100 flex items-center gap-2">
+              <Workflow className="h-6 w-6 text-brand-400" />
+              <span>Visual Data Flows (ETL)</span>
+            </h1>
+            <p className="text-xs text-slate-400 mt-1">
+              Build graphical data transformation graphs compiled to high-speed vectorized Polars and Spark execution.
+            </p>
+          </div>
         </div>
 
         <button
