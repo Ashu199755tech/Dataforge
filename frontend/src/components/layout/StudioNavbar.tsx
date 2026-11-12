@@ -104,6 +104,23 @@ export const StudioNavbar: React.FC = () => {
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isBranchModalOpen, setIsBranchModalOpen] = useState(false);
 
+  const headerRef = useRef<HTMLElement>(null);
+
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (headerRef.current && !headerRef.current.contains(e.target as Node)) {
+        setIsWorkspaceDropdownOpen(false);
+        setIsEnvDropdownOpen(false);
+        setIsUserMenuOpen(false);
+        setIsHelpOpen(false);
+        setIsNotificationsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, []);
+
   // Global Ctrl+K / Cmd+K shortcut listener
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -183,7 +200,7 @@ export const StudioNavbar: React.FC = () => {
 
   return (
     <>
-      <header className="h-[50px] border-b border-slate-800 bg-slate-900/95 backdrop-blur-md px-3.5 flex items-center justify-between sticky top-0 z-40 select-none">
+      <header ref={headerRef} className="h-[50px] border-b border-slate-800 bg-slate-900/95 backdrop-blur-md px-3.5 flex items-center justify-between sticky top-0 z-40 select-none">
         
         {/* ================= LEFT SECTION: BRAND, WORKSPACE & ENV ================= */}
         <div className="flex items-center gap-2.5">
