@@ -87,11 +87,11 @@ export const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col font-sans">
+    <div className="h-screen max-h-screen w-screen overflow-hidden bg-slate-950 flex flex-col font-sans">
       <StudioNavbar />
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 min-h-0 flex overflow-hidden relative">
         <StudioSidebar />
-        <main className="flex-1 overflow-y-auto bg-slate-950/50">
+        <main className="flex-1 min-w-0 min-h-0 h-full overflow-y-auto bg-slate-950/50">
           {renderContent()}
         </main>
       </div>

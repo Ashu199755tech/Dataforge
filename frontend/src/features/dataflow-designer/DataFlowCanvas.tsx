@@ -286,11 +286,12 @@ export const DataFlowCanvas: React.FC<DataFlowCanvasProps> = ({ dataflowId, onBa
             onDrop={onDrop}
             onDragOver={onDragOver}
             nodeTypes={nodeTypes}
+            colorMode="dark"
             fitView
             className="bg-slate-950"
           >
             <Background color="#1e293b" gap={20} size={1} />
-            <Controls className="!bg-slate-900 !border-slate-800 !text-slate-300" />
+            <Controls className="!bg-slate-900 !border !border-slate-700 !shadow-xl !rounded-lg" />
 
             {runMetrics && (
               <Panel position="bottom-left" className="m-3">

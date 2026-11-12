@@ -401,7 +401,7 @@ export const PipelineDesignerPage: React.FC = () => {
   };
 
   return (
-    <div className="h-[calc(100vh-3.5rem)] flex flex-col overflow-hidden">
+    <div className="h-full flex flex-col overflow-hidden">
       {/* Top Designer Sub-Header */}
       <div className="h-12 border-b border-slate-800 bg-slate-900/95 px-4 flex items-center justify-between z-10 shrink-0">
         <div className="flex items-center gap-3">
@@ -504,10 +504,11 @@ export const PipelineDesignerPage: React.FC = () => {
             onNodesDelete={(deleted) => deleted.forEach((n) => handleDeleteNode(n.id))}
             deleteKeyCode={['Backspace', 'Delete']}
             nodeTypes={nodeTypes}
+            colorMode="dark"
             fitView
           >
             <Background color="#1e293b" gap={20} size={1.5} variant={BackgroundVariant.Dots} />
-            <Controls className="!bg-slate-900 !border-slate-800 !text-white !fill-white" />
+            <Controls className="!bg-slate-900 !border !border-slate-700 !shadow-xl !rounded-lg" />
             <MiniMap 
               className="!bg-slate-900 !border-slate-800"
               nodeColor={() => '#38a8f6'}

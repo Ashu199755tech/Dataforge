@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { PipelineRun, ActivityRun, ExecutionLog, TimelineItem, AlertEvent, AlertRule } from '../types';
 import api from '../api/client';
+import { ListFilterSortBar } from '../components/common/ListFilterSortBar';
 import { 
   PlayCircle, 
   CheckCircle2, 
@@ -45,6 +46,8 @@ export const RunsMonitorPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'timeline' | 'activities' | 'metrics' | 'alerts'>('timeline');
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState<string>('');
+  const [sortBy, setSortBy] = useState<string>('newest');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [logLevelFilter, setLogLevelFilter] = useState<string>('ALL');
   const [logSearch, setLogSearch] = useState<string>('');
   const [showDiagnosticsModal, setShowDiagnosticsModal] = useState<boolean>(false);
@@ -174,9 +177,43 @@ export const RunsMonitorPage: React.FC = () => {
   }, [selectedRun, selectedActivity]);
 
   const filteredRuns = runs.filter((r) => {
-    if (!searchTerm) return true;
+    if (filterStatus !== 'all' && r.status !== filterStatus) return false;
+    if (!searchTerm.trim()) return true;
     const term = searchTerm.toLowerCase();
-    return r.id.toLowerCase().includes(term) || r.pipeline_id.toLowerCase().includes(term);
+    return (
+      (r.id || '').toLowerCase().includes(term) ||
+      (r.pipeline_id || '').toLowerCase().includes(term) ||
+      (r.run_type || '').toLowerCase().includes(term)
+    );
+  });
+
+  // Default: Newest runs appear on top
+  const sortedRuns = [...filteredRuns].sort((a, b) => {
+    if (sortBy === 'newest') {
+      const dateA = new Date(a.started_at || 0).getTime();
+      const dateB = new Date(b.started_at || 0).getTime();
+      return sortDirection === 'asc' ? dateA - dateB : dateB - dateA;
+    }
+    if (sortBy === 'oldest') {
+      const dateA = new Date(a.started_at || 0).getTime();
+      const dateB = new Date(b.started_at || 0).getTime();
+      return sortDirection === 'asc' ? dateB - dateA : dateA - dateB;
+    }
+    if (sortBy === 'duration') {
+      const durA = a.duration_seconds || 0;
+      const durB = b.duration_seconds || 0;
+      return sortDirection === 'asc' ? durA - durB : durB - durA;
+    }
+    if (sortBy === 'rows') {
+      const rowsA = (a.total_rows_read || 0) + (a.total_rows_written || 0);
+      const rowsB = (b.total_rows_read || 0) + (b.total_rows_written || 0);
+      return sortDirection === 'asc' ? rowsA - rowsB : rowsB - rowsA;
+    }
+    if (sortBy === 'status') {
+      const cmp = (a.status || '').localeCompare(b.status || '');
+      return sortDirection === 'asc' ? cmp : -cmp;
+    }
+    return 0;
   });
 
   const filteredLogs = logs.filter((l) => {
@@ -217,40 +254,52 @@ export const RunsMonitorPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Global Controls */}
-        <div className="flex items-center gap-2 flex-wrap">
-          <div className="relative">
-            <Search className="h-3.5 w-3.5 text-slate-500 absolute left-2.5 top-2.5" />
-            <input
-              type="text"
-              placeholder="Search run ID..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="bg-slate-900 border border-slate-800 rounded-lg pl-8 pr-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-brand-500 w-44"
-            />
-          </div>
-
-          <select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            className="bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-300 focus:outline-none focus:border-brand-500"
-          >
-            <option value="all">All Statuses</option>
-            <option value="Succeeded">Succeeded</option>
-            <option value="Failed">Failed</option>
-            <option value="Running">Running</option>
-            <option value="Cancelled">Cancelled</option>
-          </select>
-
+        <div className="flex items-center gap-2">
           <button
             onClick={fetchRuns}
-            className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition"
+            className="p-2 bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-300 rounded-lg text-xs transition"
             title="Refresh Runs"
           >
             <RefreshCw className="h-4 w-4" />
           </button>
         </div>
       </div>
+
+      {/* Unified Search, Sort & Status Bar */}
+      <ListFilterSortBar
+        searchQuery={searchTerm}
+        onSearchChange={setSearchTerm}
+        searchPlaceholder="Search run ID, pipeline ID, run type..."
+        currentSort={sortBy}
+        onSortChange={setSortBy}
+        sortDirection={sortDirection}
+        onToggleDirection={() => setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'))}
+        sortOptions={[
+          { id: 'newest', label: 'Newest First' },
+          { id: 'oldest', label: 'Oldest First' },
+          { id: 'duration', label: 'Duration' },
+          { id: 'rows', label: 'Rows Processed' },
+          { id: 'status', label: 'Status' }
+        ]}
+        totalCount={runs.length}
+        filteredCount={sortedRuns.length}
+      >
+        <div className="flex items-center gap-1.5 bg-slate-950/70 p-1 rounded-lg border border-slate-800 overflow-x-auto text-xs">
+          {['all', 'Succeeded', 'Failed', 'Running', 'Cancelled'].map((st) => (
+            <button
+              key={st}
+              onClick={() => setFilterStatus(st)}
+              className={`px-2.5 py-1 rounded-md text-xs font-medium transition ${
+                filterStatus === st
+                  ? 'bg-brand-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              {st === 'all' ? `All (${runs.length})` : st}
+            </button>
+          ))}
+        </div>
+      </ListFilterSortBar>
 
       {actionMessage && (
         <div className="p-3 bg-brand-600/20 border border-brand-500/40 rounded-lg text-xs text-brand-300 flex items-center justify-between">
@@ -266,16 +315,16 @@ export const RunsMonitorPage: React.FC = () => {
           <div className="p-3 border-b border-slate-800 bg-slate-900/90 font-semibold text-xs text-slate-300 flex items-center justify-between">
             <span className="flex items-center gap-1.5">
               <Clock className="h-3.5 w-3.5 text-slate-400" />
-              Runs Ledger ({filteredRuns.length})
+              Runs Ledger ({sortedRuns.length})
             </span>
             <span className="text-[10px] text-slate-500">Live 4s poll</span>
           </div>
 
           <div className="flex-1 overflow-y-auto divide-y divide-slate-800/80">
-            {filteredRuns.length === 0 ? (
+            {sortedRuns.length === 0 ? (
               <div className="p-8 text-center text-xs text-slate-500">No execution runs matched.</div>
             ) : (
-              filteredRuns.map((r) => {
+              sortedRuns.map((r) => {
                 const isSelected = selectedRun?.id === r.id;
                 return (
                   <div

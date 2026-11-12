@@ -441,10 +441,11 @@ export const LineagePage: React.FC = () => {
             setFocalNodeId(node.id);
           }}
           fitView
+          colorMode="dark"
           className="bg-slate-950"
         >
           <Background color="#1e293b" gap={20} size={1} />
-          <Controls className="!bg-slate-900 !border !border-slate-800 !text-white fill-white" />
+          <Controls className="!bg-slate-900 !border !border-slate-700 !shadow-xl !rounded-lg" />
           <MiniMap 
             nodeColor="#334155" 
             maskColor="rgba(2, 6, 23, 0.7)" 

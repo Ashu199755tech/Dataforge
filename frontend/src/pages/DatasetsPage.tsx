@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import api from '../api/client';
 import { useAppStore } from '../store/useAppStore';
+import { ListFilterSortBar } from '../components/common/ListFilterSortBar';
 import { 
   Layers, 
   Database, 
@@ -73,6 +74,8 @@ export const DatasetsPage: React.FC = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
+  const [sortBy, setSortBy] = useState<string>('newest');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
   // Modals state
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -330,6 +333,33 @@ export const DatasetsPage: React.FC = () => {
     return matchesSearch && matchesType;
   });
 
+  // Default: Newest items appear on top
+  const sortedDatasets = [...filteredDatasets].sort((a, b) => {
+    if (sortBy === 'newest') {
+      const dateA = new Date(a.created_at || a.updated_at || 0).getTime();
+      const dateB = new Date(b.created_at || b.updated_at || 0).getTime();
+      return sortDirection === 'asc' ? dateA - dateB : dateB - dateA;
+    }
+    if (sortBy === 'oldest') {
+      const dateA = new Date(a.created_at || a.updated_at || 0).getTime();
+      const dateB = new Date(b.created_at || b.updated_at || 0).getTime();
+      return sortDirection === 'asc' ? dateB - dateA : dateA - dateB;
+    }
+    if (sortBy === 'name_asc') {
+      const cmp = a.name.localeCompare(b.name);
+      return sortDirection === 'asc' ? cmp : -cmp;
+    }
+    if (sortBy === 'name_desc') {
+      const cmp = b.name.localeCompare(a.name);
+      return sortDirection === 'asc' ? cmp : -cmp;
+    }
+    if (sortBy === 'type') {
+      const cmp = (a.dataset_type || '').localeCompare(b.dataset_type || '');
+      return sortDirection === 'asc' ? cmp : -cmp;
+    }
+    return 0;
+  });
+
   const totalRelational = datasets.filter(d => d.dataset_type === 'RelationalTable' || d.dataset_type === 'RelationalQuery').length;
   const totalFiles = datasets.length - totalRelational;
   const totalDrift = datasets.filter(d => d.schema_status === 'DriftDetected').length;
@@ -450,52 +480,58 @@ export const DatasetsPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Filters & Search */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-slate-900/40 border border-slate-800 rounded-xl p-3">
-        <div className="relative w-full sm:w-80">
-          <Search className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
-          <input
-            type="text"
-            placeholder="Search datasets by name or connection..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500"
-          />
-        </div>
-
-        <div className="flex items-center gap-2 w-full sm:w-auto">
+      {/* Filters & Search & Sort */}
+      <ListFilterSortBar
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        searchPlaceholder="Search datasets by name, connection, or location..."
+        currentSort={sortBy}
+        onSortChange={setSortBy}
+        sortDirection={sortDirection}
+        onToggleDirection={() => setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'))}
+        sortOptions={[
+          { id: 'newest', label: 'Newest First' },
+          { id: 'oldest', label: 'Oldest First' },
+          { id: 'name_asc', label: 'Name (A to Z)' },
+          { id: 'name_desc', label: 'Name (Z to A)' },
+          { id: 'type', label: 'Dataset Type' }
+        ]}
+        totalCount={datasets.length}
+        filteredCount={sortedDatasets.length}
+      >
+        <div className="flex items-center gap-1.5 bg-slate-950/70 p-1 rounded-lg border border-slate-800">
           <button
             onClick={() => setTypeFilter('all')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${
+            className={`px-2.5 py-1 rounded-md text-xs font-medium transition ${
               typeFilter === 'all'
-                ? 'bg-emerald-600/20 text-emerald-400 border border-emerald-500/30'
-                : 'text-slate-400 hover:text-slate-200'
+                ? 'bg-emerald-600 text-white shadow-sm'
+                : 'text-slate-400 hover:text-white'
             }`}
           >
-            All Types
+            All Types ({datasets.length})
           </button>
           <button
             onClick={() => setTypeFilter('relational')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${
+            className={`px-2.5 py-1 rounded-md text-xs font-medium transition ${
               typeFilter === 'relational'
-                ? 'bg-emerald-600/20 text-emerald-400 border border-emerald-500/30'
-                : 'text-slate-400 hover:text-slate-200'
+                ? 'bg-emerald-600 text-white shadow-sm'
+                : 'text-slate-400 hover:text-white'
             }`}
           >
-            Relational
+            Relational ({totalRelational})
           </button>
           <button
             onClick={() => setTypeFilter('file')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${
+            className={`px-2.5 py-1 rounded-md text-xs font-medium transition ${
               typeFilter === 'file'
-                ? 'bg-emerald-600/20 text-emerald-400 border border-emerald-500/30'
-                : 'text-slate-400 hover:text-slate-200'
+                ? 'bg-emerald-600 text-white shadow-sm'
+                : 'text-slate-400 hover:text-white'
             }`}
           >
-            Cloud Files
+            Cloud Files ({totalFiles})
           </button>
         </div>
-      </div>
+      </ListFilterSortBar>
 
       {/* Dataset List Table */}
       <div className="bg-slate-900/40 border border-slate-800 rounded-xl overflow-hidden">
@@ -504,7 +540,7 @@ export const DatasetsPage: React.FC = () => {
             <RefreshCw className="w-6 h-6 animate-spin mx-auto text-emerald-500 mb-2" />
             Loading reusable datasets...
           </div>
-        ) : filteredDatasets.length === 0 ? (
+        ) : sortedDatasets.length === 0 ? (
           <div className="py-16 text-center text-slate-500 text-xs">
             No datasets found. Click "New Dataset" to register a reusable dataset contract.
           </div>
@@ -523,7 +559,7 @@ export const DatasetsPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/60">
-                {filteredDatasets.map((ds) => {
+                {sortedDatasets.map((ds) => {
                   const isRelational = ds.dataset_type === 'RelationalTable' || ds.dataset_type === 'RelationalQuery';
                   const isDrift = ds.schema_status === 'DriftDetected';
 

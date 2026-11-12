@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import api from '../api/client';
+import { ListFilterSortBar, SortOption } from '../components/common/ListFilterSortBar';
 import { 
   ShieldCheck, 
   CheckCircle2, 
@@ -52,6 +53,66 @@ export const DataQualityPage: React.FC = () => {
     loadResults();
   }, [activeProject]);
 
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState('newest');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'passed' | 'failed'>('all');
+
+  const dqSortOptions: SortOption[] = [
+    { id: 'newest', label: 'Newest First' },
+    { id: 'oldest', label: 'Oldest First' },
+    { id: 'rule', label: 'Rule Description (A-Z)' },
+    { id: 'score', label: 'Compliance Score' },
+    { id: 'status', label: 'Evaluation Status' },
+  ];
+
+  const filteredAndSortedResults = useMemo(() => {
+    const list = results.filter((r) => {
+      const q = searchQuery.toLowerCase().trim();
+      const matchesSearch = !q ||
+        r.rule.toLowerCase().includes(q) ||
+        r.run_id.toLowerCase().includes(q);
+      const matchesStatus = statusFilter === 'all' || (statusFilter === 'passed' ? r.passed : !r.passed);
+      return matchesSearch && matchesStatus;
+    });
+
+    list.sort((a, b) => {
+      let cmp = 0;
+      switch (sortBy) {
+        case 'newest': {
+          const tA = a.started_at ? new Date(a.started_at).getTime() : 0;
+          const tB = b.started_at ? new Date(b.started_at).getTime() : 0;
+          cmp = tB - tA; // default newest on top
+          break;
+        }
+        case 'oldest': {
+          const tA = a.started_at ? new Date(a.started_at).getTime() : 0;
+          const tB = b.started_at ? new Date(b.started_at).getTime() : 0;
+          cmp = tA - tB;
+          break;
+        }
+        case 'rule':
+          cmp = a.rule.localeCompare(b.rule);
+          break;
+        case 'score':
+          cmp = (b.pass_pct || 0) - (a.pass_pct || 0);
+          break;
+        case 'status':
+          cmp = (a.passed === b.passed) ? 0 : a.passed ? -1 : 1;
+          break;
+        default: {
+          const tA = a.started_at ? new Date(a.started_at).getTime() : 0;
+          const tB = b.started_at ? new Date(b.started_at).getTime() : 0;
+          cmp = tB - tA;
+          break;
+        }
+      }
+      return sortDirection === 'asc' ? -cmp : cmp;
+    });
+
+    return list;
+  }, [results, searchQuery, sortBy, sortDirection, statusFilter]);
+
   const dimensions = [
     { name: 'Completeness', score: '100%', sub: 'Mandatory and Non-Null checks', status: 'Optimal' },
     { name: 'Uniqueness', score: '100%', sub: 'Primary Key & Deduplication', status: 'Optimal' },
@@ -99,9 +160,41 @@ export const DataQualityPage: React.FC = () => {
 
       {/* Recent Evaluations Table */}
       <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-5 space-y-4">
-        <h3 className="text-sm font-semibold text-white">Rule Execution Scorecard</h3>
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-white">Rule Execution Scorecard</h3>
+          <span className="text-xs text-slate-500">{results.length} Total Evaluation(s)</span>
+        </div>
 
-        <div className="overflow-x-auto">
+        <ListFilterSortBar
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          searchPlaceholder="Search DQ rules by name, run ID..."
+          currentSort={sortBy}
+          onSortChange={setSortBy}
+          sortDirection={sortDirection}
+          onToggleDirection={() => setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc')}
+          sortOptions={dqSortOptions}
+          totalCount={results.length}
+          filteredCount={filteredAndSortedResults.length}
+        >
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
+            {(['all', 'passed', 'failed'] as const).map((st) => (
+              <button
+                key={st}
+                onClick={() => setStatusFilter(st)}
+                className={`px-2.5 py-1 text-xs rounded-lg font-medium transition ${
+                  statusFilter === st
+                    ? 'bg-brand-600 text-white'
+                    : 'bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800 hover:border-slate-700'
+                }`}
+              >
+                {st === 'all' ? 'All Evaluations' : st === 'passed' ? 'Passed Only' : 'Failed Only'}
+              </button>
+            ))}
+          </div>
+        </ListFilterSortBar>
+
+        <div className="overflow-x-auto rounded-lg border border-slate-800/80">
           <table className="w-full text-left text-xs">
             <thead className="bg-slate-800/50 text-slate-400 uppercase text-[10px] font-semibold">
               <tr>
@@ -113,14 +206,26 @@ export const DataQualityPage: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800">
-              {results.length === 0 ? (
+              {filteredAndSortedResults.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="py-8 text-center text-slate-500">
-                    No data quality evaluations recorded. Execute a pipeline containing a Data Quality activity!
+                    {results.length === 0 ? (
+                      'No data quality evaluations recorded. Execute a pipeline containing a Data Quality activity!'
+                    ) : (
+                      <div>
+                        No evaluations matched your search criteria.
+                        <button
+                          onClick={() => { setSearchQuery(''); setStatusFilter('all'); }}
+                          className="block mx-auto mt-2 text-brand-400 hover:underline"
+                        >
+                          Clear filters
+                        </button>
+                      </div>
+                    )}
                   </td>
                 </tr>
               ) : (
-                results.map((r, i) => (
+                filteredAndSortedResults.map((r, i) => (
                   <tr key={i} className="hover:bg-slate-800/30">
                     <td className="py-2.5 px-3 font-medium text-slate-200">{r.rule}</td>
                     <td className="py-2.5 px-3 font-mono text-[11px] text-slate-400">

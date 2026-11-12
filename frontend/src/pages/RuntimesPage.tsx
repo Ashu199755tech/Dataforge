@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import api from '../api/client';
 import { useAppStore } from '../store/useAppStore';
+import { ListFilterSortBar, SortOption } from '../components/common/ListFilterSortBar';
 import { 
   Cpu, 
   Server, 
@@ -88,6 +89,75 @@ export const RuntimesPage: React.FC = () => {
   const [newConcurrency, setNewConcurrency] = useState(4);
   const [submittingCreate, setSubmittingCreate] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  // Search & Sort state (default newest first)
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState('newest');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [typeFilter, setTypeFilter] = useState<'all' | 'Cloud' | 'SelfHosted' | 'LocalDev'>('all');
+
+  const runtimeSortOptions: SortOption[] = [
+    { id: 'newest', label: 'Newest First' },
+    { id: 'oldest', label: 'Oldest First' },
+    { id: 'name', label: 'Name (A to Z)' },
+    { id: 'status', label: 'Status' },
+    { id: 'type', label: 'Runtime Type' },
+    { id: 'tasks', label: 'Active Tasks' },
+  ];
+
+  const filteredAndSortedRuntimes = useMemo(() => {
+    const list = runtimes.filter((rt) => {
+      const q = searchQuery.toLowerCase().trim();
+      const matchesSearch = !q || 
+        rt.name.toLowerCase().includes(q) ||
+        (rt.description && rt.description.toLowerCase().includes(q)) ||
+        (rt.host_name && rt.host_name.toLowerCase().includes(q)) ||
+        (rt.runtime_type && rt.runtime_type.toLowerCase().includes(q)) ||
+        (rt.status && rt.status.toLowerCase().includes(q));
+      
+      const matchesType = typeFilter === 'all' || rt.runtime_type === typeFilter;
+      return matchesSearch && matchesType;
+    });
+
+    list.sort((a, b) => {
+      let comparison = 0;
+      switch (sortBy) {
+        case 'newest': {
+          const tA = a.created_at ? new Date(a.created_at).getTime() : 0;
+          const tB = b.created_at ? new Date(b.created_at).getTime() : 0;
+          comparison = tB - tA; // default newest on top
+          break;
+        }
+        case 'oldest': {
+          const tA = a.created_at ? new Date(a.created_at).getTime() : 0;
+          const tB = b.created_at ? new Date(b.created_at).getTime() : 0;
+          comparison = tA - tB;
+          break;
+        }
+        case 'name':
+          comparison = a.name.localeCompare(b.name);
+          break;
+        case 'status':
+          comparison = a.status.localeCompare(b.status);
+          break;
+        case 'type':
+          comparison = a.runtime_type.localeCompare(b.runtime_type);
+          break;
+        case 'tasks':
+          comparison = (b.active_task_count || 0) - (a.active_task_count || 0);
+          break;
+        default: {
+          const tA = a.created_at ? new Date(a.created_at).getTime() : 0;
+          const tB = b.created_at ? new Date(b.created_at).getTime() : 0;
+          comparison = tB - tA;
+          break;
+        }
+      }
+      return sortDirection === 'asc' ? -comparison : comparison;
+    });
+
+    return list;
+  }, [runtimes, searchQuery, sortBy, sortDirection, typeFilter]);
 
   const fetchRuntimes = async () => {
     try {
@@ -348,11 +418,35 @@ export const RuntimesPage: React.FC = () => {
       </div>
 
       {/* Runtimes Table */}
-      <div className="bg-slate-900/40 border border-slate-800 rounded-xl overflow-hidden">
-        <div className="px-6 py-4 border-b border-slate-800 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-slate-200">Registered Integration Runtimes</h2>
-          <span className="text-xs text-slate-500">{runtimes.length} Runtime(s) Configured</span>
-        </div>
+      <div className="bg-slate-900/40 border border-slate-800 rounded-xl overflow-hidden space-y-4 p-4">
+        <ListFilterSortBar
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          searchPlaceholder="Search runtimes by name, host, type, status..."
+          currentSort={sortBy}
+          onSortChange={setSortBy}
+          sortDirection={sortDirection}
+          onToggleDirection={() => setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc')}
+          sortOptions={runtimeSortOptions}
+          totalCount={runtimes.length}
+          filteredCount={filteredAndSortedRuntimes.length}
+        >
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
+            {(['all', 'Cloud', 'SelfHosted', 'LocalDev'] as const).map((t) => (
+              <button
+                key={t}
+                onClick={() => setTypeFilter(t)}
+                className={`px-2.5 py-1 text-xs rounded-lg font-medium transition ${
+                  typeFilter === t
+                    ? 'bg-brand-600 text-white'
+                    : 'bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800 hover:border-slate-700'
+                }`}
+              >
+                {t === 'all' ? 'All Types' : t === 'SelfHosted' ? 'Self-Hosted' : t}
+              </button>
+            ))}
+          </div>
+        </ListFilterSortBar>
 
         {loading ? (
           <div className="py-16 text-center text-slate-500 text-xs">
@@ -363,8 +457,18 @@ export const RuntimesPage: React.FC = () => {
           <div className="py-16 text-center text-slate-500 text-xs">
             No integration runtimes registered. Click "New Integration Runtime" to create one.
           </div>
+        ) : filteredAndSortedRuntimes.length === 0 ? (
+          <div className="py-16 text-center text-slate-500 text-xs">
+            No runtimes matched your search criteria.
+            <button
+              onClick={() => { setSearchQuery(''); setTypeFilter('all'); }}
+              className="block mx-auto mt-2 text-brand-400 hover:underline"
+            >
+              Clear filters
+            </button>
+          </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto rounded-lg border border-slate-800/80">
             <table className="w-full text-left text-xs text-slate-300">
               <thead className="bg-slate-950/60 text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800">
                 <tr>
@@ -378,7 +482,7 @@ export const RuntimesPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/60">
-                {runtimes.map((rt) => {
+                {filteredAndSortedRuntimes.map((rt) => {
                   const isSH = rt.runtime_type === 'SelfHosted';
                   const isOnline = rt.status === 'Online';
                   const isOffline = rt.status === 'Offline';

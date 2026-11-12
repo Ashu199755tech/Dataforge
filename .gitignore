@@ -8,6 +8,8 @@ __pycache__/
 *.pid
 *.sock
 dataflow_metadata.db
+*.duckdb
+scripts/run_*.py
 
 # Frontend
 frontend/node_modules/

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { Pipeline, PipelineVersion, Trigger, PipelineRun } from '../types';
 import api from '../api/client';
+import { ListFilterSortBar } from '../components/common/ListFilterSortBar';
 import { 
   GitBranch, 
   Play, 
@@ -47,9 +48,11 @@ export const PipelinesListPage: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [triggeringId, setTriggeringId] = useState<string | null>(null);
 
-  // Search & Filter state
+  // Search & Sort & Filter state (Default: Newest First)
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'All' | 'Published' | 'Draft'>('All');
+  const [sortBy, setSortBy] = useState<string>('newest');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
   // Active Dropdown state (3 dots menu)
   const [activeDropdownId, setActiveDropdownId] = useState<string | null>(null);
@@ -301,6 +304,33 @@ export const PipelinesListPage: React.FC = () => {
     return true;
   });
 
+  // Default: Newest items appear on top
+  const sortedPipelines = [...filteredPipelines].sort((a, b) => {
+    if (sortBy === 'newest') {
+      const dateA = new Date(a.created_at || a.updated_at || 0).getTime();
+      const dateB = new Date(b.created_at || b.updated_at || 0).getTime();
+      return sortDirection === 'asc' ? dateA - dateB : dateB - dateA;
+    }
+    if (sortBy === 'oldest') {
+      const dateA = new Date(a.created_at || a.updated_at || 0).getTime();
+      const dateB = new Date(b.created_at || b.updated_at || 0).getTime();
+      return sortDirection === 'asc' ? dateB - dateA : dateA - dateB;
+    }
+    if (sortBy === 'name_asc') {
+      const cmp = a.name.localeCompare(b.name);
+      return sortDirection === 'asc' ? cmp : -cmp;
+    }
+    if (sortBy === 'name_desc') {
+      const cmp = b.name.localeCompare(a.name);
+      return sortDirection === 'asc' ? cmp : -cmp;
+    }
+    if (sortBy === 'status') {
+      const cmp = (a.status || '').localeCompare(b.status || '');
+      return sortDirection === 'asc' ? cmp : -cmp;
+    }
+    return 0;
+  });
+
   const publishedCount = pipelines.filter(p => p.status === 'Published').length;
   const draftCount = pipelines.filter(p => p.status !== 'Published').length;
 
@@ -366,65 +396,61 @@ export const PipelinesListPage: React.FC = () => {
         </div>
       </div>
 
-      {/* KPI Stats & Search Filters */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        {/* KPI Pills */}
-        <div className="flex items-center gap-2 text-xs">
+      {/* Unified Search, Sort & Status Bar */}
+      <ListFilterSortBar
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        searchPlaceholder="Search pipelines by name, description..."
+        currentSort={sortBy}
+        onSortChange={setSortBy}
+        sortDirection={sortDirection}
+        onToggleDirection={() => setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'))}
+        sortOptions={[
+          { id: 'newest', label: 'Newest First' },
+          { id: 'oldest', label: 'Oldest First' },
+          { id: 'name_asc', label: 'Name (A to Z)' },
+          { id: 'name_desc', label: 'Name (Z to A)' },
+          { id: 'status', label: 'Status' }
+        ]}
+        totalCount={pipelines.length}
+        filteredCount={sortedPipelines.length}
+      >
+        <div className="flex items-center gap-1.5 bg-slate-950/70 p-1 rounded-lg border border-slate-800">
           <button
             onClick={() => setStatusFilter('All')}
-            className={`px-3 py-1.5 rounded-lg font-medium transition border ${
+            className={`px-2.5 py-1 rounded-md text-xs font-medium transition ${
               statusFilter === 'All'
-                ? 'bg-brand-600/20 text-brand-300 border-brand-500/40'
-                : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'
+                ? 'bg-brand-600 text-white shadow-sm'
+                : 'text-slate-400 hover:text-white'
             }`}
           >
-            All Pipelines ({pipelines.length})
+            All ({pipelines.length})
           </button>
           <button
             onClick={() => setStatusFilter('Published')}
-            className={`px-3 py-1.5 rounded-lg font-medium transition border ${
+            className={`px-2.5 py-1 rounded-md text-xs font-medium transition ${
               statusFilter === 'Published'
-                ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
-                : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'
+                ? 'bg-emerald-600 text-white shadow-sm'
+                : 'text-slate-400 hover:text-white'
             }`}
           >
             Published ({publishedCount})
           </button>
           <button
             onClick={() => setStatusFilter('Draft')}
-            className={`px-3 py-1.5 rounded-lg font-medium transition border ${
+            className={`px-2.5 py-1 rounded-md text-xs font-medium transition ${
               statusFilter === 'Draft'
-                ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
-                : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'
+                ? 'bg-amber-600 text-white shadow-sm'
+                : 'text-slate-400 hover:text-white'
             }`}
           >
             Draft ({draftCount})
           </button>
         </div>
-
-        {/* Search Input */}
-        <div className="relative w-full md:w-72">
-          <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-500" />
-          <input
-            type="text"
-            placeholder="Search pipelines..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-slate-900 border border-slate-800 rounded-lg pl-9 pr-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-brand-500"
-          />
-          {searchQuery && (
-            <button
-              onClick={() => setSearchQuery('')}
-              className="absolute right-2.5 top-2.5 text-slate-500 hover:text-slate-300"
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
-          )}
-        </div>
-      </div>
+      </ListFilterSortBar>
 
       {/* Pipelines Grid */}
-      {filteredPipelines.length === 0 ? (
+      {sortedPipelines.length === 0 ? (
         <div className="p-12 text-center bg-slate-900/50 border border-slate-800 rounded-xl space-y-3">
           <AlertCircle className="h-8 w-8 text-slate-600 mx-auto" />
           <div className="text-sm font-medium text-slate-300">No pipelines found</div>
@@ -440,7 +466,7 @@ export const PipelinesListPage: React.FC = () => {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredPipelines.map((pipe) => {
+          {sortedPipelines.map((pipe) => {
             const actCount = pipe.definition_json?.activities?.length || 0;
             const isMenuOpen = activeDropdownId === pipe.id;
 

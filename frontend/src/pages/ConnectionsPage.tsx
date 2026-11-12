@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { Connection } from '../types';
 import api from '../api/client';
+import { ListFilterSortBar } from '../components/common/ListFilterSortBar';
 import { 
   Database, 
   Plus, 
@@ -28,6 +29,12 @@ export const ConnectionsPage: React.FC = () => {
   const [testingId, setTestingId] = useState<string | null>(null);
   const [testResult, setTestResult] = useState<{ id: string; success: boolean; message: string; latency?: number } | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
+
+  // Search & Sort & Filter state (Default: Newest First)
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState<string>('newest');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [typeFilter, setTypeFilter] = useState<string>('all');
   const [selectedTables, setSelectedTables] = useState<any[] | null>(null);
   const [exploringConnName, setExploringConnName] = useState<string>('');
 
@@ -101,6 +108,16 @@ export const ConnectionsPage: React.FC = () => {
       });
     } finally {
       setTestingId(null);
+    }
+  };
+
+  const handleDeleteConnection = async (connId: string) => {
+    if (!window.confirm('Are you sure you want to delete this connection?')) return;
+    try {
+      await api.delete(`/connections/${connId}`);
+      fetchConnections();
+    } catch (err: any) {
+      alert(err.response?.data?.detail || 'Failed to delete connection');
     }
   };
 
@@ -316,122 +333,202 @@ export const ConnectionsPage: React.FC = () => {
         </button>
       </div>
 
-      {/* Connections List */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {connections.map((conn) => {
-          const cfg = conn.config_masked || {};
-          const isGcp = conn.connector_type === 'gcp_storage' || conn.connector_type === 'gcs';
-          const isAws = conn.connector_type === 'aws_s3' || conn.connector_type === 's3';
-          const isAzure = conn.connector_type.startsWith('azure_');
-          const isLocal = conn.connector_type.includes('local');
+      {/* Filter & Sort Bar */}
+      {(() => {
+        const filteredConnections = connections.filter((conn) => {
+          if (typeFilter !== 'all') {
+            const t = conn.connector_type.toLowerCase();
+            if (typeFilter === 'cloud' && !t.includes('s3') && !t.includes('azure') && !t.includes('gcp') && !t.includes('gcs') && !t.includes('blob')) return false;
+            if (typeFilter === 'database' && !t.includes('postgres') && !t.includes('mysql') && !t.includes('snowflake') && !t.includes('redshift') && !t.includes('sql')) return false;
+            if (typeFilter === 'local' && !t.includes('local')) return false;
+          }
+          if (searchQuery.trim()) {
+            const q = searchQuery.toLowerCase();
+            const matchName = conn.name.toLowerCase().includes(q);
+            const matchType = conn.connector_type.toLowerCase().includes(q);
+            const matchDesc = (conn.description || '').toLowerCase().includes(q);
+            return matchName || matchType || matchDesc;
+          }
+          return true;
+        });
 
-          return (
-            <div 
-              key={conn.id} 
-              onClick={() => handleExploreTables(conn)}
-              className="p-5 rounded-xl bg-slate-900/80 border border-slate-800 hover:border-brand-500/50 hover:bg-slate-900 transition-all duration-150 space-y-4 flex flex-col justify-between cursor-pointer group"
+        const sortedConnections = [...filteredConnections].sort((a, b) => {
+          if (sortBy === 'newest') {
+            const dateA = new Date(a.created_at || 0).getTime();
+            const dateB = new Date(b.created_at || 0).getTime();
+            return sortDirection === 'asc' ? dateA - dateB : dateB - dateA;
+          }
+          if (sortBy === 'oldest') {
+            const dateA = new Date(a.created_at || 0).getTime();
+            const dateB = new Date(b.created_at || 0).getTime();
+            return sortDirection === 'asc' ? dateB - dateA : dateA - dateB;
+          }
+          if (sortBy === 'name_asc') {
+            const cmp = a.name.localeCompare(b.name);
+            return sortDirection === 'asc' ? cmp : -cmp;
+          }
+          if (sortBy === 'name_desc') {
+            const cmp = b.name.localeCompare(a.name);
+            return sortDirection === 'asc' ? cmp : -cmp;
+          }
+          if (sortBy === 'type') {
+            const cmp = a.connector_type.localeCompare(b.connector_type);
+            return sortDirection === 'asc' ? cmp : -cmp;
+          }
+          return 0;
+        });
+
+        return (
+          <>
+            <ListFilterSortBar
+              searchQuery={searchQuery}
+              onSearchChange={setSearchQuery}
+              searchPlaceholder="Search connections by name, type, storage..."
+              currentSort={sortBy}
+              onSortChange={setSortBy}
+              sortDirection={sortDirection}
+              onToggleDirection={() => setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'))}
+              sortOptions={[
+                { id: 'newest', label: 'Newest First' },
+                { id: 'oldest', label: 'Oldest First' },
+                { id: 'name_asc', label: 'Name (A to Z)' },
+                { id: 'name_desc', label: 'Name (Z to A)' },
+                { id: 'type', label: 'Connector Type' }
+              ]}
+              totalCount={connections.length}
+              filteredCount={sortedConnections.length}
             >
-              <div>
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-2.5">
-                    {renderConnectorIcon(conn.connector_type)}
-                    <div>
-                      <h3 className="text-sm font-semibold text-white group-hover:text-brand-300 transition-colors">{conn.name}</h3>
-                      <div className="text-[10px] text-slate-500 uppercase tracking-wider font-mono">
-                        {conn.connector_type.replace('_', ' ')}
+              <div className="flex items-center gap-1.5 bg-slate-950/70 p-1 rounded-lg border border-slate-800">
+                <button
+                  onClick={() => setTypeFilter('all')}
+                  className={`px-2.5 py-1 rounded-md text-xs font-medium transition ${
+                    typeFilter === 'all' ? 'bg-brand-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  All ({connections.length})
+                </button>
+                <button
+                  onClick={() => setTypeFilter('cloud')}
+                  className={`px-2.5 py-1 rounded-md text-xs font-medium transition ${
+                    typeFilter === 'cloud' ? 'bg-brand-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Cloud Storage
+                </button>
+                <button
+                  onClick={() => setTypeFilter('database')}
+                  className={`px-2.5 py-1 rounded-md text-xs font-medium transition ${
+                    typeFilter === 'database' ? 'bg-brand-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Databases
+                </button>
+                <button
+                  onClick={() => setTypeFilter('local')}
+                  className={`px-2.5 py-1 rounded-md text-xs font-medium transition ${
+                    typeFilter === 'local' ? 'bg-brand-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Local
+                </button>
+              </div>
+            </ListFilterSortBar>
+
+            {/* Connections Grid */}
+            {sortedConnections.length === 0 ? (
+              <div className="p-12 text-center bg-slate-900/50 border border-slate-800 rounded-xl space-y-3">
+                <Database className="h-8 w-8 text-slate-600 mx-auto" />
+                <div className="text-sm font-medium text-slate-300">No connections match your criteria</div>
+                <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                  {searchQuery ? 'Try clearing your search query or reset type filter.' : 'Provision your first linked service connector.'}
+                </p>
+                <button
+                  onClick={() => setShowAddModal(true)}
+                  className="px-3 py-1.5 bg-brand-600 hover:bg-brand-500 text-white rounded text-xs font-medium"
+                >
+                  Create Connection
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {sortedConnections.map((conn) => {
+                  const cfg = conn.config_masked || {};
+                  const isGcp = conn.connector_type === 'gcp_storage' || conn.connector_type === 'gcs';
+                  const isAws = conn.connector_type === 'aws_s3' || conn.connector_type === 's3';
+                  const isAzure = conn.connector_type.startsWith('azure_');
+                  const isLocal = conn.connector_type.includes('local');
+
+                  return (
+                    <div 
+                      key={conn.id} 
+                      onClick={() => handleExploreTables(conn)}
+                      className="p-5 rounded-xl bg-slate-900/80 border border-slate-800 hover:border-brand-500/50 hover:bg-slate-900 transition-all duration-150 space-y-4 flex flex-col justify-between cursor-pointer group"
+                    >
+                      <div>
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-center gap-2.5">
+                            {renderConnectorIcon(conn.connector_type)}
+                            <div>
+                              <h3 className="text-sm font-semibold text-white group-hover:text-brand-300 transition-colors">{conn.name}</h3>
+                              <div className="text-[10px] text-slate-500 uppercase tracking-wider font-mono">
+                                {conn.connector_type.replace('_', ' ')}
+                              </div>
+                            </div>
+                          </div>
+                          <span className={`h-2 w-2 rounded-full ${conn.status === 'Active' ? 'bg-emerald-500' : 'bg-slate-600'}`} />
+                        </div>
+                        {conn.description && (
+                          <p className="text-xs text-slate-400 mt-2 line-clamp-2">{conn.description}</p>
+                        )}
+                        <div className="mt-3 pt-3 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-500 font-mono">
+                          <span className="truncate max-w-[180px]">
+                            {cfg.bucket_name || cfg.container_name || cfg.database || cfg.base_path || 'Standard'}
+                          </span>
+                          <span>{conn.created_at ? new Date(conn.created_at).toLocaleDateString() : 'Active'}</span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-2 border-t border-slate-800/60">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleTestConnection(conn.id);
+                          }}
+                          disabled={testingId === conn.id}
+                          className="px-2.5 py-1 text-[11px] rounded bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition flex items-center gap-1"
+                        >
+                          <RefreshCw className={`h-3 w-3 ${testingId === conn.id ? 'animate-spin text-brand-400' : ''}`} />
+                          <span>{testingId === conn.id ? 'Testing...' : 'Test'}</span>
+                        </button>
+
+                        <div className="flex items-center gap-1.5">
+                          {testResult && testResult.id === conn.id && (
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${
+                              testResult.success ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'
+                            }`}>
+                              {testResult.success ? `${testResult.latency}ms` : 'Failed'}
+                            </span>
+                          )}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteConnection(conn.id);
+                            }}
+                            className="p-1 text-slate-500 hover:text-rose-400 transition"
+                            title="Delete connection"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-
-                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium border ${
-                    conn.status === 'Active'
-                      ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                      : conn.status === 'Failed'
-                      ? 'bg-rose-500/10 text-rose-400 border-rose-500/20'
-                      : 'bg-slate-700/30 text-slate-400 border-slate-700/50'
-                  }`}>
-                    {conn.status === 'Active' && <CheckCircle2 className="h-2.5 w-2.5" />}
-                    {conn.status === 'Failed' && <XCircle className="h-2.5 w-2.5" />}
-                    {conn.status === 'Unverified' && <AlertCircle className="h-2.5 w-2.5" />}
-                    {conn.status}
-                  </span>
-                </div>
-
-                {conn.description && (
-                  <p className="mt-2 text-xs text-slate-400 line-clamp-2">{conn.description}</p>
-                )}
-
-                {/* Masked Endpoint Details */}
-                <div className="mt-3 p-2 rounded bg-slate-950/60 border border-slate-800/80 text-[11px] font-mono text-slate-400 space-y-0.5">
-                  {isGcp ? (
-                    <>
-                      <div>Project: <span className="text-slate-300">{cfg.project_id || 'Default'}</span></div>
-                      <div>Bucket: <span className="text-slate-300">{cfg.bucket || 'All Buckets'}</span></div>
-                      <div>Auth: <span className="text-rose-400">{cfg.auth_mode || 'service_account_json'}</span></div>
-                      {cfg.custom_endpoint && <div>Endpoint: <span className="text-slate-400">{cfg.custom_endpoint}</span></div>}
-                    </>
-                  ) : isAws ? (
-                    <>
-                      <div>Bucket: <span className="text-slate-300">{cfg.bucket || 'All Buckets'}</span></div>
-                      <div>Region: <span className="text-slate-300">{cfg.region_name || 'us-east-1'}</span></div>
-                      <div>Auth: <span className="text-amber-400">{cfg.auth_mode || 'access_key'}</span></div>
-                      {cfg.server_side_encryption && <div>SSE: <span className="text-emerald-400">{cfg.server_side_encryption}</span></div>}
-                      {cfg.endpoint_url && <div>Endpoint: <span className="text-slate-400">{cfg.endpoint_url}</span></div>}
-                    </>
-                  ) : isAzure ? (
-                    <>
-                      <div>Account: <span className="text-slate-300">{cfg.account_name || 'devstoreaccount1'}</span></div>
-                      <div>Container/FS: <span className="text-slate-300">{cfg.container_name || cfg.filesystem || 'All'}</span></div>
-                      <div>Auth: <span className="text-sky-400">{cfg.auth_mode || 'account_key'}</span></div>
-                      {cfg.custom_endpoint && <div>Endpoint: <span className="text-slate-400">{cfg.custom_endpoint}</span></div>}
-                    </>
-                  ) : isLocal ? (
-                    <div>Root Path: <span className="text-slate-300">{cfg.base_path || './data_storage'}</span></div>
-                  ) : (
-                    <>
-                      <div>Host: <span className="text-slate-300">{cfg.host || 'localhost'}</span>:{cfg.port || ''}</div>
-                      <div>Database: <span className="text-slate-300">{cfg.database}</span></div>
-                      <div>User: <span className="text-slate-300">{cfg.user}</span></div>
-                    </>
-                  )}
-                </div>
-
-                {/* Live Test Feedback banner */}
-                {testResult && testResult.id === conn.id && (
-                  <div className={`mt-2 p-2 rounded text-xs border ${
-                    testResult.success
-                      ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
-                      : 'bg-rose-500/10 border-rose-500/30 text-rose-300'
-                  }`}>
-                    <div className="font-medium">{testResult.message}</div>
-                    {testResult.latency !== undefined && <div className="text-[10px] opacity-80">Latency: {testResult.latency}ms</div>}
-                  </div>
-                )}
+                  );
+                })}
               </div>
-
-              {/* Actions */}
-              <div className="pt-3 border-t border-slate-800 flex items-center justify-between text-xs" onClick={(e) => e.stopPropagation()}>
-                <button
-                  onClick={() => handleTestConnection(conn.id)}
-                  disabled={testingId === conn.id}
-                  className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 transition disabled:opacity-50"
-                >
-                  <RefreshCw className={`h-3 w-3 ${testingId === conn.id ? 'animate-spin' : ''}`} />
-                  <span>{testingId === conn.id ? 'Testing...' : 'Test Connection'}</span>
-                </button>
-
-                <button
-                  onClick={() => handleExploreTables(conn)}
-                  className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-brand-600/20 hover:bg-brand-600/30 text-brand-400 border border-brand-500/30 transition"
-                >
-                  <Table className="h-3 w-3" />
-                  <span>Explore Items</span>
-                </button>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+            )}
+          </>
+        );
+      })()}
 
       {/* Schema Discovery Modal */}
       {selectedTables && (

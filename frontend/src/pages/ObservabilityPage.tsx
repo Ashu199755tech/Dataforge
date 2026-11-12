@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import api from '../api/client';
+import { ListFilterSortBar, SortOption } from '../components/common/ListFilterSortBar';
 import { 
   ObservabilityOverview, 
   CopyDataPerformanceMetrics, 
@@ -99,6 +100,118 @@ export const ObservabilityPage: React.FC = () => {
   const [newAlertEndpoint, setNewAlertEndpoint] = useState<string>('');
   const [newAlertCooldown, setNewAlertCooldown] = useState<number>(5);
   const [isSubmittingAlert, setIsSubmittingAlert] = useState<boolean>(false);
+
+  // Alert Rules filter and sort (default newest first)
+  const [rulesSearchQuery, setRulesSearchQuery] = useState('');
+  const [rulesSortBy, setRulesSortBy] = useState('newest');
+  const [rulesSortDirection, setRulesSortDirection] = useState<'asc' | 'desc'>('desc');
+
+  const ruleSortOptions: SortOption[] = [
+    { id: 'newest', label: 'Newest First' },
+    { id: 'oldest', label: 'Oldest First' },
+    { id: 'name', label: 'Rule Name (A-Z)' },
+    { id: 'channel', label: 'Channel Type' },
+    { id: 'target', label: 'Target Type' },
+  ];
+
+  const filteredAndSortedRules = useMemo(() => {
+    const list = alertRules.filter((r) => {
+      const q = rulesSearchQuery.toLowerCase().trim();
+      return !q ||
+        r.name.toLowerCase().includes(q) ||
+        r.target_type.toLowerCase().includes(q) ||
+        r.condition_type.toLowerCase().includes(q) ||
+        r.action_type.toLowerCase().includes(q);
+    });
+
+    list.sort((a, b) => {
+      let cmp = 0;
+      switch (rulesSortBy) {
+        case 'newest': {
+          const tA = a.created_at ? new Date(a.created_at).getTime() : 0;
+          const tB = b.created_at ? new Date(b.created_at).getTime() : 0;
+          cmp = tB - tA; // default newest on top
+          break;
+        }
+        case 'oldest': {
+          const tA = a.created_at ? new Date(a.created_at).getTime() : 0;
+          const tB = b.created_at ? new Date(b.created_at).getTime() : 0;
+          cmp = tA - tB;
+          break;
+        }
+        case 'name':
+          cmp = a.name.localeCompare(b.name);
+          break;
+        case 'channel':
+          cmp = a.action_type.localeCompare(b.action_type);
+          break;
+        case 'target':
+          cmp = a.target_type.localeCompare(b.target_type);
+          break;
+        default: {
+          const tA = a.created_at ? new Date(a.created_at).getTime() : 0;
+          const tB = b.created_at ? new Date(b.created_at).getTime() : 0;
+          cmp = tB - tA;
+          break;
+        }
+      }
+      return rulesSortDirection === 'asc' ? -cmp : cmp;
+    });
+
+    return list;
+  }, [alertRules, rulesSearchQuery, rulesSortBy, rulesSortDirection]);
+
+  // Alert Events filter and sort (default newest first)
+  const [eventsSearchQuery, setEventsSearchQuery] = useState('');
+  const [eventsSortBy, setEventsSortBy] = useState('newest');
+  const [eventsSortDirection, setEventsSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [eventsSeverityFilter, setEventsSeverityFilter] = useState<'all' | 'Critical' | 'Warning' | 'Info'>('all');
+
+  const eventSortOptions: SortOption[] = [
+    { id: 'newest', label: 'Newest First' },
+    { id: 'oldest', label: 'Oldest First' },
+    { id: 'severity', label: 'Severity' },
+    { id: 'title', label: 'Alert Title (A-Z)' },
+  ];
+
+  const filteredAndSortedEvents = useMemo(() => {
+    const list = alertEvents.filter((ev) => {
+      const q = eventsSearchQuery.toLowerCase().trim();
+      const matchesSearch = !q ||
+        ev.title.toLowerCase().includes(q) ||
+        ev.message.toLowerCase().includes(q) ||
+        ev.severity.toLowerCase().includes(q) ||
+        ev.status.toLowerCase().includes(q);
+      const matchesSeverity = eventsSeverityFilter === 'all' || ev.severity === eventsSeverityFilter;
+      return matchesSearch && matchesSeverity;
+    });
+
+    list.sort((a, b) => {
+      let cmp = 0;
+      const tA = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const tB = b.created_at ? new Date(b.created_at).getTime() : 0;
+      switch (eventsSortBy) {
+        case 'newest':
+          cmp = tB - tA; // default newest on top
+          break;
+        case 'oldest':
+          cmp = tA - tB;
+          break;
+        case 'severity':
+          cmp = a.severity.localeCompare(b.severity);
+          break;
+        case 'title':
+          cmp = a.title.localeCompare(b.title);
+          break;
+        default:
+          cmp = tB - tA;
+          break;
+      }
+      return eventsSortDirection === 'asc' ? -cmp : cmp;
+    });
+
+    return list;
+  }, [alertEvents, eventsSearchQuery, eventsSortBy, eventsSortDirection, eventsSeverityFilter]);
 
   const fetchData = async () => {
     setIsLoading(true);
@@ -888,13 +1001,27 @@ export const ObservabilityPage: React.FC = () => {
           </div>
 
           {/* Rules Table */}
-          <div className="bg-slate-900/50 border border-slate-800 rounded-xl overflow-hidden">
-            <div className="px-5 py-3 border-b border-slate-800">
+          <div className="bg-slate-900/50 border border-slate-800 rounded-xl overflow-hidden space-y-3 p-4">
+            <div className="flex items-center justify-between">
               <h4 className="text-xs font-semibold text-slate-300 uppercase tracking-wider">
                 Configured Alert Rules ({alertRules.length})
               </h4>
             </div>
-            <div className="overflow-x-auto">
+
+            <ListFilterSortBar
+              searchQuery={rulesSearchQuery}
+              onSearchChange={setRulesSearchQuery}
+              searchPlaceholder="Search alert rules by name, channel, target, condition..."
+              currentSort={rulesSortBy}
+              onSortChange={setRulesSortBy}
+              sortDirection={rulesSortDirection}
+              onToggleDirection={() => setRulesSortDirection(prev => prev === 'asc' ? 'desc' : 'asc')}
+              sortOptions={ruleSortOptions}
+              totalCount={alertRules.length}
+              filteredCount={filteredAndSortedRules.length}
+            />
+
+            <div className="overflow-x-auto rounded-lg border border-slate-800/80">
               <table className="w-full text-left text-xs">
                 <thead className="bg-slate-950/60 text-slate-400 font-medium border-b border-slate-800">
                   <tr>
@@ -908,8 +1035,8 @@ export const ObservabilityPage: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/60">
-                  {alertRules.length > 0 ? (
-                    alertRules.map((r) => (
+                  {filteredAndSortedRules.length > 0 ? (
+                    filteredAndSortedRules.map((r) => (
                       <tr key={r.id} className="hover:bg-slate-800/30 transition-colors">
                         <td className="py-3 px-4 font-semibold text-slate-200">
                           {r.name}
@@ -945,7 +1072,7 @@ export const ObservabilityPage: React.FC = () => {
                   ) : (
                     <tr>
                       <td colSpan={7} className="py-6 text-center text-slate-500">
-                        No alert rules created yet.
+                        {alertRules.length === 0 ? 'No alert rules created yet.' : 'No alert rules match your search query.'}
                       </td>
                     </tr>
                   )}
@@ -955,13 +1082,43 @@ export const ObservabilityPage: React.FC = () => {
           </div>
 
           {/* Alert Events Stream */}
-          <div className="bg-slate-900/50 border border-slate-800 rounded-xl overflow-hidden">
-            <div className="px-5 py-3 border-b border-slate-800 flex items-center justify-between">
+          <div className="bg-slate-900/50 border border-slate-800 rounded-xl overflow-hidden space-y-3 p-4">
+            <div className="flex items-center justify-between">
               <h4 className="text-xs font-semibold text-slate-300 uppercase tracking-wider">
                 Live Alert Events Audit Stream ({alertEvents.length})
               </h4>
             </div>
-            <div className="overflow-x-auto">
+
+            <ListFilterSortBar
+              searchQuery={eventsSearchQuery}
+              onSearchChange={setEventsSearchQuery}
+              searchPlaceholder="Search events by title, message, status..."
+              currentSort={eventsSortBy}
+              onSortChange={setEventsSortBy}
+              sortDirection={eventsSortDirection}
+              onToggleDirection={() => setEventsSortDirection(prev => prev === 'asc' ? 'desc' : 'asc')}
+              sortOptions={eventSortOptions}
+              totalCount={alertEvents.length}
+              filteredCount={filteredAndSortedEvents.length}
+            >
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
+                {(['all', 'Critical', 'Warning', 'Info'] as const).map((sev) => (
+                  <button
+                    key={sev}
+                    onClick={() => setEventsSeverityFilter(sev)}
+                    className={`px-2.5 py-1 text-xs rounded-lg font-medium transition ${
+                      eventsSeverityFilter === sev
+                        ? 'bg-brand-600 text-white'
+                        : 'bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800 hover:border-slate-700'
+                    }`}
+                  >
+                    {sev === 'all' ? 'All Severities' : sev}
+                  </button>
+                ))}
+              </div>
+            </ListFilterSortBar>
+
+            <div className="overflow-x-auto rounded-lg border border-slate-800/80">
               <table className="w-full text-left text-xs">
                 <thead className="bg-slate-950/60 text-slate-400 font-medium border-b border-slate-800">
                   <tr>
@@ -974,8 +1131,8 @@ export const ObservabilityPage: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/60">
-                  {alertEvents.length > 0 ? (
-                    alertEvents.map((ev) => (
+                  {filteredAndSortedEvents.length > 0 ? (
+                    filteredAndSortedEvents.map((ev) => (
                       <tr key={ev.id} className="hover:bg-slate-800/30 transition-colors">
                         <td className="py-3 px-4">
                           <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
@@ -1018,7 +1175,7 @@ export const ObservabilityPage: React.FC = () => {
                   ) : (
                     <tr>
                       <td colSpan={6} className="py-6 text-center text-slate-500">
-                        No alert events fired recently.
+                        {alertEvents.length === 0 ? 'No alert events fired recently.' : 'No alert events match your search query.'}
                       </td>
                     </tr>
                   )}

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { Trigger, TriggerRun, Pipeline } from '../types';
 import api from '../api/client';
+import { ListFilterSortBar } from '../components/common/ListFilterSortBar';
 import {
   Clock,
   Plus,
@@ -53,6 +54,8 @@ export const TriggersPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [activeTabFilter, setActiveTabFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState<string>('newest');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
   // Modals & Drawers
   const [showAddModal, setShowAddModal] = useState(false);
@@ -425,6 +428,33 @@ export const TriggersPage: React.FC = () => {
     return true;
   });
 
+  // Default: Newest items appear on top
+  const sortedTriggers = [...filteredTriggers].sort((a, b) => {
+    if (sortBy === 'newest') {
+      const dateA = new Date(a.created_at || a.updated_at || 0).getTime();
+      const dateB = new Date(b.created_at || b.updated_at || 0).getTime();
+      return sortDirection === 'asc' ? dateA - dateB : dateB - dateA;
+    }
+    if (sortBy === 'oldest') {
+      const dateA = new Date(a.created_at || a.updated_at || 0).getTime();
+      const dateB = new Date(b.created_at || b.updated_at || 0).getTime();
+      return sortDirection === 'asc' ? dateB - dateA : dateA - dateB;
+    }
+    if (sortBy === 'name_asc') {
+      const cmp = a.name.localeCompare(b.name);
+      return sortDirection === 'asc' ? cmp : -cmp;
+    }
+    if (sortBy === 'name_desc') {
+      const cmp = b.name.localeCompare(a.name);
+      return sortDirection === 'asc' ? cmp : -cmp;
+    }
+    if (sortBy === 'type') {
+      const cmp = (a.trigger_type || '').localeCompare(b.trigger_type || '');
+      return sortDirection === 'asc' ? cmp : -cmp;
+    }
+    return 0;
+  });
+
   const activeCount = triggers.filter((t) => t.is_active).length;
 
   return (
@@ -514,9 +544,26 @@ export const TriggersPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Filter Tabs & Search Bar */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-800 pb-3">
-        <div className="flex items-center gap-1 overflow-x-auto text-xs">
+      {/* Filter Tabs & Search & Sort Bar */}
+      <ListFilterSortBar
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        searchPlaceholder="Search triggers by name, description..."
+        currentSort={sortBy}
+        onSortChange={setSortBy}
+        sortDirection={sortDirection}
+        onToggleDirection={() => setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'))}
+        sortOptions={[
+          { id: 'newest', label: 'Newest First' },
+          { id: 'oldest', label: 'Oldest First' },
+          { id: 'name_asc', label: 'Name (A to Z)' },
+          { id: 'name_desc', label: 'Name (Z to A)' },
+          { id: 'type', label: 'Trigger Type' }
+        ]}
+        totalCount={triggers.length}
+        filteredCount={sortedTriggers.length}
+      >
+        <div className="flex items-center gap-1 overflow-x-auto text-xs bg-slate-950/70 p-1 rounded-lg border border-slate-800">
           {[
             { id: 'all', label: 'All Triggers' },
             { id: 'schedule', label: 'Schedule' },
@@ -528,9 +575,9 @@ export const TriggersPage: React.FC = () => {
             <button
               key={tab.id}
               onClick={() => setActiveTabFilter(tab.id)}
-              className={`px-3 py-1.5 rounded-lg font-medium transition ${
+              className={`px-2.5 py-1 rounded-md text-xs font-medium transition ${
                 activeTabFilter === tab.id
-                  ? 'bg-brand-600 text-white'
+                  ? 'bg-brand-600 text-white shadow-sm'
                   : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
               }`}
             >
@@ -538,18 +585,7 @@ export const TriggersPage: React.FC = () => {
             </button>
           ))}
         </div>
-
-        <div className="relative w-full md:w-64">
-          <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-500" />
-          <input
-            type="text"
-            placeholder="Search triggers..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-slate-900 border border-slate-800 rounded-lg pl-8 pr-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-brand-500"
-          />
-        </div>
-      </div>
+      </ListFilterSortBar>
 
       {/* Triggers Table */}
       <div className="bg-slate-900/80 border border-slate-800 rounded-xl overflow-hidden shadow-sm">
@@ -575,7 +611,7 @@ export const TriggersPage: React.FC = () => {
                     Loading triggers...
                   </td>
                 </tr>
-              ) : filteredTriggers.length === 0 ? (
+              ) : sortedTriggers.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="py-12 text-center text-slate-500 text-xs space-y-2">
                     <AlertCircle className="h-6 w-6 mx-auto text-slate-600 mb-1" />
@@ -589,7 +625,7 @@ export const TriggersPage: React.FC = () => {
                   </td>
                 </tr>
               ) : (
-                filteredTriggers.map((t) => {
+                sortedTriggers.map((t) => {
                   const isMenuOpen = activeDropdownTriggerId === t.id;
                   const isSelected = selectedTriggerForDetails?.id === t.id;
 

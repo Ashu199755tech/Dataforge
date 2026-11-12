@@ -7,6 +7,8 @@ from backend.app.core.database import SessionLocal
 from backend.app.models.execution import PipelineRun, ActivityRun, ExecutionLog
 from backend.app.models.pipeline import Pipeline
 from backend.app.models.runtime import IntegrationRuntime
+from backend.app.models.connection import Connection
+from backend.app.core.security import decrypt_secret
 from backend.app.services.runtime_manager import RuntimeManagerService
 from backend.app.execution.dag_engine import PipelineDAG, DAGValidationError
 from backend.app.activities.base import ActivityExecutionContext
@@ -255,6 +257,29 @@ class PipelineRunner:
                                     "pipeline_variables": pipeline_vars,
                                     "activity_outputs": activity_outputs
                                 }
+                                if isinstance(resolved_config, dict):
+                                    src_cfg = resolved_config.get("source") or {}
+                                    dst_cfg = resolved_config.get("destination") or resolved_config.get("sink") or {}
+                                    src_conn_id = src_cfg.get("connection_id") if isinstance(src_cfg, dict) else None
+                                    dst_conn_id = dst_cfg.get("connection_id") if isinstance(dst_cfg, dict) else None
+                                    if src_conn_id:
+                                        src_conn = db.query(Connection).filter(Connection.id == src_conn_id).first()
+                                        if src_conn:
+                                            task_payload["source_connection"] = {
+                                                "id": src_conn.id,
+                                                "name": src_conn.name,
+                                                "connector_type": src_conn.connector_type,
+                                                "config": decrypt_secret(src_conn.config_encrypted)
+                                            }
+                                    if dst_conn_id:
+                                        dst_conn = db.query(Connection).filter(Connection.id == dst_conn_id).first()
+                                        if dst_conn:
+                                            task_payload["destination_connection"] = {
+                                                "id": dst_conn.id,
+                                                "name": dst_conn.name,
+                                                "connector_type": dst_conn.connector_type,
+                                                "config": decrypt_secret(dst_conn.config_encrypted)
+                                            }
                                 timeout_sec = int(act_cfg.get("timeout_seconds") or 300)
                                 rt_task = RuntimeManagerService.enqueue_task(
                                     db=db,

@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAppStore } from '../store/useAppStore';
+import { ListFilterSortBar, SortOption } from '../components/common/ListFilterSortBar';
 import { 
   Rocket, 
   GitBranch, 
@@ -264,6 +265,69 @@ export const DeploymentsPage: React.FC = () => {
 
   const pendingApprovals = deployments.filter(d => d.status === 'PendingApproval');
 
+  // Search & Sort state (default newest first)
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState('newest');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'Deployed' | 'PendingApproval' | 'Failed' | 'RolledBack'>('all');
+
+  const deploymentSortOptions: SortOption[] = [
+    { id: 'newest', label: 'Newest First' },
+    { id: 'oldest', label: 'Oldest First' },
+    { id: 'version', label: 'Bundle Version' },
+    { id: 'target', label: 'Target Environment' },
+    { id: 'status', label: 'Status' },
+  ];
+
+  const filteredAndSortedDeployments = useMemo(() => {
+    const list = deployments.filter((d) => {
+      const q = searchQuery.toLowerCase().trim();
+      const matchesSearch = !q ||
+        d.bundle_version.toLowerCase().includes(q) ||
+        d.source_environment.toLowerCase().includes(q) ||
+        d.target_environment.toLowerCase().includes(q) ||
+        d.id.toLowerCase().includes(q);
+      const matchesStatus = statusFilter === 'all' || d.status === statusFilter;
+      return matchesSearch && matchesStatus;
+    });
+
+    list.sort((a, b) => {
+      let cmp = 0;
+      switch (sortBy) {
+        case 'newest': {
+          const tA = a.created_at ? new Date(a.created_at).getTime() : 0;
+          const tB = b.created_at ? new Date(b.created_at).getTime() : 0;
+          cmp = tB - tA; // default newest on top
+          break;
+        }
+        case 'oldest': {
+          const tA = a.created_at ? new Date(a.created_at).getTime() : 0;
+          const tB = b.created_at ? new Date(b.created_at).getTime() : 0;
+          cmp = tA - tB;
+          break;
+        }
+        case 'version':
+          cmp = a.bundle_version.localeCompare(b.bundle_version);
+          break;
+        case 'target':
+          cmp = a.target_environment.localeCompare(b.target_environment);
+          break;
+        case 'status':
+          cmp = a.status.localeCompare(b.status);
+          break;
+        default: {
+          const tA = a.created_at ? new Date(a.created_at).getTime() : 0;
+          const tB = b.created_at ? new Date(b.created_at).getTime() : 0;
+          cmp = tB - tA;
+          break;
+        }
+      }
+      return sortDirection === 'asc' ? -cmp : cmp;
+    });
+
+    return list;
+  }, [deployments, searchQuery, sortBy, sortDirection, statusFilter]);
+
   const getStatusBadge = (status: DeploymentRecord['status']) => {
     switch (status) {
       case 'Deployed':
@@ -489,8 +553,37 @@ export const DeploymentsPage: React.FC = () => {
 
       {/* Tab 1: Release History Table */}
       {activeTab === 'history' && (
-        <div className="bg-slate-900/60 border border-slate-800 rounded-xl overflow-hidden shadow-xl">
-          <div className="overflow-x-auto">
+        <div className="bg-slate-900/60 border border-slate-800 rounded-xl overflow-hidden shadow-xl space-y-4 p-4">
+          <ListFilterSortBar
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            searchPlaceholder="Search releases by version, environment, id..."
+            currentSort={sortBy}
+            onSortChange={setSortBy}
+            sortDirection={sortDirection}
+            onToggleDirection={() => setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc')}
+            sortOptions={deploymentSortOptions}
+            totalCount={deployments.length}
+            filteredCount={filteredAndSortedDeployments.length}
+          >
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
+              {(['all', 'Deployed', 'PendingApproval', 'Failed', 'RolledBack'] as const).map((st) => (
+                <button
+                  key={st}
+                  onClick={() => setStatusFilter(st)}
+                  className={`px-2.5 py-1 text-xs rounded-lg font-medium transition ${
+                    statusFilter === st
+                      ? 'bg-brand-600 text-white'
+                      : 'bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800 hover:border-slate-700'
+                  }`}
+                >
+                  {st === 'all' ? 'All Status' : st === 'PendingApproval' ? 'Pending Approval' : st}
+                </button>
+              ))}
+            </div>
+          </ListFilterSortBar>
+
+          <div className="overflow-x-auto rounded-lg border border-slate-800/80">
             <table className="w-full text-left text-xs">
               <thead className="bg-slate-950/80 text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800">
                 <tr>
@@ -503,8 +596,8 @@ export const DeploymentsPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/60">
-                {deployments.length > 0 ? (
-                  deployments.map((dep) => (
+                {filteredAndSortedDeployments.length > 0 ? (
+                  filteredAndSortedDeployments.map((dep) => (
                     <tr key={dep.id} className="hover:bg-slate-800/30 transition">
                       <td className="py-3 px-4">
                         <div className="font-mono font-semibold text-white flex items-center gap-1.5">
@@ -563,7 +656,19 @@ export const DeploymentsPage: React.FC = () => {
                 ) : (
                   <tr>
                     <td colSpan={6} className="py-12 text-center text-slate-500 text-xs">
-                      No release promotion history found. Click "Promote Release" to deploy changes across environments.
+                      {deployments.length === 0 ? (
+                        'No release promotion history found. Click "Promote Release" to deploy changes across environments.'
+                      ) : (
+                        <div>
+                          No releases matched your search criteria.
+                          <button
+                            onClick={() => { setSearchQuery(''); setStatusFilter('all'); }}
+                            className="block mx-auto mt-2 text-brand-400 hover:underline"
+                          >
+                            Clear filters
+                          </button>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 )}

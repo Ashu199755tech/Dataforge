@@ -144,7 +144,23 @@ export const useAppStore = create<AppState>((set, get) => ({
     } catch {}
     set({ isSidebarCollapsed: next });
   },
-  setActiveWorkspace: (ws) => set({ activeWorkspace: ws }),
+  setActiveWorkspace: async (ws) => {
+    set({ activeWorkspace: ws });
+    try {
+      const projRes = await api.get(`/workspaces/${ws.id}/projects`);
+      const projects: Project[] = projRes.data;
+      const activeProj = projects.length > 0 ? projects[0] : null;
+      set({ projects, activeProject: activeProj });
+      if (activeProj) {
+        await get().fetchConnections();
+        await get().fetchPipelines();
+      } else {
+        set({ connections: [], pipelines: [] });
+      }
+    } catch (err) {
+      console.error('Failed to load projects for workspace', err);
+    }
+  },
   setActiveProject: (proj) => {
     set({ activeProject: proj });
     get().fetchConnections();
@@ -156,14 +172,14 @@ export const useAppStore = create<AppState>((set, get) => ({
       set({ isLoading: true });
       const wsRes = await api.get('/workspaces');
       const workspaces: Workspace[] = wsRes.data;
-      const activeWs = workspaces.length > 0 ? workspaces[0] : null;
+      const activeWs = workspaces.find((w) => w.name === 'Default Enterprise Workspace') || (workspaces.length > 0 ? workspaces[0] : null);
 
       let projects: Project[] = [];
       let activeProj: Project | null = null;
       if (activeWs) {
         const projRes = await api.get(`/workspaces/${activeWs.id}/projects`);
         projects = projRes.data;
-        activeProj = projects.length > 0 ? projects[0] : null;
+        activeProj = projects.find((p) => p.name === 'Core Analytics & Ingestion') || (projects.length > 0 ? projects[0] : null);
       }
 
       set({
