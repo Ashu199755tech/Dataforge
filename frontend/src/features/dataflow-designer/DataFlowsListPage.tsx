@@ -248,8 +248,14 @@ export const DataFlowsListPage: React.FC = () => {
 
       {/* Modal: Create Data Flow */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-xl max-w-md w-full p-5 space-y-4 shadow-2xl">
+        <div 
+          className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 cursor-pointer"
+          onClick={() => setShowCreateModal(false)}
+        >
+          <div 
+            className="bg-slate-900 border border-slate-800 rounded-xl max-w-md w-full p-5 space-y-4 shadow-2xl cursor-default"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div>
               <h3 className="text-sm font-bold text-slate-100">Create New Data Flow</h3>
               <p className="text-xs text-slate-400 mt-0.5">

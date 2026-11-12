@@ -2896,8 +2896,14 @@ export const BillingPage: React.FC = () => {
 
       {/* Slide-Over Drawer: Usage Breakdown Details */}
       {selectedRunForDrawer && (
-        <div className="fixed inset-0 z-50 overflow-hidden flex justify-end bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="w-full max-w-lg bg-slate-900 border-l border-slate-800 shadow-2xl flex flex-col h-full animate-in slide-in-from-right duration-300">
+        <div 
+          className="fixed inset-0 z-50 overflow-hidden flex justify-end bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200 cursor-pointer"
+          onClick={() => setSelectedRunForDrawer(null)}
+        >
+          <div 
+            className="w-full max-w-lg bg-slate-900 border-l border-slate-800 shadow-2xl flex flex-col h-full animate-in slide-in-from-right duration-300 cursor-default"
+            onClick={(e) => e.stopPropagation()}
+          >
             {/* Drawer Header */}
             <div className="p-5 border-b border-slate-800 flex items-start justify-between">
               <div>
@@ -3054,8 +3060,14 @@ export const BillingPage: React.FC = () => {
 
       {/* INVOICE DETAILS DRAWER */}
       {selectedInvoice && !isPaymentModalOpen && (
-        <div className="fixed inset-0 z-50 overflow-hidden bg-slate-950/70 backdrop-blur-sm flex justify-end animate-in fade-in duration-200">
-          <div className="w-full max-w-xl bg-slate-900 border-l border-slate-800 h-full flex flex-col shadow-2xl animate-in slide-in-from-right duration-300">
+        <div 
+          className="fixed inset-0 z-50 overflow-hidden bg-slate-950/70 backdrop-blur-sm flex justify-end animate-in fade-in duration-200 cursor-pointer"
+          onClick={() => setSelectedInvoice(null)}
+        >
+          <div 
+            className="w-full max-w-xl bg-slate-900 border-l border-slate-800 h-full flex flex-col shadow-2xl animate-in slide-in-from-right duration-300 cursor-default"
+            onClick={(e) => e.stopPropagation()}
+          >
             {/* Header */}
             <div className="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-950/60">
               <div className="flex items-center gap-3">
@@ -3195,8 +3207,14 @@ export const BillingPage: React.FC = () => {
 
       {/* RECORD PAYMENT MODAL */}
       {isPaymentModalOpen && selectedInvoice && (
-        <div className="fixed inset-0 z-50 overflow-hidden bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+        <div 
+          className="fixed inset-0 z-50 overflow-hidden bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 cursor-pointer"
+          onClick={() => setIsPaymentModalOpen(false)}
+        >
+          <div 
+            className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 cursor-default"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-950/60">
               <h3 className="text-sm font-bold text-white flex items-center gap-2">
                 <CreditCard className="h-4 w-4 text-brand-400" />
@@ -3287,8 +3305,14 @@ export const BillingPage: React.FC = () => {
 
       {/* CREATE / EDIT BUDGET MODAL */}
       {isBudgetModalOpen && (
-        <div className="fixed inset-0 z-50 overflow-hidden bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-lg bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+        <div 
+          className="fixed inset-0 z-50 overflow-hidden bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 cursor-pointer"
+          onClick={() => setIsBudgetModalOpen(false)}
+        >
+          <div 
+            className="w-full max-w-lg bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 cursor-default"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-950/60">
               <h3 className="text-sm font-bold text-white flex items-center gap-2">
                 <Target className="h-4 w-4 text-brand-400" />
@@ -3464,8 +3488,14 @@ export const BillingPage: React.FC = () => {
 
       {/* PUBLISH PRICING VERSION MODAL */}
       {isPublishModalOpen && selectedPlanForVersion && (
-        <div className="fixed inset-0 z-50 overflow-hidden bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-xl bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+        <div 
+          className="fixed inset-0 z-50 overflow-hidden bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 cursor-pointer"
+          onClick={() => setIsPublishModalOpen(false)}
+        >
+          <div 
+            className="w-full max-w-xl bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 cursor-default"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-950/60">
               <div>
                 <h3 className="text-sm font-bold text-white flex items-center gap-2">
@@ -3623,8 +3653,14 @@ export const BillingPage: React.FC = () => {
 
       {/* BESPOKE ENTERPRISE AGREEMENT MODAL */}
       {isCustomAgreementModalOpen && (
-        <div className="fixed inset-0 z-50 overflow-hidden bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-xl bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+        <div 
+          className="fixed inset-0 z-50 overflow-hidden bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 cursor-pointer"
+          onClick={() => setIsCustomAgreementModalOpen(false)}
+        >
+          <div 
+            className="w-full max-w-xl bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 cursor-default"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-950/60">
               <h3 className="text-sm font-bold text-white flex items-center gap-2">
                 <Sparkles className="h-4 w-4 text-purple-400" />
@@ -3769,8 +3805,14 @@ export const BillingPage: React.FC = () => {
 
       {/* MANUAL INVOICE CREDIT / ADJUSTMENT MODAL */}
       {isAdjustmentModalOpen && (
-        <div className="fixed inset-0 z-50 overflow-hidden bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+        <div 
+          className="fixed inset-0 z-50 overflow-hidden bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 cursor-pointer"
+          onClick={() => setIsAdjustmentModalOpen(false)}
+        >
+          <div 
+            className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 cursor-default"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-950/60">
               <h3 className="text-sm font-bold text-white flex items-center gap-2">
                 <DollarSign className="h-4 w-4 text-emerald-400" />
@@ -3881,8 +3923,14 @@ export const BillingPage: React.FC = () => {
 
       {/* AUDIT STATE DIFF INSPECTOR MODAL */}
       {selectedAuditLogForDiff && (
-        <div className="fixed inset-0 z-50 overflow-hidden bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-2xl bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+        <div 
+          className="fixed inset-0 z-50 overflow-hidden bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 cursor-pointer"
+          onClick={() => setSelectedAuditLogForDiff(null)}
+        >
+          <div 
+            className="w-full max-w-2xl bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 cursor-default"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-950/60">
               <div>
                 <h3 className="text-sm font-bold text-white flex items-center gap-2">

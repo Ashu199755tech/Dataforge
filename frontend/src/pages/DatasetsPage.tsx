@@ -691,8 +691,14 @@ export const DatasetsPage: React.FC = () => {
 
       {/* MODAL 1: CREATE DATASET WIZARD */}
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-2xl shadow-2xl p-6 space-y-5">
+        <div 
+          className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 cursor-pointer"
+          onClick={() => setShowCreateModal(false)}
+        >
+          <div 
+            className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-2xl shadow-2xl p-6 space-y-5 cursor-default"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between border-b border-slate-800 pb-4">
               <div>
                 <h3 className="text-base font-semibold text-slate-100 flex items-center gap-2">
@@ -994,8 +1000,14 @@ export const DatasetsPage: React.FC = () => {
 
       {/* DRAWER / MODAL 2: SCHEMA VIEWER & DRIFT DETECTION */}
       {selectedDatasetForSchema && (
-        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-3xl shadow-2xl p-6 space-y-4">
+        <div 
+          className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 cursor-pointer"
+          onClick={() => setSelectedDatasetForSchema(null)}
+        >
+          <div 
+            className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-3xl shadow-2xl p-6 space-y-4 cursor-default"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between border-b border-slate-800 pb-4">
               <div>
                 <h3 className="text-base font-semibold text-slate-100 flex items-center gap-2">
@@ -1217,8 +1229,14 @@ export const DatasetsPage: React.FC = () => {
 
       {/* MODAL 3: BOUNDED DATA PREVIEW */}
       {previewDataset && (
-        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-4xl shadow-2xl p-6 space-y-4">
+        <div 
+          className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 cursor-pointer"
+          onClick={() => setPreviewDataset(null)}
+        >
+          <div 
+            className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-4xl shadow-2xl p-6 space-y-4 cursor-default"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between border-b border-slate-800 pb-4">
               <div>
                 <h3 className="text-base font-semibold text-slate-100 flex items-center gap-2">
@@ -1312,8 +1330,14 @@ export const DatasetsPage: React.FC = () => {
 
       {/* MODAL 4: USAGE & DEPENDENCY INFORMATION */}
       {usagesDataset && (
-        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-lg shadow-2xl p-6 space-y-4">
+        <div 
+          className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 cursor-pointer"
+          onClick={() => setUsagesDataset(null)}
+        >
+          <div 
+            className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-lg shadow-2xl p-6 space-y-4 cursor-default"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between border-b border-slate-800 pb-4">
               <div>
                 <h3 className="text-base font-semibold text-slate-100 flex items-center gap-2">

@@ -697,9 +697,12 @@ export const PipelinesListPage: React.FC = () => {
 
       {/* ================= PIPELINE DETAILS & ACTIONS DRAWER ================= */}
       {selectedPipeForDrawer && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-xs transition-opacity animate-fade-in">
+        <div 
+          className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-xs transition-opacity animate-fade-in cursor-pointer"
+          onClick={() => setSelectedPipeForDrawer(null)}
+        >
           <div 
-            className="w-full max-w-xl bg-slate-900 border-l border-slate-800 h-full flex flex-col justify-between shadow-2xl overflow-hidden"
+            className="w-full max-w-xl bg-slate-900 border-l border-slate-800 h-full flex flex-col justify-between shadow-2xl overflow-hidden cursor-default"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Drawer Header */}
@@ -1032,8 +1035,14 @@ export const PipelinesListPage: React.FC = () => {
 
       {/* Version History Drawer / Modal */}
       {showVersionsModal && selectedPipeForVersions && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-xl max-w-2xl w-full p-6 space-y-4 max-h-[85vh] overflow-hidden flex flex-col">
+        <div 
+          className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 cursor-pointer"
+          onClick={() => setShowVersionsModal(false)}
+        >
+          <div 
+            className="bg-slate-900 border border-slate-800 rounded-xl max-w-2xl w-full p-6 space-y-4 max-h-[85vh] overflow-hidden flex flex-col cursor-default"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between pb-3 border-b border-slate-800">
               <div className="flex items-center gap-2">
                 <History className="h-4 w-4 text-brand-400" />
@@ -1104,8 +1113,14 @@ export const PipelinesListPage: React.FC = () => {
 
       {/* Promotion Modal */}
       {showPromoteModal && selectedPipeForPromote && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-xl max-w-lg w-full p-6 space-y-4">
+        <div 
+          className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 cursor-pointer"
+          onClick={() => setShowPromoteModal(false)}
+        >
+          <div 
+            className="bg-slate-900 border border-slate-800 rounded-xl max-w-lg w-full p-6 space-y-4 cursor-default"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between pb-3 border-b border-slate-800">
               <div className="flex items-center gap-2">
                 <Send className="h-4 w-4 text-emerald-400" />
@@ -1167,8 +1182,14 @@ export const PipelinesListPage: React.FC = () => {
 
       {/* Create Pipeline Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-xl max-w-md w-full p-6 space-y-4">
+        <div 
+          className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 cursor-pointer"
+          onClick={() => setShowCreateModal(false)}
+        >
+          <div 
+            className="bg-slate-900 border border-slate-800 rounded-xl max-w-md w-full p-6 space-y-4 cursor-default"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between pb-3 border-b border-slate-800">
               <h3 className="text-sm font-semibold text-white">Create New Pipeline</h3>
               <button onClick={() => setShowCreateModal(false)} className="text-slate-400 hover:text-white">&times;</button>

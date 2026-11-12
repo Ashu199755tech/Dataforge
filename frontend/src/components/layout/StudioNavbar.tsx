@@ -105,20 +105,38 @@ export const StudioNavbar: React.FC = () => {
   const [isBranchModalOpen, setIsBranchModalOpen] = useState(false);
 
   const headerRef = useRef<HTMLElement>(null);
+  const workspaceRef = useRef<HTMLDivElement>(null);
+  const envRef = useRef<HTMLDivElement>(null);
+  const notifRef = useRef<HTMLDivElement>(null);
+  const helpRef = useRef<HTMLDivElement>(null);
+  const userRef = useRef<HTMLDivElement>(null);
 
   // Close dropdowns when clicking outside
   useEffect(() => {
-    const handleOutsideClick = (e: MouseEvent) => {
-      if (headerRef.current && !headerRef.current.contains(e.target as Node)) {
+    const handleOutsideClick = (e: MouseEvent | TouchEvent) => {
+      const target = e.target as Node;
+      if (workspaceRef.current && !workspaceRef.current.contains(target)) {
         setIsWorkspaceDropdownOpen(false);
+      }
+      if (envRef.current && !envRef.current.contains(target)) {
         setIsEnvDropdownOpen(false);
+      }
+      if (userRef.current && !userRef.current.contains(target)) {
         setIsUserMenuOpen(false);
+      }
+      if (helpRef.current && !helpRef.current.contains(target)) {
         setIsHelpOpen(false);
+      }
+      if (notifRef.current && !notifRef.current.contains(target)) {
         setIsNotificationsOpen(false);
       }
     };
     document.addEventListener('mousedown', handleOutsideClick);
-    return () => document.removeEventListener('mousedown', handleOutsideClick);
+    document.addEventListener('touchstart', handleOutsideClick);
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+      document.removeEventListener('touchstart', handleOutsideClick);
+    };
   }, []);
 
   // Global Ctrl+K / Cmd+K shortcut listener
@@ -253,7 +271,7 @@ export const StudioNavbar: React.FC = () => {
           <div className="h-4 w-[1px] bg-slate-800 mx-0.5 hidden sm:block" />
 
           {/* Workspace Switcher Dropdown */}
-          <div className="relative">
+          <div ref={workspaceRef} className="relative">
             <button
               onClick={() => {
                 setIsWorkspaceDropdownOpen(!isWorkspaceDropdownOpen);
@@ -298,7 +316,7 @@ export const StudioNavbar: React.FC = () => {
           <span className="text-slate-600 text-xs">/</span>
 
           {/* Environment Selector Dropdown */}
-          <div className="relative">
+          <div ref={envRef} className="relative">
             <button
               onClick={() => {
                 setIsEnvDropdownOpen(!isEnvDropdownOpen);
@@ -443,7 +461,7 @@ export const StudioNavbar: React.FC = () => {
           </div>
 
           {/* Notifications Center */}
-          <div className="relative">
+          <div ref={notifRef} className="relative">
             <button
               onClick={() => {
                 setIsNotificationsOpen(!isNotificationsOpen);
@@ -496,7 +514,7 @@ export const StudioNavbar: React.FC = () => {
           </div>
 
           {/* Documentation / Help */}
-          <div className="relative">
+          <div ref={helpRef} className="relative">
             <button
               onClick={() => {
                 setIsHelpOpen(!isHelpOpen);
@@ -542,7 +560,7 @@ export const StudioNavbar: React.FC = () => {
           <div className="h-4 w-[1px] bg-slate-800 mx-1" />
 
           {/* User Profile Dropdown */}
-          <div className="relative">
+          <div ref={userRef} className="relative">
             <button
               onClick={() => {
                 setIsUserMenuOpen(!isUserMenuOpen);

@@ -532,8 +532,14 @@ export const ConnectionsPage: React.FC = () => {
 
       {/* Schema Discovery Modal */}
       {selectedTables && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-xl max-w-2xl w-full p-5 space-y-4 max-h-[85vh] overflow-y-auto">
+        <div 
+          className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 cursor-pointer"
+          onClick={() => setSelectedTables(null)}
+        >
+          <div 
+            className="bg-slate-900 border border-slate-800 rounded-xl max-w-2xl w-full p-5 space-y-4 max-h-[85vh] overflow-y-auto cursor-default"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between pb-3 border-b border-slate-800">
               <div className="flex items-center gap-2">
                 <Table className="h-4 w-4 text-brand-400" />
@@ -577,8 +583,14 @@ export const ConnectionsPage: React.FC = () => {
 
       {/* Add Connection Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-xl max-w-lg w-full p-5 space-y-4 max-h-[90vh] overflow-y-auto">
+        <div 
+          className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 cursor-pointer"
+          onClick={() => setShowAddModal(false)}
+        >
+          <div 
+            className="bg-slate-900 border border-slate-800 rounded-xl max-w-lg w-full p-5 space-y-4 max-h-[90vh] overflow-y-auto cursor-default"
+            onClick={(e) => e.stopPropagation()}
+          >
             <h3 className="text-sm font-semibold text-white">Create Enterprise Connection</h3>
             <form onSubmit={handleCreateConnection} className="space-y-3 text-xs">
               <div>

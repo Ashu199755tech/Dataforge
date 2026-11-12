@@ -794,8 +794,14 @@ export const DeploymentsPage: React.FC = () => {
 
       {/* Promote Release Wizard Modal */}
       {isPromoteModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="bg-slate-900 border border-slate-800 rounded-xl max-w-3xl w-full shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 overflow-y-auto cursor-pointer"
+          onClick={() => setIsPromoteModalOpen(false)}
+        >
+          <div 
+            className="bg-slate-900 border border-slate-800 rounded-xl max-w-3xl w-full shadow-2xl overflow-hidden flex flex-col max-h-[90vh] cursor-default"
+            onClick={(e) => e.stopPropagation()}
+          >
             {/* Header */}
             <div className="px-6 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/80">
               <div className="flex items-center gap-3">
@@ -1100,8 +1106,14 @@ export const DeploymentsPage: React.FC = () => {
 
       {/* Review & Gate Modal */}
       {reviewDeployment && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="bg-slate-900 border border-slate-800 rounded-xl max-w-md w-full shadow-2xl p-6 space-y-4">
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 overflow-y-auto cursor-pointer"
+          onClick={() => setReviewDeployment(null)}
+        >
+          <div 
+            className="bg-slate-900 border border-slate-800 rounded-xl max-w-md w-full shadow-2xl p-6 space-y-4 cursor-default"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <h3 className="text-sm font-semibold text-white flex items-center gap-2">
                 <ShieldCheck className="h-4 w-4 text-brand-400" />

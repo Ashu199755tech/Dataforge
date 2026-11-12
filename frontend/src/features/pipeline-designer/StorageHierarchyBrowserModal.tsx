@@ -165,8 +165,14 @@ export const StorageHierarchyBrowserModal: React.FC<StorageBrowserModalProps> = 
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-      <div className="bg-slate-900 border border-slate-700/80 rounded-xl shadow-2xl w-full max-w-3xl flex flex-col h-[650px] overflow-hidden text-xs">
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 cursor-pointer"
+      onClick={onClose}
+    >
+      <div 
+        className="bg-slate-900 border border-slate-700/80 rounded-xl shadow-2xl w-full max-w-3xl flex flex-col h-[650px] overflow-hidden text-xs cursor-default"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-800 bg-slate-950/80">
           <div className="flex items-center gap-2.5">

@@ -1361,8 +1361,14 @@ export const ObservabilityPage: React.FC = () => {
 
       {/* CREATE ALERT RULE MODAL */}
       {showCreateAlertModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 max-w-md w-full shadow-2xl">
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 cursor-pointer"
+          onClick={() => setShowCreateAlertModal(false)}
+        >
+          <div 
+            className="bg-slate-900 border border-slate-800 rounded-xl p-6 max-w-md w-full shadow-2xl cursor-default"
+            onClick={(e) => e.stopPropagation()}
+          >
             <h3 className="text-base font-bold text-slate-100 mb-4 flex items-center gap-2">
               <Bell className="w-5 h-5 text-brand-400" />
               Create Multi-Channel Alert Rule
@@ -1476,8 +1482,14 @@ export const ObservabilityPage: React.FC = () => {
 
       {/* VIEW PAYLOAD MODAL */}
       {selectedPayloadEvent && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 max-w-lg w-full shadow-2xl">
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 cursor-pointer"
+          onClick={() => setSelectedPayloadEvent(null)}
+        >
+          <div 
+            className="bg-slate-900 border border-slate-800 rounded-xl p-6 max-w-lg w-full shadow-2xl cursor-default"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between mb-3 border-b border-slate-800 pb-2">
               <h3 className="text-xs font-bold text-slate-200 uppercase tracking-wider">
                 Alert Event Dispatch Payload

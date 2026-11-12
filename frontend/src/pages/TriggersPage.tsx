@@ -852,9 +852,12 @@ export const TriggersPage: React.FC = () => {
       {/* TRIGGER DETAILS & OPTIONS DRAWER                                  */}
       {/* ================================================================= */}
       {selectedTriggerForDetails && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-xs transition-opacity animate-fade-in">
+        <div 
+          className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-xs transition-opacity animate-fade-in cursor-pointer"
+          onClick={() => setSelectedTriggerForDetails(null)}
+        >
           <div 
-            className="w-full max-w-xl bg-slate-900 border-l border-slate-800 h-full flex flex-col justify-between shadow-2xl overflow-hidden"
+            className="w-full max-w-xl bg-slate-900 border-l border-slate-800 h-full flex flex-col justify-between shadow-2xl overflow-hidden cursor-default"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Drawer Header */}
@@ -1231,8 +1234,14 @@ export const TriggersPage: React.FC = () => {
       {/* CREATE TRIGGER WIZARD MODAL                                       */}
       {/* ================================================================= */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-slate-900 border border-slate-800 rounded-xl max-w-2xl w-full p-6 space-y-4 my-8">
+        <div 
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto cursor-pointer"
+          onClick={() => setShowAddModal(false)}
+        >
+          <div 
+            className="bg-slate-900 border border-slate-800 rounded-xl max-w-2xl w-full p-6 space-y-4 my-8 cursor-default"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between pb-3 border-b border-slate-800">
               <div className="flex items-center gap-2">
                 <Sparkles className="h-4 w-4 text-brand-400" />
@@ -1642,8 +1651,14 @@ export const TriggersPage: React.FC = () => {
       {/* TRIGGER RUN HISTORY DRAWER / MODAL                                */}
       {/* ================================================================= */}
       {showHistoryModal && selectedTriggerForHistory && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-xl max-w-4xl w-full p-6 space-y-4 max-h-[85vh] flex flex-col">
+        <div 
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 cursor-pointer"
+          onClick={() => setShowHistoryModal(false)}
+        >
+          <div 
+            className="bg-slate-900 border border-slate-800 rounded-xl max-w-4xl w-full p-6 space-y-4 max-h-[85vh] flex flex-col cursor-default"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between pb-3 border-b border-slate-800 shrink-0">
               <div className="flex items-center gap-2">
                 <History className="h-4 w-4 text-cyan-400" />

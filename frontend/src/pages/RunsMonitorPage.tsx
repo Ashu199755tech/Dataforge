@@ -976,8 +976,14 @@ export const RunsMonitorPage: React.FC = () => {
 
       {/* Diagnostics Modal / Inspector Drawer */}
       {showDiagnosticsModal && diagnosticsActivity && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-xl max-w-3xl w-full max-h-[85vh] overflow-hidden flex flex-col shadow-2xl">
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 cursor-pointer"
+          onClick={() => setShowDiagnosticsModal(false)}
+        >
+          <div 
+            className="bg-slate-900 border border-slate-800 rounded-xl max-w-3xl w-full max-h-[85vh] overflow-hidden flex flex-col shadow-2xl cursor-default"
+            onClick={(e) => e.stopPropagation()}
+          >
             {/* Modal Header */}
             <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/90">
               <div className="flex items-center gap-2">

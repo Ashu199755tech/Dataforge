@@ -662,8 +662,14 @@ export const RuntimesPage: React.FC = () => {
 
       {/* MODAL 1: CREATE INTEGRATION RUNTIME */}
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-lg shadow-2xl p-6 space-y-5">
+        <div 
+          className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 cursor-pointer"
+          onClick={() => setShowCreateModal(false)}
+        >
+          <div 
+            className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-lg shadow-2xl p-6 space-y-5 cursor-default"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between border-b border-slate-800 pb-4">
               <h3 className="text-base font-semibold text-slate-100 flex items-center gap-2">
                 <Plus className="w-4 h-4 text-brand-400" />
@@ -788,8 +794,14 @@ export const RuntimesPage: React.FC = () => {
 
       {/* MODAL 2: SETUP AGENT (LINUX / WINDOWS / CLI) */}
       {selectedRuntimeForSetup && (
-        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-2xl shadow-2xl p-6 space-y-5">
+        <div 
+          className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 cursor-pointer"
+          onClick={() => setSelectedRuntimeForSetup(null)}
+        >
+          <div 
+            className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-2xl shadow-2xl p-6 space-y-5 cursor-default"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between border-b border-slate-800 pb-4">
               <div>
                 <h3 className="text-base font-semibold text-slate-100 flex items-center gap-2">
@@ -922,8 +934,14 @@ export const RuntimesPage: React.FC = () => {
 
       {/* MODAL 3: VIEW RUNTIME TASKS */}
       {selectedRuntimeForTasks && (
-        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-3xl shadow-2xl p-6 space-y-4">
+        <div 
+          className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 cursor-pointer"
+          onClick={() => setSelectedRuntimeForTasks(null)}
+        >
+          <div 
+            className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-3xl shadow-2xl p-6 space-y-4 cursor-default"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between border-b border-slate-800 pb-4">
               <div>
                 <h3 className="text-base font-semibold text-slate-100 flex items-center gap-2">
