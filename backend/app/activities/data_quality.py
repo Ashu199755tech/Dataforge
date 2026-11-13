@@ -64,32 +64,15 @@ class DataQualityActivity(BaseActivity):
         connection_id = config.get("connection_id")
         table_name = config.get("table_name")
         file_path = config.get("file_path")
-        rules = config.get("rules", [])
-        min_score = float(config.get("min_score_threshold", 100.0))
         fail_on_error = config.get("fail_pipeline_on_error", True)
 
-        rulebook_path = config.get("rulebook_path") or config.get("rulebook_file_path")
-        if rulebook_path:
-            norm_rb = os.path.abspath(rulebook_path)
-            if os.path.exists(norm_rb):
-                with open(norm_rb, "r", encoding="utf-8") as f:
-                    if norm_rb.endswith((".yaml", ".yml")):
-                        try:
-                            import yaml
-                            rb_data = yaml.safe_load(f)
-                        except ImportError:
-                            rb_data = {}
-                    else:
-                        import json
-                        rb_data = json.load(f)
-                    if isinstance(rb_data, dict):
-                        rules = rb_data.get("rules", rules)
-                        if "min_score_threshold" in rb_data:
-                            min_score = float(rb_data["min_score_threshold"])
-                    elif isinstance(rb_data, list):
-                        rules = rb_data
-            else:
-                self.log("WARNING", f"Rulebook file '{norm_rb}' was specified but not found on disk")
+        # Resolve rules dynamically from local PC, cloud storage (S3/ADLS/GCS), or database tables (Snowflake)
+        from backend.app.dataquality.rulebook_resolver import RulebookResolver
+        rules, min_score = RulebookResolver.resolve_rules(
+            config=config,
+            db=self.db,
+            logger_fn=self.log
+        )
 
         ref_conn_id = config.get("reference_connection_id")
         ref_table = config.get("reference_table_name")

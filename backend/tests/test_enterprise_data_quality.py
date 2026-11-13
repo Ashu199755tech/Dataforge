@@ -1,4 +1,5 @@
 import os
+import json
 import tempfile
 import pytest
 import polars as pl
@@ -647,3 +648,231 @@ def test_data_quality_api_validate_with_custom_sql_and_catalog():
     finally:
         if os.path.exists(temp_csv):
             os.remove(temp_csv)
+
+
+def test_rulebook_resolver_cloud_storage_and_snowflake_table(setup_dq_db):
+    """
+    Test RulebookResolver across:
+      1. Cloud Storage (Local Storage / S3 simulation)
+      2. Direct Cloud URI (s3://...)
+      3. Cloud Data Warehouse / Snowflake table (Row-per-rule catalog)
+      4. Cloud Data Warehouse / Snowflake table (Document-in-table JSON/YAML)
+    """
+    from backend.app.models.connection import Connection
+    from backend.app.core.security import encrypt_secret
+    from backend.app.dataquality.rulebook_resolver import RulebookResolver
+
+    db = SessionLocal()
+    try:
+        proj_id = setup_dq_db["project_id"]
+
+        # -------------------------------------------------------------
+        # 1. Cloud Storage Simulation (Local storage / bucket)
+        # -------------------------------------------------------------
+        with tempfile.TemporaryDirectory() as storage_root:
+            container_dir = os.path.join(storage_root, "rules-bucket")
+            os.makedirs(container_dir, exist_ok=True)
+            rulebook_file = os.path.join(container_dir, "finance_rules.yaml")
+            with open(rulebook_file, "w") as f:
+                f.write("""
+dataset_name: orders
+min_score_threshold: 85.0
+rules:
+  - rule_name: S3 Non-Negative Total
+    rule_type: CustomSqlCheck
+    sql_condition: "total_amount >= 0"
+  - rule_name: S3 Mandatory Customer
+    rule_type: MandatoryFieldCheck
+    columns: ["customer_id"]
+""")
+
+            conn_storage = Connection(
+                project_id=proj_id,
+                name="Cloud Storage Rules Bucket",
+                connector_type="local_storage",
+                config_encrypted=encrypt_secret({"base_path": storage_root})
+            )
+            db.add(conn_storage)
+            db.commit()
+            db.refresh(conn_storage)
+
+            # Resolve using connection ID + container + key
+            rules, score = RulebookResolver.resolve_rules({
+                "rulebook_source": "cloud_storage",
+                "rulebook_connection_id": conn_storage.id,
+                "rulebook_container": "rules-bucket",
+                "rulebook_file_key": "finance_rules.yaml"
+            }, db=db)
+
+            assert len(rules) == 2
+            assert score == 85.0
+            assert rules[0]["rule_name"] == "S3 Non-Negative Total"
+            assert rules[1]["rule_name"] == "S3 Mandatory Customer"
+
+        # -------------------------------------------------------------
+        # 2. Direct Cloud URI Parsing Test
+        # -------------------------------------------------------------
+        prov, cont, key = RulebookResolver._parse_cloud_uri("s3://analytics-governance/rules/daily_dq.yaml")
+        assert prov == "aws_s3"
+        assert cont == "analytics-governance"
+        assert key == "rules/daily_dq.yaml"
+
+        prov, cont, key = RulebookResolver._parse_cloud_uri("abfss://rules-cont@myacct.dfs.core.windows.net/sales/rules.json")
+        assert prov == "azure_adls"
+        assert cont == "rules-cont"
+        assert key == "sales/rules.json"
+
+        prov, cont, key = RulebookResolver._parse_cloud_uri("gs://gcp-dq-bucket/inventory/rules.yaml")
+        assert prov == "gcp_storage"
+        assert cont == "gcp-dq-bucket"
+        assert key == "inventory/rules.yaml"
+
+        # -------------------------------------------------------------
+        # 3. Cloud Data Warehouse / Snowflake Table (Row-per-rule catalog)
+        # -------------------------------------------------------------
+        mock_snowflake_catalog = [
+            {
+                "RULE_NAME": "Snowflake Minimum Amount Check",
+                "RULE_TYPE": "CustomSqlCheck",
+                "SQL_CONDITION": "amount > 0",
+                "COLUMNS": "amount",
+                "IS_ACTIVE": True
+            },
+            {
+                "RULE_NAME": "Snowflake Mandatory User Check",
+                "RULE_TYPE": "MandatoryFieldCheck",
+                "COLUMNS": "user_id, account_id",
+                "IS_ACTIVE": True
+            },
+            {
+                "RULE_NAME": "Disabled Rule",
+                "RULE_TYPE": "CustomSqlCheck",
+                "SQL_CONDITION": "1 = 0",
+                "IS_ACTIVE": False
+            }
+        ]
+
+        conn_snowflake = Connection(
+            project_id=proj_id,
+            name="Production Snowflake Warehouse",
+            connector_type="snowflake",
+            config_encrypted=encrypt_secret({
+                "account": "xy12345.us-east-1",
+                "user": "DATA_ENGINEER",
+                "warehouse": "COMPUTE_WH",
+                "database": "ANALYTICS",
+                "schema": "GOVERNANCE",
+                "mock_mode": True,
+                "_mock_tables": {
+                    "GOVERNANCE.RULES_CATALOG": mock_snowflake_catalog,
+                    "RULES_CATALOG": mock_snowflake_catalog
+                }
+            })
+        )
+        db.add(conn_snowflake)
+        db.commit()
+        db.refresh(conn_snowflake)
+
+        rules_sf, score_sf = RulebookResolver.resolve_rules({
+            "rulebook_source": "database_table",
+            "rulebook_connection_id": conn_snowflake.id,
+            "rulebook_table_name": "RULES_CATALOG"
+        }, db=db)
+
+        # 3 rules in table, but 1 is inactive -> 2 active rules resolved
+        assert len(rules_sf) == 2
+        assert rules_sf[0]["rule_name"] == "Snowflake Minimum Amount Check"
+        assert rules_sf[0]["sql_condition"] == "amount > 0"
+        assert rules_sf[1]["rule_name"] == "Snowflake Mandatory User Check"
+        assert rules_sf[1]["columns"] == ["user_id", "account_id"]
+
+        # -------------------------------------------------------------
+        # 4. Snowflake Table (Document-in-table JSON/YAML)
+        # -------------------------------------------------------------
+        mock_doc_table = [
+            {
+                "DATASET_NAME": "orders",
+                "RULEBOOK_CONTENT": json.dumps({
+                    "min_score_threshold": 92.5,
+                    "rules": [
+                        {
+                            "rule_name": "JSON Doc Currency Check",
+                            "rule_type": "CustomSqlCheck",
+                            "sql_condition": "currency IN ('USD', 'EUR', 'INR')"
+                        }
+                    ]
+                })
+            }
+        ]
+
+        conn_sf_doc = Connection(
+            project_id=proj_id,
+            name="Snowflake Rulebook Document Store",
+            connector_type="snowflake",
+            config_encrypted=encrypt_secret({
+                "account": "xy12345.us-east-1",
+                "user": "DATA_ENGINEER",
+                "warehouse": "COMPUTE_WH",
+                "database": "ANALYTICS",
+                "schema": "GOVERNANCE",
+                "mock_mode": True,
+                "_mock_tables": {
+                    "DQ_RULEBOOKS": mock_doc_table
+                }
+            })
+        )
+        db.add(conn_sf_doc)
+        db.commit()
+        db.refresh(conn_sf_doc)
+
+        rules_doc, score_doc = RulebookResolver.resolve_rules({
+            "rulebook_source": "database_table",
+            "rulebook_connection_id": conn_sf_doc.id,
+            "rulebook_table_name": "DQ_RULEBOOKS"
+        }, db=db)
+
+        assert len(rules_doc) == 1
+        assert score_doc == 92.5
+        assert rules_doc[0]["rule_name"] == "JSON Doc Currency Check"
+
+        # -------------------------------------------------------------
+        # 5. Execute DataQualityActivity with Snowflake Rulebook
+        # -------------------------------------------------------------
+        with tempfile.NamedTemporaryFile("w", suffix=".csv", delete=False) as f_csv:
+            csv_path = f_csv.name
+            f_csv.write("amount,user_id,account_id\n100,u1,a1\n-5,u2,a2\n")
+
+        pipe = db.query(Pipeline).first()
+        run = db.query(PipelineRun).filter(PipelineRun.id == "run_dq_cloud_test").first()
+        if not run:
+            run = PipelineRun(id="run_dq_cloud_test", pipeline_id=pipe.id, status="Running")
+            db.add(run)
+            db.commit()
+
+        ctx = ActivityExecutionContext(
+            pipeline_run_id="run_dq_cloud_test",
+            activity_id="act_sf_dq",
+            activity_name="Snowflake Rulebook DQ Activity",
+            activity_type="DataQualityCheck",
+            config={
+                "file_path": csv_path,
+                "rulebook_source": "database_table",
+                "rulebook_connection_id": conn_snowflake.id,
+                "rulebook_table_name": "RULES_CATALOG",
+                "min_score_threshold": 90.0,
+                "fail_pipeline_on_error": True
+            }
+        )
+        act = DataQualityActivity(ctx, db)
+        res = act.execute()
+        # Row 2 has amount -5 <= 0, so rule fails -> status is Failed
+        assert res.status == "Failed"
+        assert res.outputs["rules_evaluated"] == 2
+        assert res.outputs["quarantine_count"] == 1
+
+        if os.path.exists(csv_path):
+            os.remove(csv_path)
+
+    finally:
+        db.close()
+

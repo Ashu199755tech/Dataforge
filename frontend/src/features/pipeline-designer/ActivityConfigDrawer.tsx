@@ -2151,22 +2151,160 @@ export const ActivityConfigDrawer: React.FC<ConfigDrawerProps> = ({
                   </div>
                 </div>
 
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="block text-slate-400 text-[11px]">Rulebook File Path (Optional JSON/YAML)</label>
-                    <DynamicContentTrigger
-                      fieldName="rulebook_path"
-                      value={config.rulebook_path || ''}
-                      onApply={(val) => updateConfig({ rulebook_path: val })}
-                    />
+                {/* Rulebook Source Selector */}
+                <div className="space-y-2 pt-2 border-t border-slate-800">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-slate-400 text-[11px] font-semibold">Rulebook Location & Source</label>
+                    <span className="text-[10px] text-purple-400 font-mono">YAML / JSON / Catalog Table</span>
                   </div>
-                  <input
-                    type="text"
-                    placeholder="/data/rules/orders_rulebook.yaml"
-                    value={config.rulebook_path || ''}
-                    onChange={(e) => updateConfig({ rulebook_path: e.target.value })}
-                    className="w-full bg-slate-900 border border-slate-700/80 rounded px-2 py-1 text-slate-200 font-mono text-[11px]"
-                  />
+
+                  <div className="grid grid-cols-3 gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800">
+                    <button
+                      type="button"
+                      onClick={() => updateConfig({ rulebook_source: 'local' })}
+                      className={`px-2 py-1 rounded text-[10px] font-medium transition text-center ${
+                        (!config.rulebook_source || config.rulebook_source === 'local')
+                          ? 'bg-purple-600/30 text-purple-300 border border-purple-500/40 shadow-xs'
+                          : 'text-slate-400 hover:text-slate-200'
+                      }`}
+                    >
+                      System PC
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => updateConfig({ rulebook_source: 'cloud_storage' })}
+                      className={`px-2 py-1 rounded text-[10px] font-medium transition text-center ${
+                        config.rulebook_source === 'cloud_storage'
+                          ? 'bg-purple-600/30 text-purple-300 border border-purple-500/40 shadow-xs'
+                          : 'text-slate-400 hover:text-slate-200'
+                      }`}
+                    >
+                      Cloud Storage (S3/ADLS/GCS)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => updateConfig({ rulebook_source: 'database_table' })}
+                      className={`px-2 py-1 rounded text-[10px] font-medium transition text-center ${
+                        config.rulebook_source === 'database_table'
+                          ? 'bg-purple-600/30 text-purple-300 border border-purple-500/40 shadow-xs'
+                          : 'text-slate-400 hover:text-slate-200'
+                      }`}
+                    >
+                      Snowflake / DB Table
+                    </button>
+                  </div>
+
+                  {(!config.rulebook_source || config.rulebook_source === 'local') && (
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-slate-400 text-[11px]">Rulebook File Path (Local / URI)</label>
+                        <DynamicContentTrigger
+                          fieldName="rulebook_path"
+                          value={config.rulebook_path || ''}
+                          onApply={(val) => updateConfig({ rulebook_path: val })}
+                        />
+                      </div>
+                      <input
+                        type="text"
+                        placeholder="/data/rules/orders_rulebook.yaml or s3://bucket/rules.yaml"
+                        value={config.rulebook_path || ''}
+                        onChange={(e) => updateConfig({ rulebook_path: e.target.value })}
+                        className="w-full bg-slate-900 border border-slate-700/80 rounded px-2 py-1 text-slate-200 font-mono text-[11px]"
+                      />
+                    </div>
+                  )}
+
+                  {config.rulebook_source === 'cloud_storage' && (
+                    <div className="space-y-2 p-2.5 bg-slate-950/70 rounded-lg border border-slate-800 text-xs">
+                      <div>
+                        <label className="block text-slate-400 mb-1 text-[11px]">Cloud Storage Connection</label>
+                        <select
+                          value={config.rulebook_connection_id || ''}
+                          onChange={(e) => updateConfig({ rulebook_connection_id: e.target.value })}
+                          className="w-full bg-slate-900 border border-slate-700/80 rounded px-2 py-1 text-slate-200 text-[11px]"
+                        >
+                          <option value="">Select S3 / ADLS / GCS / Storage Connection...</option>
+                          {connections.map((c) => (
+                            <option key={c.id} value={c.id}>{c.name} ({c.connector_type})</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-slate-400 mb-1 text-[11px]">Bucket / Container</label>
+                          <input
+                            type="text"
+                            placeholder="e.g. data-governance"
+                            value={config.rulebook_container || ''}
+                            onChange={(e) => updateConfig({ rulebook_container: e.target.value })}
+                            className="w-full bg-slate-900 border border-slate-700/80 rounded px-2 py-1 text-slate-200 font-mono text-[11px]"
+                          />
+                        </div>
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <label className="block text-slate-400 text-[11px]">File Key / Path</label>
+                            <DynamicContentTrigger
+                              fieldName="rulebook_file_key"
+                              value={config.rulebook_file_key || ''}
+                              onApply={(val) => updateConfig({ rulebook_file_key: val })}
+                            />
+                          </div>
+                          <input
+                            type="text"
+                            placeholder="rules/orders_rules.yaml"
+                            value={config.rulebook_file_key || ''}
+                            onChange={(e) => updateConfig({ rulebook_file_key: e.target.value })}
+                            className="w-full bg-slate-900 border border-slate-700/80 rounded px-2 py-1 text-slate-200 font-mono text-[11px]"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {config.rulebook_source === 'database_table' && (
+                    <div className="space-y-2 p-2.5 bg-slate-950/70 rounded-lg border border-slate-800 text-xs">
+                      <div>
+                        <label className="block text-slate-400 mb-1 text-[11px]">Warehouse / Database Connection</label>
+                        <select
+                          value={config.rulebook_connection_id || ''}
+                          onChange={(e) => updateConfig({ rulebook_connection_id: e.target.value })}
+                          className="w-full bg-slate-900 border border-slate-700/80 rounded px-2 py-1 text-slate-200 text-[11px]"
+                        >
+                          <option value="">Select Snowflake / BigQuery / DB Connection...</option>
+                          {connections.map((c) => (
+                            <option key={c.id} value={c.id}>{c.name} ({c.connector_type})</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-slate-400 mb-1 text-[11px]">Rules Table Name (Row-Catalog or Document)</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. GOVERNANCE.RULES_CATALOG"
+                          value={config.rulebook_table_name || ''}
+                          onChange={(e) => updateConfig({ rulebook_table_name: e.target.value })}
+                          className="w-full bg-slate-900 border border-slate-700/80 rounded px-2 py-1 text-slate-200 font-mono text-[11px]"
+                        />
+                      </div>
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="block text-slate-400 text-[11px]">Filter SQL Query (Optional)</label>
+                          <DynamicContentTrigger
+                            fieldName="rulebook_query"
+                            value={config.rulebook_query || ''}
+                            onApply={(val) => updateConfig({ rulebook_query: val })}
+                          />
+                        </div>
+                        <input
+                          type="text"
+                          placeholder="SELECT * FROM RULES_CATALOG WHERE dataset = 'orders' AND is_active = TRUE"
+                          value={config.rulebook_query || ''}
+                          onChange={(e) => updateConfig({ rulebook_query: e.target.value })}
+                          className="w-full bg-slate-900 border border-slate-700/80 rounded px-2 py-1 text-slate-200 font-mono text-[11px]"
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Rules List */}

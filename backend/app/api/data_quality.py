@@ -59,6 +59,12 @@ class ValidateRequest(BaseModel):
     rules: Optional[List[Dict[str, Any]]] = None
     rulebook: Optional[Dict[str, Any]] = None
     rulebook_file_path: Optional[str] = None
+    rulebook_source: Optional[str] = None
+    rulebook_connection_id: Optional[str] = None
+    rulebook_table_name: Optional[str] = None
+    rulebook_container: Optional[str] = None
+    rulebook_file_key: Optional[str] = None
+    rulebook_query: Optional[str] = None
     min_score_threshold: float = 100.0
     reference_connection_id: Optional[str] = None
     reference_table_name: Optional[str] = None
@@ -230,6 +236,21 @@ def validate_dataset(payload: ValidateRequest, db: Session = Depends(get_db)):
             )
         except Exception:
             pass
+
+    # Resolve rules dynamically from local PC, cloud storage (S3/ADLS/GCS), or database tables (Snowflake)
+    from backend.app.dataquality.rulebook_resolver import RulebookResolver
+    resolved_rules, resolved_score = RulebookResolver.resolve_rules(
+        config=payload.model_dump(),
+        db=db
+    )
+
+    if resolved_rules:
+        return DataQualityEngine.evaluate_rules(
+            df=df,
+            rules=resolved_rules,
+            min_score_threshold=resolved_score,
+            ref_df=ref_df
+        )
 
     if payload.rulebook_file_path or payload.rulebook:
         target_rulebook = payload.rulebook or payload.rulebook_file_path
