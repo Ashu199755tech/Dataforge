@@ -19,6 +19,32 @@ class DataQualityRule(Base):
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
 
 
+class DQRuleCatalogue(Base):
+    """
+    Metadata-driven Data Quality Rule Catalogue (DQ_RULE_CATALOGUE / DIM_DQ_RULE).
+    Standard ADF/Enterprise schema:
+      RULE_ID, RULE_TYPE, TARGET_COLUMN, RULE_EXPRESSION_LOGIC, TECHNICAL_DESCRIPTION, SEVERITY
+    """
+    __tablename__ = "dq_rule_catalogue"
+
+    rule_id = Column(String(50), primary_key=True)
+    rule_type = Column(String(50), nullable=False)  # ATR1-ATR8, DS1, CSQL
+    target_column = Column(String(100), nullable=True)
+    rule_expression_logic = Column(Text, nullable=True)
+    technical_description = Column(Text, nullable=True)
+    severity = Column(String(20), default="Error", nullable=False)  # Error, Warning
+    dataset_id = Column(String(100), nullable=True)
+    key_columns = Column(String(255), nullable=True)
+    placeholder_values = Column(JSON, default=list, nullable=True)
+    parameters = Column(JSON, default=dict, nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+
+
+# Alias for DIM_DQ_RULE nomenclature
+DimDQRule = DQRuleCatalogue
+
+
 class DataQualityResult(Base):
     __tablename__ = "data_quality_results"
 
@@ -72,3 +98,49 @@ class AuditLog(Base):
     resource_id = Column(String(100), nullable=True)
     details = Column(JSON, default=dict, nullable=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+
+
+class DQCleansingLog(Base):
+    """
+    Cell-level audit log recording automated remediation diffs.
+    Captures CLEANSING_ID (UUID per changed row), TABLE_NAME, COLUMN_NAME,
+    RULE_ID, STRATEGY, BEFORE_VALUE, AFTER_VALUE, and PK.
+    """
+    __tablename__ = "dq_cleansing_log"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    cleansing_id = Column(String(36), nullable=False, index=True)
+    table_name = Column(String(150), nullable=False)
+    column_name = Column(String(150), nullable=False)
+    rule_id = Column(String(50), nullable=False)
+    strategy = Column(String(50), nullable=False)
+    primary_key_values = Column(JSON, default=dict, nullable=True)
+    before_value = Column(Text, nullable=True)
+    after_value = Column(Text, nullable=True)
+    batch_id = Column(String(100), nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+
+
+class FactDQExecutionLog(Base):
+    """
+    Audit execution log for DQAssessActivity and DQEnforceActivity runs.
+    Records overall DQI, counts for clean/soft_reject/hard_reject/cleansed,
+    and rule-level metrics.
+    """
+    __tablename__ = "fact_dq_execution_log"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    pipeline_run_id = Column(String(36), nullable=True, index=True)
+    activity_run_id = Column(String(36), nullable=True, index=True)
+    activity_type = Column(String(50), nullable=False)  # DQAssessActivity, DQEnforceActivity
+    dataset_name = Column(String(150), nullable=False)
+    total_records = Column(BigInteger, default=0, nullable=False)
+    clean_records = Column(BigInteger, default=0, nullable=False)
+    soft_reject_records = Column(BigInteger, default=0, nullable=False)
+    hard_reject_records = Column(BigInteger, default=0, nullable=False)
+    cleansed_records = Column(BigInteger, default=0, nullable=False)
+    overall_dqi = Column(Float, default=1.0, nullable=False)
+    gate_passed = Column(Boolean, default=True, nullable=False)
+    rule_metrics = Column(JSON, default=dict, nullable=False)
+    executed_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+

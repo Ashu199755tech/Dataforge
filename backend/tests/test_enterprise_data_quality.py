@@ -12,7 +12,7 @@ from backend.app.models.execution import PipelineRun
 from backend.app.activities.base import ActivityExecutionContext
 from backend.app.activities.registry import activity_registry
 from backend.app.dataquality.engine import DataQualityEngine
-from backend.app.activities.data_quality import DataQualityActivity
+from backend.app.activities.dq_assess import DQAssessActivity as DataQualityActivity
 from backend.app.activities.data_profiling import DataProfilingActivity
 from backend.app.activities.reconciliation import ReconciliationActivity
 from backend.app.activities.data_masking import DataMaskingActivity

@@ -21,7 +21,7 @@ from backend.app.activities.lookup import LookupActivity
 from backend.app.activities.get_metadata import GetMetadataActivity
 from backend.app.activities.if_condition import IfConditionActivity
 from backend.app.activities.execute_pipeline import ExecutePipelineActivity
-from backend.app.activities.data_quality import DataQualityActivity
+from backend.app.activities.dq_assess import DQAssessActivity
 from backend.app.activities.reconciliation import ReconciliationActivity
 from backend.app.activities.archive import ArchiveActivity
 from backend.app.activities.web import WebActivity
@@ -529,7 +529,7 @@ def execute_scenario(
             activity_type="DataQualityCheck",
             config={"connection_id": connections["pg_conn_id"], "table_name": "e2e_scenario6_dest_ledger", "rules": [{"rule_type": "mandatory", "columns": ["tx_id", "account_no", "amount"]}, {"rule_type": "null_check", "column": "amount"}, {"rule_type": "primary_key", "column": "tx_id"}, {"rule_type": "range", "column": "amount", "min_value": 0.0}], "min_score_threshold": 95.0, "fail_on_threshold": True}
         )
-        dq_res = DataQualityActivity(dq_ctx, db).execute()
+        dq_res = DQAssessActivity(dq_ctx, db).execute()
 
         rec_ctx = ActivityExecutionContext(
             pipeline_run_id=run_id,
@@ -622,7 +622,7 @@ def execute_scenario(
             activity_type="DataQualityCheck",
             config={"connection_id": connections["mysql_conn_id"], "table_name": "e2e_scenario7_source_orders", "rules": [{"rule_type": "mandatory", "columns": ["order_id", "customer_name", "amount", "status", "updated_at"]}, {"rule_type": "primary_key", "column": "order_id"}]}
         )
-        dq_res = DataQualityActivity(dq_ctx, db).execute()
+        dq_res = DQAssessActivity(dq_ctx, db).execute()
 
         copy_ctx = ActivityExecutionContext(
             pipeline_run_id=run_id,

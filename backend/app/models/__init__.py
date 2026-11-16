@@ -11,7 +11,11 @@ from backend.app.models.data_quality import (
     DataQualityResult,
     DataProfileResult,
     ReconciliationResult,
-    AuditLog
+    AuditLog,
+    DQRuleCatalogue,
+    DimDQRule,
+    DQCleansingLog,
+    FactDQExecutionLog
 )
 from backend.app.models.alert import AlertRule, AlertEvent
 from backend.app.models.security import WorkspaceMember, Environment, SecretVaultEntry
@@ -54,6 +58,10 @@ __all__ = [
     "DataProfileResult",
     "ReconciliationResult",
     "AuditLog",
+    "DQRuleCatalogue",
+    "DimDQRule",
+    "DQCleansingLog",
+    "FactDQExecutionLog",
     "AlertRule",
     "AlertEvent",
     "WorkspaceMember",

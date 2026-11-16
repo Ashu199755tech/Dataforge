@@ -3,7 +3,8 @@ from backend.app.activities.base import BaseActivity, ActivityExecutionContext
 from backend.app.activities.registry import activity_registry, ActivityMetadata
 from backend.app.activities.copy_data import CopyDataActivity
 from backend.app.activities.sql_script import SqlScriptActivity
-from backend.app.activities.data_quality import DataQualityActivity
+from backend.app.activities.dq_assess import DQAssessActivity
+from backend.app.activities.dq_enforce import DQEnforceActivity
 from backend.app.activities.data_profiling import DataProfilingActivity
 from backend.app.activities.reconciliation import ReconciliationActivity
 from backend.app.activities.data_masking import DataMaskingActivity
@@ -101,41 +102,100 @@ def _register_builtin_activities():
         aliases=["lookupactivity"]
     )
 
-    # 3. Data Quality Check
+    # 3. Data Quality Assess (Native ADF)
     activity_registry.register(
         ActivityMetadata(
-            activity_type="DataQualityCheck",
-            display_name="Data Quality",
+            activity_type="DQAssessActivity",
+            display_name="Data Quality Assess",
             category="Data Quality & Governance",
-            description="Enforces data integrity, mandatory fields, null limits, uniqueness, ranges, dates, PII, and SLA score thresholds.",
+            description="Performs read-only validation against the Rule Catalogue, computes overall DQI, and records execution metrics in FACT_DQ_EXECUTION_LOG.",
             version="2.0.0",
             icon="ShieldCheck",
             config_schema={
                 "type": "object",
-                "required": [],
                 "properties": {
-                    "connection_id": {"type": "string"},
-                    "table_name": {"type": "string"},
-                    "file_path": {"type": "string"},
-                    "rules": {"type": "array"},
-                    "min_score_threshold": {"type": "number", "default": 100.0},
-                    "quarantine_path": {"type": "string"},
-                    "fail_pipeline_on_error": {"type": "boolean", "default": True}
+                    "sourceDataset": {"type": "object"},
+                    "ruleCatalogue": {"type": "object"},
+                    "dqiGateThreshold": {"type": "number", "default": 0.95}
                 }
             },
+            outputs=[
+                {"name": "status", "type": "string"},
+                {"name": "totalRows", "type": "int"},
+                {"name": "cleanRows", "type": "int"},
+                {"name": "softRejectRows", "type": "int"},
+                {"name": "hardRejectRows", "type": "int"},
+                {"name": "overallDQI", "type": "number"},
+                {"name": "gatePassed", "type": "boolean"},
+                {"name": "ruleMetrics", "type": "object"}
+            ],
+            supports_retry=False,
+            tags=["DataQuality", "Assess", "Governance", "DQI", "ADF"]
+        ),
+        DQAssessActivity,
+        aliases=["dq_assess", "DQAssess", "dqassess", "data_quality", "DataQuality"]
+    )
+
+    # 3a. Backward Compatibility Alias: DataQualityCheck
+    activity_registry.register(
+        ActivityMetadata(
+            activity_type="DataQualityCheck",
+            display_name="Data Quality Check",
+            category="Data Quality & Governance",
+            description="Backward-compatible DataQualityCheck activity mapped to native DQAssessActivity.",
+            version="2.0.0",
+            icon="ShieldCheck",
+            config_schema={"type": "object"},
             outputs=[
                 {"name": "dq_score", "type": "number"},
                 {"name": "overall_status", "type": "string"},
                 {"name": "rules_passed", "type": "int"},
-                {"name": "rules_failed", "type": "int"},
-                {"name": "quarantine_count", "type": "int"},
-                {"name": "rule_results", "type": "array"}
+                {"name": "rules_failed", "type": "int"}
             ],
             supports_retry=False,
-            tags=["DataQuality", "Governance", "SLA", "Validation", "PII"]
+            tags=["DataQuality", "Check", "Legacy"]
         ),
-        DataQualityActivity,
-        aliases=["dq_check", "data_quality", "DataQuality"]
+        DQAssessActivity,
+        aliases=["dq_check"]
+    )
+
+    # 3b. Data Quality Enforce
+    activity_registry.register(
+        ActivityMetadata(
+            activity_type="DQEnforceActivity",
+            display_name="Data Quality Enforce",
+            category="Data Quality & Governance",
+            description="Applies precedence-based cleansing, two-phase tagging, cell-level audit logging, and routes records to target and quarantine sinks.",
+            version="2.0.0",
+            icon="ShieldAlert",
+            config_schema={
+                "type": "object",
+                "properties": {
+                    "sourceDataset": {"type": "object"},
+                    "targetDataset": {"type": "object"},
+                    "quarantineDataset": {"type": "object"},
+                    "ruleCatalogue": {"type": "object"},
+                    "cleansingMap": {"type": "object"},
+                    "writeStrategy": {"type": "string", "enum": ["insert", "full", "merge"], "default": "merge"},
+                    "cleansingEnabled": {"type": "boolean", "default": True},
+                    "dqiGateThreshold": {"type": "number", "default": 0.95}
+                }
+            },
+            outputs=[
+                {"name": "status", "type": "string"},
+                {"name": "totalRows", "type": "int"},
+                {"name": "cleanRows", "type": "int"},
+                {"name": "softRejectRows", "type": "int"},
+                {"name": "hardRejectRows", "type": "int"},
+                {"name": "cleansedRows", "type": "int"},
+                {"name": "overallDQI", "type": "number"},
+                {"name": "gatePassed", "type": "boolean"}
+            ],
+            supports_retry=False,
+            tags=["DataQuality", "Enforce", "Cleansing", "Audit", "Remediation", "ADF"]
+        ),
+        DQEnforceActivity,
+        aliases=["dq_enforce", "DQEnforce", "dqenforce"]
     )
 
     # 4. If Condition

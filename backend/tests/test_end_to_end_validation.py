@@ -22,7 +22,7 @@ from backend.app.activities.if_condition import IfConditionActivity
 from backend.app.activities.for_each import ForEachActivity
 from backend.app.activities.archive import ArchiveActivity
 from backend.app.activities.web import WebActivity
-from backend.app.activities.data_quality import DataQualityActivity
+from backend.app.activities.dq_assess import DQAssessActivity as DataQualityActivity
 from backend.app.activities.reconciliation import ReconciliationActivity
 from backend.app.activities.execute_pipeline import ExecutePipelineActivity
 from backend.app.activities.pipeline_return_value import PipelineReturnValueActivity
