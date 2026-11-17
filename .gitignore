@@ -8,6 +8,9 @@ __pycache__/
 *.pid
 *.sock
 dataflow_metadata.db
+dataforge.db
+*.db
+data/
 *.duckdb
 scripts/run_*.py
 
