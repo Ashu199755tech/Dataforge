@@ -59,10 +59,12 @@ const DEFAULT_ACTIVITIES = [
   {
     category: 'Data Quality & Governance',
     items: [
-      { type: 'DataQualityCheck', label: 'Data Quality', icon: ShieldCheck, color: 'text-purple-400', desc: 'Enforce SLAs, rules & quarantine' },
+      { type: 'DQAssessActivity', label: 'DQ Assess', icon: ShieldCheck, color: 'text-purple-400', desc: 'Read-only rulebook audit, DQI score & gate metrics' },
+      { type: 'DQEnforceActivity', label: 'DQ Enforce', icon: ShieldAlert, color: 'text-indigo-400', desc: 'Two-phase tagging, precedence cleansing & sinks' },
       { type: 'DataProfiling', label: 'Data Profiling', icon: BarChart3, color: 'text-cyan-400', desc: 'Exhaustive column metrics & stats' },
       { type: 'Reconciliation', label: 'Reconciliation', icon: Scale, color: 'text-emerald-400', desc: 'Source-to-target parity & checksums' },
       { type: 'DataMasking', label: 'Data Masking', icon: ShieldAlert, color: 'text-rose-400', desc: 'Redact & mask sensitive PII columns' },
+      { type: 'DataQualityCheck', label: 'Legacy DQ Check', icon: ShieldCheck, color: 'text-slate-400', desc: 'Backward-compatible validation' },
     ]
   },
   {

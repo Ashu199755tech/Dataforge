@@ -47,6 +47,7 @@ import {
 } from 'lucide-react';
 import { ExpressionBuilderModal } from '../../components/common/ExpressionBuilderModal';
 import { CopyDataConfigTabs } from './CopyDataConfigTabs';
+import { DataQualityConfigTabs } from './DataQualityConfigTabs';
 
 interface ConfigDrawerProps {
   selectedNode: Node | null;
@@ -85,19 +86,28 @@ export const ActivityConfigDrawer: React.FC<ConfigDrawerProps> = ({
     normalizedType === 'sqlquery' ||
     rawActivityType.toLowerCase().includes('sql') ||
     Boolean(config.sql !== undefined);
+  const isDQActivity = 
+    rawActivityType === 'DQAssessActivity' ||
+    rawActivityType === 'DQEnforceActivity' ||
+    rawActivityType === 'DataQualityCheck' ||
+    rawActivityType === 'DataQuality' ||
+    normalizedType === 'dqassessactivity' ||
+    normalizedType === 'dqenforceactivity' ||
+    normalizedType === 'dqassess' ||
+    normalizedType === 'dqenforce';
   const activityType = isSqlScript ? 'SqlScript' : (data.activityType || data.type || 'CopyData');
   const state = data.state || 'Active';
   const retryPolicy = data.retry_policy || { max_retries: 0, retry_interval_seconds: 2 };
-  const [isExpanded, setIsExpanded] = useState(activityType === 'CopyData' || isSqlScript);
+  const [isExpanded, setIsExpanded] = useState(activityType === 'CopyData' || isSqlScript || isDQActivity);
   const [availableRuntimes, setAvailableRuntimes] = useState<any[]>([]);
   const [availableDataflows, setAvailableDataflows] = useState<any[]>([]);
 
   useEffect(() => {
     setActiveTab('config');
-    if (isSqlScript || activityType === 'CopyData') {
+    if (isSqlScript || activityType === 'CopyData' || isDQActivity) {
       setIsExpanded(true);
     }
-  }, [id, isSqlScript, activityType]);
+  }, [id, isSqlScript, activityType, isDQActivity]);
 
   useEffect(() => {
     api.get('/runtimes')
@@ -199,7 +209,15 @@ export const ActivityConfigDrawer: React.FC<ConfigDrawerProps> = ({
           <div className="flex items-center gap-2">
             <Settings2 className="h-4 w-4 text-brand-400" />
             <h3 className="text-sm font-semibold text-white">
-              {activityType === 'CopyData' ? 'Copy Data Activity (Multi-Cloud)' : activityType === 'SqlScript' ? 'SQL Script Activity' : 'Activity Properties'}
+              {activityType === 'CopyData'
+                ? 'Copy Data Activity (Multi-Cloud)'
+                : activityType === 'SqlScript'
+                ? 'SQL Script Activity'
+                : activityType === 'DQAssessActivity'
+                ? 'DQ Assess Activity (ADF-Native)'
+                : activityType === 'DQEnforceActivity'
+                ? 'DQ Enforce Activity (ADF-Native)'
+                : 'Activity Properties'}
             </h3>
           </div>
           <div className="flex items-center gap-1">
@@ -310,6 +328,35 @@ export const ActivityConfigDrawer: React.FC<ConfigDrawerProps> = ({
                 }}
                 onUpdateConfig={updateConfig}
                 onOpenExpressionBuilder={openExpressionBuilder}
+              />
+            )}
+
+            {/* DATA QUALITY ACTIVITIES (NATIVE ADF ASSESS & ENFORCE) */}
+            {isDQActivity && (
+              <DataQualityConfigTabs
+                activityId={id}
+                activityLabel={data.label || ''}
+                activityType={
+                  (activityType === 'DQEnforceActivity' || normalizedType === 'dqenforce' || normalizedType === 'dqenforceactivity')
+                    ? 'DQEnforceActivity'
+                    : 'DQAssessActivity'
+                }
+                activityDescription={data.description || ''}
+                activityState={state}
+                retryPolicy={retryPolicy}
+                config={config}
+                connections={connections}
+                onUpdateGeneral={(updates) => {
+                  const updated = {
+                    ...data,
+                    ...(updates.label !== undefined ? { label: updates.label } : {}),
+                    ...(updates.description !== undefined ? { description: updates.description } : {}),
+                    ...(updates.state !== undefined ? { state: updates.state } : {}),
+                    ...(updates.retry_policy !== undefined ? { retry_policy: updates.retry_policy } : {})
+                  };
+                  onUpdateNode(id, updated);
+                }}
+                onUpdateConfig={updateConfig}
               />
             )}
 

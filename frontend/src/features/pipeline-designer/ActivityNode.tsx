@@ -119,8 +119,15 @@ export const ActivityNode: React.FC<NodeProps> = ({ id, data, selected }) => {
         return <FolderCog className="h-4 w-4 text-amber-400" />;
       case 'Archive':
         return <Archive className="h-4 w-4 text-indigo-400" />;
+      case 'DQAssessActivity':
+      case 'DQAssess':
+      case 'dq_assess':
       case 'DataQuality':
         return <ShieldCheck className="h-4 w-4 text-purple-400" />;
+      case 'DQEnforceActivity':
+      case 'DQEnforce':
+      case 'dq_enforce':
+        return <ShieldAlert className="h-4 w-4 text-indigo-400" />;
       case 'DataProfiling':
         return <BarChart3 className="h-4 w-4 text-cyan-400" />;
       case 'Reconciliation':
@@ -328,6 +335,30 @@ export const ActivityNode: React.FC<NodeProps> = ({ id, data, selected }) => {
           <div className="truncate text-blue-400 text-[10px] flex items-center gap-1">
             <span className="text-slate-500">Filter:</span>
             <span className="font-mono truncate">{activityData.config?.condition}</span>
+          </div>
+        )}
+
+        {(activityData.activityType === 'DQAssessActivity' || activityData.activityType === 'DQAssess') && (
+          <div className="truncate text-purple-300 text-[10px] flex items-center gap-1.5">
+            <span className="px-1 py-0.5 rounded bg-purple-500/20 text-purple-300 border border-purple-500/30 font-semibold">
+              Gate: ≥ {Math.round(((activityData.config?.dqiGateThreshold ?? activityData.config?.typeProperties?.dqiGateThreshold) || 0.95) * (Number((activityData.config?.dqiGateThreshold ?? activityData.config?.typeProperties?.dqiGateThreshold) || 0.95) <= 1 ? 100 : 1))}%
+            </span>
+            <span className="truncate text-slate-400">
+              {activityData.config?.sourceDataset?.referenceName || activityData.config?.table_name || 'Audit Only'}
+            </span>
+          </div>
+        )}
+
+        {(activityData.activityType === 'DQEnforceActivity' || activityData.activityType === 'DQEnforce') && (
+          <div className="space-y-0.5">
+            <div className="truncate text-indigo-300 text-[10px] flex items-center gap-1">
+              <span className="px-1 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-semibold uppercase text-[9px]">
+                {activityData.config?.writeStrategy || activityData.config?.typeProperties?.writeStrategy || 'merge'}
+              </span>
+              <span className="text-slate-400 truncate">
+                {activityData.config?.quarantineDataset || activityData.config?.typeProperties?.quarantineDataset ? 'Dual-Sink: Target + Quarantine' : 'Single-Sink'}
+              </span>
+            </div>
           </div>
         )}
 
