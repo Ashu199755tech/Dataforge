@@ -10,6 +10,7 @@ Handles:
 """
 from __future__ import annotations
 
+import io
 import json
 import logging
 import os
@@ -69,7 +70,7 @@ def load_dataset_as_polars(
     db: Optional[Session] = None
 ) -> pl.DataFrame:
     """
-    Loads dataset from resolved config (in-memory, file, or database connector) into Polars.
+    Loads dataset from resolved config (in-memory, local file, ADLS/S3 cloud storage, or database connector) into Polars.
     """
     # 1. In-memory DataFrame or records passed directly
     if "dataframe" in cfg and isinstance(cfg["dataframe"], pl.DataFrame):
@@ -82,9 +83,75 @@ def load_dataset_as_polars(
     file_path = cfg.get("file_path") or cfg.get("path")
     connection_id = cfg.get("connection_id")
     table_name = cfg.get("table_name") or cfg.get("table")
+    container = cfg.get("container") or cfg.get("filesystem") or cfg.get("bucket")
 
-    # 2. File storage (local or mounted volume)
-    if file_path:
+    # 2. Cloud Storage or Database Connector via Connection ID
+    if connection_id and db:
+        conn_record = db.query(Connection).filter(Connection.id == connection_id).first()
+        if not conn_record:
+            raise ValueError(f"Connection ID '{connection_id}' not found")
+
+        decrypted = decrypt_secret(conn_record.config_encrypted)
+        ctype = conn_record.connector_type.lower()
+        is_cloud_storage = ctype in (
+            "azure_adls", "adls", "adls_gen2", "azure_blob", "blob",
+            "aws_s3", "s3", "gcp_storage", "gcs"
+        )
+
+        if is_cloud_storage:
+            connector = get_connector(conn_record.connector_type, decrypted)
+            target_container = container or decrypted.get("filesystem") or decrypted.get("container_name") or decrypted.get("bucket") or ""
+            target_key = file_path or table_name or ""
+            if "://" in target_key:
+                _, uri_cont, uri_key = RulebookResolver._parse_cloud_uri(target_key)
+                if uri_cont:
+                    target_container = uri_cont
+                if uri_key:
+                    target_key = uri_key
+            target_key = target_key.lstrip("/")
+
+            raw_bytes = connector.read_file(target_container, target_key)
+            byte_stream = io.BytesIO(raw_bytes)
+            fmt = (cfg.get("format") or "").lower()
+            if target_key.endswith(".parquet") or fmt == "parquet":
+                return pl.read_parquet(byte_stream)
+            elif target_key.endswith(".json") or fmt == "json":
+                return pl.read_json(byte_stream)
+            elif target_key.endswith(".avro") or fmt == "avro":
+                return pl.read_avro(byte_stream)
+            else:
+                return pl.read_csv(byte_stream)
+
+        elif table_name:
+            connector = get_connector(conn_record.connector_type, decrypted)
+            stream = connector.read_data_stream(table_name=table_name, batch_size=10000)
+            rows: List[Dict[str, Any]] = []
+            for chunk in stream:
+                rows.extend(chunk)
+            return pl.DataFrame(rows) if rows else pl.DataFrame()
+
+    # 3. Direct Cloud URI (abfss://, s3://, gs://) without explicit connection_id
+    if file_path and (file_path.startswith("abfss://") or file_path.startswith("wasbs://") or file_path.startswith("s3://") or file_path.startswith("gs://")):
+        provider, uri_cont, uri_key = RulebookResolver._parse_cloud_uri(file_path)
+        if provider and uri_cont and uri_key and db:
+            conn_record = db.query(Connection).filter(Connection.connector_type.ilike(f"%{provider}%")).first()
+            if conn_record:
+                decrypted = decrypt_secret(conn_record.config_encrypted)
+                connector = get_connector(conn_record.connector_type, decrypted)
+                raw_bytes = connector.read_file(uri_cont, uri_key)
+                byte_stream = io.BytesIO(raw_bytes)
+                fmt = (cfg.get("format") or "").lower()
+                if uri_key.endswith(".parquet") or fmt == "parquet":
+                    return pl.read_parquet(byte_stream)
+                elif uri_key.endswith(".json") or fmt == "json":
+                    return pl.read_json(byte_stream)
+                elif uri_key.endswith(".avro") or fmt == "avro":
+                    return pl.read_avro(byte_stream)
+                else:
+                    return pl.read_csv(byte_stream)
+
+    # 4. Local File storage (local or mounted volume)
+    if file_path and not ("://" in file_path):
         norm_path = os.path.abspath(file_path)
         if not os.path.exists(norm_path):
             raise FileNotFoundError(f"Source dataset file '{norm_path}' not found")
@@ -98,21 +165,6 @@ def load_dataset_as_polars(
             return pl.read_avro(norm_path)
         else:
             return pl.read_csv(norm_path)
-
-    # 3. Relational Database or Warehouse Connector
-    if connection_id and table_name and db:
-        conn_record = db.query(Connection).filter(Connection.id == connection_id).first()
-        if not conn_record:
-            raise ValueError(f"Connection ID '{connection_id}' not found")
-
-        decrypted = decrypt_secret(conn_record.config_encrypted)
-        connector = get_connector(conn_record.connector_type, decrypted)
-        stream = connector.read_data_stream(table_name=table_name, batch_size=10000)
-        rows: List[Dict[str, Any]] = []
-        for chunk in stream:
-            rows.extend(chunk)
-
-        return pl.DataFrame(rows) if rows else pl.DataFrame()
 
     return pl.DataFrame()
 
@@ -191,7 +243,37 @@ def write_polars_dataset(
 
         return len(df)
 
-    # 2. Database Connector
+    # 2. Cloud Storage Connector (ADLS Gen2 / Blob / S3 / GCS)
+    if connection_id and db:
+        conn_record = db.query(Connection).filter(Connection.id == connection_id).first()
+        if conn_record:
+            ctype = conn_record.connector_type.lower()
+            if ctype in ("azure_adls", "adls", "adls_gen2", "azure_blob", "blob", "aws_s3", "s3", "gcp_storage", "gcs"):
+                decrypted = decrypt_secret(conn_record.config_encrypted)
+                connector = get_connector(conn_record.connector_type, decrypted)
+                target_container = cfg.get("container") or cfg.get("filesystem") or cfg.get("bucket") or decrypted.get("filesystem") or decrypted.get("container_name") or ""
+                target_key = cfg.get("file_path") or cfg.get("path") or cfg.get("table_name") or "dataset.parquet"
+                if "://" in target_key:
+                    _, uri_cont, uri_key = RulebookResolver._parse_cloud_uri(target_key)
+                    if uri_cont:
+                        target_container = uri_cont
+                    if uri_key:
+                        target_key = uri_key
+                target_key = target_key.lstrip("/")
+
+                buf = io.BytesIO()
+                fmt = (cfg.get("format") or "").lower()
+                if target_key.endswith(".json") or fmt == "json":
+                    df.write_json(buf)
+                elif target_key.endswith(".csv") or fmt == "csv":
+                    df.write_csv(buf)
+                else:
+                    df.write_parquet(buf)
+
+                connector.write_file(target_container, target_key, buf.getvalue())
+                return len(df)
+
+    # 3. Database Connector
     if connection_id and table_name and db:
         conn_record = db.query(Connection).filter(Connection.id == connection_id).first()
         if not conn_record:

@@ -346,29 +346,115 @@ export const DataQualityConfigTabs: React.FC<DataQualityConfigTabsProps> = ({
                   </select>
                 </div>
 
-                {config.connection_id ? (
-                  <div>
-                    <label className="block text-slate-400 mb-1 text-[11px]">Table Name</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. bronze_customers"
-                      value={config.table_name || ''}
-                      onChange={(e) => onUpdateConfig({ table_name: e.target.value })}
-                      className="w-full bg-slate-900 border border-slate-700/80 rounded-lg px-3 py-1.5 text-slate-200 font-mono text-xs"
-                    />
-                  </div>
-                ) : (
-                  <div>
-                    <label className="block text-slate-400 mb-1 text-[11px]">Dataset File Path (Local / Volume)</label>
-                    <input
-                      type="text"
-                      placeholder="/data/raw/customers.parquet"
-                      value={config.file_path || ''}
-                      onChange={(e) => onUpdateConfig({ file_path: e.target.value })}
-                      className="w-full bg-slate-900 border border-slate-700/80 rounded-lg px-3 py-1.5 text-slate-200 font-mono text-xs"
-                    />
-                  </div>
-                )}
+                {(() => {
+                  const selectedConn = connections.find((c) => c.id === config.connection_id);
+                  const isStorageConn =
+                    selectedConn &&
+                    [
+                      'azure_adls',
+                      'adls',
+                      'adls_gen2',
+                      'azure_blob',
+                      'blob',
+                      'aws_s3',
+                      's3',
+                      'gcp_storage',
+                      'gcs'
+                    ].includes(selectedConn.connector_type.toLowerCase());
+
+                  if (isStorageConn) {
+                    return (
+                      <div className="space-y-3 col-span-full pt-1">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                          <div>
+                            <label className="block text-slate-400 mb-1 text-[11px]">
+                              Container / Filesystem
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="e.g. bronze or data-lake"
+                              value={config.container || typeProps.container || ''}
+                              onChange={(e) => {
+                                onUpdateConfig({ container: e.target.value });
+                                updateTypeProperty({ container: e.target.value });
+                              }}
+                              className="w-full bg-slate-900 border border-slate-700/80 rounded-lg px-3 py-1.5 text-slate-200 font-mono text-xs"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-slate-400 mb-1 text-[11px]">
+                              ADLS File / Directory Path
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="e.g. customers.parquet or raw/orders/"
+                              value={config.file_path || config.path || typeProps.file_path || ''}
+                              onChange={(e) => {
+                                onUpdateConfig({ file_path: e.target.value });
+                                updateTypeProperty({ file_path: e.target.value });
+                              }}
+                              className="w-full bg-slate-900 border border-slate-700/80 rounded-lg px-3 py-1.5 text-slate-200 font-mono text-xs"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-slate-400 mb-1 text-[11px]">
+                              Storage Format
+                            </label>
+                            <select
+                              value={config.format || typeProps.format || 'parquet'}
+                              onChange={(e) => {
+                                onUpdateConfig({ format: e.target.value });
+                                updateTypeProperty({ format: e.target.value });
+                              }}
+                              className="w-full bg-slate-900 border border-slate-700/80 rounded-lg px-3 py-1.5 text-slate-200 text-xs"
+                            >
+                              <option value="parquet">Parquet (Columnar)</option>
+                              <option value="delta">Delta Lake</option>
+                              <option value="csv">CSV (Delimited)</option>
+                              <option value="json">JSON</option>
+                              <option value="avro">Avro</option>
+                            </select>
+                          </div>
+                        </div>
+                        <p className="text-[10px] text-slate-500">
+                          Dataforge streams ADLS Gen2 partitions directly into vectorized Polars buffers using your encrypted Azure Service Principal, Managed Identity, or Account Key.
+                        </p>
+                      </div>
+                    );
+                  }
+
+                  if (config.connection_id) {
+                    return (
+                      <div>
+                        <label className="block text-slate-400 mb-1 text-[11px]">Table Name</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. bronze_customers"
+                          value={config.table_name || ''}
+                          onChange={(e) => onUpdateConfig({ table_name: e.target.value })}
+                          className="w-full bg-slate-900 border border-slate-700/80 rounded-lg px-3 py-1.5 text-slate-200 font-mono text-xs"
+                        />
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div>
+                      <label className="block text-slate-400 mb-1 text-[11px]">
+                        Dataset Path / Direct Cloud URI
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="abfss://container@account.dfs.core.windows.net/... or /path/file.parquet"
+                        value={config.file_path || ''}
+                        onChange={(e) => onUpdateConfig({ file_path: e.target.value })}
+                        className="w-full bg-slate-900 border border-slate-700/80 rounded-lg px-3 py-1.5 text-slate-200 font-mono text-xs"
+                      />
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* Primary Key Columns */}
