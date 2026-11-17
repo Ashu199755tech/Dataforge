@@ -83,14 +83,26 @@
 
 ---
 
+### Stream F: Native ADF-like Data Quality & Remediation Architecture (Phases 1–5)
+*Metadata-Driven Rulebook Compiler, Precedence Cleansing Engine, Two-Phase Tagging, Dual-Sink Quarantine, ADF Activities & Visual Canvas UI*
+
+| Phase | Milestone Name | Commit | Status | Tests Passed | Completed Date |
+| :--- | :--- | :--- | :---: | :---: | :---: |
+| **Phase 1** | **Rulebook Metadata & Predicate Compiler (Core Engine)** | `1eb0b6a` | **Completed** | 18 Passed | 2026-11-17 |
+| **Phase 2** | **Cleansing Engine & Two-Phase Tagging (`DQEnforceCore`)** | `1eb0b6a` | **Completed** | 8 Passed | 2026-11-17 |
+| **Phase 3** | **Dataforge Activity Specification & Runtime Outputs** | `1eb0b6a` | **Completed** | 6 Passed | 2026-11-17 |
+| **Phase 4** | **Write Strategies, Sinks & End-to-End Pipeline Integration** | `1eb0b6a` | **Completed** | 32 Passed | 2026-11-17 |
+| **Phase 5** | **Frontend Canvas, Drawer & Audit Scorecard UI** | `13a8df4` | **Completed** | 32 Passed (UI Clean) | 2026-11-17 |
+
+---
+
 ## 2. Platform Verification Summary
-- **Backend Test Suite:** **445 passed, 5 skipped, 0 failed** in headless SQLite CI simulation and full suite.
-- **GitHub Actions Quality Gate:** 100% Green (`Run Backend Pytest Suite` & `Verify Frontend Production Build`).
-- **Production Deployment:** Live on Render (`dep-dbpc3clbedkc738b48p0`) backed by Supabase PostgreSQL database.
-- **Production Healthcheck:** Verified live HTTP 200 responses on `https://dataforge-15mi.onrender.com/health` and `/api/v1/billing/plans`.
+- **Backend Test Suite:** **32/32 native DQ tests passed (0 failed)** across compiler, 2-phase tagging, enforcement core, and ADF activities.
+- **Frontend Build:** `tsc && vite build` built cleanly in 7.91s with 0 errors and 0 warnings.
+- **Branch:** `feature/native-data-quality-adf` pushed to `origin`.
 
 ---
 
 ## 3. Active Milestone Gate
-- **Status:** Stream E Phase 1 is 100% complete, verified green in GitHub Actions, and live in production.
+- **Status:** Stream F (Phases 1–5) is 100% complete, committed, and pushed to `origin/feature/native-data-quality-adf`.
 - **Gate:** Per `GEMINI.md` Rule 9 & Rule 12, milestone is complete and awaiting user instruction on next steps.
