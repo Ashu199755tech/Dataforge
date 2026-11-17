@@ -450,6 +450,107 @@ export const DataQualityConfigTabs: React.FC<DataQualityConfigTabsProps> = ({
                 </button>
               </div>
 
+              {/* Dynamic Rulebook Source Settings */}
+              {typeProps.rulebook_source === 'cloud_storage' && (
+                <div className="p-2.5 rounded-lg bg-slate-900 border border-slate-800 space-y-2">
+                  <span className="text-[10px] uppercase font-semibold text-purple-300">
+                    Cloud Storage Rulebook Source (S3 / ADLS / GCS)
+                  </span>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    <div>
+                      <label className="block text-slate-400 mb-0.5 text-[10px]">Cloud Connection</label>
+                      <select
+                        value={typeProps.rulebook_connection_id || config.rulebook_connection_id || ''}
+                        onChange={(e) => updateTypeProperty({ rulebook_connection_id: e.target.value })}
+                        className="w-full bg-slate-950 border border-slate-700/80 rounded px-2 py-1 text-slate-200 text-xs"
+                      >
+                        <option value="">Direct Cloud URI (s3://, abfss://)</option>
+                        {connections.map((c) => (
+                          <option key={c.id} value={c.id}>{c.name} ({c.connector_type})</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-slate-400 mb-0.5 text-[10px]">Bucket / Container</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. dataforge-governance"
+                        value={typeProps.rulebook_container || config.rulebook_container || ''}
+                        onChange={(e) => updateTypeProperty({ rulebook_container: e.target.value })}
+                        className="w-full bg-slate-950 border border-slate-700/80 rounded px-2 py-1 text-slate-200 font-mono text-xs"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-slate-400 mb-0.5 text-[10px]">Rulebook File Key / Path</label>
+                      <input
+                        type="text"
+                        placeholder="rules/customers.json or s3://..."
+                        value={typeProps.rulebook_file_key || config.rulebook_file_key || config.rulebook_path || ''}
+                        onChange={(e) => updateTypeProperty({ rulebook_file_key: e.target.value, rulebook_path: e.target.value })}
+                        className="w-full bg-slate-950 border border-slate-700/80 rounded px-2 py-1 text-slate-200 font-mono text-xs"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {typeProps.rulebook_source === 'snowflake' && (
+                <div className="p-2.5 rounded-lg bg-slate-900 border border-slate-800 space-y-2">
+                  <span className="text-[10px] uppercase font-semibold text-purple-300">
+                    Snowflake / Database Table Rulebook Source
+                  </span>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    <div>
+                      <label className="block text-slate-400 mb-0.5 text-[10px]">Database Connection</label>
+                      <select
+                        value={typeProps.rulebook_connection_id || config.rulebook_connection_id || ''}
+                        onChange={(e) => updateTypeProperty({ rulebook_connection_id: e.target.value })}
+                        className="w-full bg-slate-950 border border-slate-700/80 rounded px-2 py-1 text-slate-200 text-xs"
+                      >
+                        <option value="">Select Connection...</option>
+                        {connections.map((c) => (
+                          <option key={c.id} value={c.id}>{c.name} ({c.connector_type})</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-slate-400 mb-0.5 text-[10px]">Rule Table Name</label>
+                      <input
+                        type="text"
+                        placeholder="DQ_RULE_CATALOGUE"
+                        value={typeProps.rulebook_table_name || config.rulebook_table_name || ''}
+                        onChange={(e) => updateTypeProperty({ rulebook_table_name: e.target.value })}
+                        className="w-full bg-slate-950 border border-slate-700/80 rounded px-2 py-1 text-slate-200 font-mono text-xs"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-slate-400 mb-0.5 text-[10px]">Filter Query (Optional)</label>
+                      <input
+                        type="text"
+                        placeholder="WHERE DATASET_NAME = 'CUSTOMERS'"
+                        value={typeProps.rulebook_query || config.rulebook_query || ''}
+                        onChange={(e) => updateTypeProperty({ rulebook_query: e.target.value })}
+                        className="w-full bg-slate-950 border border-slate-700/80 rounded px-2 py-1 text-slate-200 font-mono text-xs"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {(!typeProps.rulebook_source || typeProps.rulebook_source === 'catalog') && (
+                <div className="p-2.5 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-between">
+                  <div>
+                    <label className="block text-slate-400 text-[10px]">ADF Catalogue Reference Name</label>
+                    <span className="text-xs font-mono text-slate-300">
+                      {typeProps.ruleCatalogue?.referenceName || 'DQ_RULE_CATALOGUE'}
+                    </span>
+                  </div>
+                  <div className="text-[10px] text-slate-500 font-mono">
+                    System Table / In-Memory Catalogue
+                  </div>
+                </div>
+              )}
+
               {/* Rules Table */}
               <div className="overflow-x-auto rounded-lg border border-slate-800/80 bg-slate-950/80">
                 <table className="w-full text-left text-xs">
